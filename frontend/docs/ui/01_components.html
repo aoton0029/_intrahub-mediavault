@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>Design System — Media Collection App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-base:      #0a0a12;
+  --bg-surface:   #12121e;
+  --bg-elevated:  #1a1a28;
+  --bg-hover:     #1f1f30;
+  --bg-overlay:   #222234;
+  --border:       #252538;
+  --border-subtle:#1c1c2c;
+  --accent:       #7c5cfc;
+  --accent-hover: #6a4ae0;
+  --accent-sub:   rgba(124,92,252,0.14);
+  --text-primary: #e2e2f0;
+  --text-sec:     #8888aa;
+  --text-muted:   #555570;
+  --success:      #22c55e;
+  --warning:      #f59e0b;
+  --error:        #ef4444;
+  --info:         #38bdf8;
+  --anime:        #ec4899;
+  --movie:        #38bdf8;
+  --manga:        #a78bfa;
+  --novel:        #34d399;
+  --game:         #fb923c;
+  --drama:        #f472b6;
+  --book:         #60a5fa;
+  --paper:        #94a3b8;
+  --radius-sm:    4px;
+  --radius:       8px;
+  --radius-lg:    12px;
+  --radius-xl:    16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0d0d18;
+  color: var(--text-primary);
+  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 40px;
+  min-width: 1440px;
+}
+h1 { font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+h2 { font-size: 20px; font-weight: 600; color: var(--text-primary); margin: 48px 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 13px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+.page-title { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.page-subtitle { color: var(--text-sec); font-size: 14px; margin-bottom: 40px; }
+.section { margin-bottom: 60px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Colors ── */
+.swatch-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch { width: 80px; }
+.swatch-color { height: 56px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.06); }
+.swatch-name { font-size: 11px; color: var(--text-sec); margin-top: 5px; }
+.swatch-value { font-size: 10px; color: var(--text-muted); font-family: monospace; }
+
+/* ── Typography ── */
+.type-row { padding: 12px 0; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: baseline; gap: 16px; }
+.type-meta { width: 120px; flex-shrink: 0; color: var(--text-muted); font-size: 11px; font-family: monospace; }
+.type-sample { color: var(--text-primary); }
+.t-h1 { font-size: 32px; font-weight: 700; }
+.t-h2 { font-size: 24px; font-weight: 600; }
+.t-h3 { font-size: 20px; font-weight: 600; }
+.t-h4 { font-size: 16px; font-weight: 600; }
+.t-body { font-size: 14px; font-weight: 400; }
+.t-sm   { font-size: 13px; font-weight: 400; }
+.t-xs   { font-size: 12px; font-weight: 400; color: var(--text-sec); }
+.t-code { font-size: 13px; font-family: monospace; background: var(--bg-elevated); padding: 2px 6px; border-radius: 4px; color: var(--accent); }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; white-space: nowrap; }
+.btn-primary { background: var(--accent); color: #fff; border-radius: var(--radius); }
+.btn-secondary { background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius); }
+.btn-ghost   { background: transparent; color: var(--text-sec); border: none; border-radius: var(--radius); }
+.btn-danger  { background: rgba(239,68,68,0.14); color: var(--error); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius); }
+.btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius); }
+.btn-success { background: rgba(34,197,94,0.14); color: var(--success); border: 1px solid rgba(34,197,94,0.3); border-radius: var(--radius); }
+.btn-lg { padding: 10px 20px; font-size: 14px; }
+.btn-md { padding: 7px 14px; font-size: 13px; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; border-radius: var(--radius-sm); }
+
+/* ── Inputs ── */
+.input-wrap { display: flex; flex-direction: column; gap: 5px; }
+.input-label { font-size: 12px; font-weight: 500; color: var(--text-sec); }
+.input { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none; }
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--text-muted); }
+.input-focused { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-sub); }
+.input-error-state { border-color: var(--error); }
+.input-search { display: flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; }
+.input-search input { background: transparent; border: none; outline: none; color: var(--text-primary); font-family: inherit; font-size: 13px; flex: 1; }
+.input-search input::placeholder { color: var(--text-muted); }
+.select { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888aa' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.textarea { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none; resize: vertical; min-height: 80px; }
+.input-error-msg { font-size: 11px; color: var(--error); }
+.input-hint { font-size: 11px; color: var(--text-muted); }
+.toggle { width: 40px; height: 22px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 11px; position: relative; cursor: pointer; flex-shrink: 0; }
+.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--text-muted); border-radius: 50%; }
+.toggle-on { background: var(--accent); border-color: var(--accent); }
+.toggle-on::after { left: 20px; background: #fff; }
+.checkbox { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border); background: var(--bg-elevated); flex-shrink: 0; }
+.checkbox-checked { background: var(--accent); border-color: var(--accent); display: flex; align-items: center; justify-content: center; }
+
+/* ── Badges / Tags ── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-anime  { background: rgba(236,72,153,0.15); color: var(--anime); }
+.badge-movie  { background: rgba(56,189,248,0.15); color: var(--movie); }
+.badge-manga  { background: rgba(167,139,250,0.15); color: var(--manga); }
+.badge-novel  { background: rgba(52,211,153,0.15); color: var(--novel); }
+.badge-game   { background: rgba(251,146,60,0.15); color: var(--game); }
+.badge-drama  { background: rgba(244,114,182,0.15); color: var(--drama); }
+.badge-book   { background: rgba(96,165,250,0.15); color: var(--book); }
+.badge-paper  { background: rgba(148,163,184,0.15); color: var(--paper); }
+.badge-success{ background: rgba(34,197,94,0.15); color: var(--success); }
+.badge-warning{ background: rgba(245,158,11,0.15); color: var(--warning); }
+.badge-error  { background: rgba(239,68,68,0.15);  color: var(--error); }
+.badge-neutral{ background: var(--bg-elevated); color: var(--text-sec); border: 1px solid var(--border); }
+
+.tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-sec); }
+.tag-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.tag-accent { border-color: rgba(124,92,252,0.4); color: var(--accent); background: var(--accent-sub); }
+.tag-removable { padding-right: 6px; }
+.tag-remove { color: var(--text-muted); cursor: pointer; font-size: 14px; line-height: 1; margin-left: 2px; }
+
+/* ── Status ── */
+.status { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.status-completed { color: var(--success); }
+.status-completed .status-dot { background: var(--success); }
+.status-in_progress { color: var(--info); }
+.status-in_progress .status-dot { background: var(--info); }
+.status-not_started { color: var(--text-muted); }
+.status-not_started .status-dot { background: var(--text-muted); }
+.status-on_hold { color: var(--warning); }
+.status-on_hold .status-dot { background: var(--warning); }
+.status-dropped { color: var(--error); }
+.status-dropped .status-dot { background: var(--error); }
+
+/* ── Rating ── */
+.rating { display: inline-flex; gap: 2px; align-items: center; }
+.star { color: var(--text-muted); font-size: 14px; }
+.star-filled { color: #f59e0b; }
+
+/* ── Cards ── */
+.card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.media-card-lg { width: 180px; flex-shrink: 0; }
+.media-card-lg .cover { height: 250px; position: relative; overflow: hidden; }
+.media-card-lg .cover-img { width: 100%; height: 100%; object-fit: cover; }
+.media-card-lg .card-body { padding: 10px 12px; }
+.media-card-lg .card-title { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; margin-bottom: 6px; }
+.media-card-sm { width: 120px; flex-shrink: 0; }
+.media-card-sm .cover { height: 170px; }
+.media-card-sm .card-body { padding: 8px 10px; }
+.media-card-sm .card-title { font-size: 12px; font-weight: 600; color: var(--text-primary); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; margin-bottom: 4px; }
+.card-fav { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
+.card-type { position: absolute; top: 8px; left: 8px; }
+
+.stat-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; width: 200px; }
+.stat-label { font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.stat-value { font-size: 32px; font-weight: 700; color: var(--text-primary); line-height: 1; margin-bottom: 6px; }
+.stat-sub { font-size: 12px; color: var(--text-sec); }
+.stat-icon { width: 36px; height: 36px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+
+/* ── Sidebar / Nav ── */
+.sidebar-demo { width: 220px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 0; }
+.sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 4px 16px 16px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 8px; }
+.logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; }
+.logo-text { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.nav-section-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; padding: 10px 16px 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; font-size: 13px; color: var(--text-sec); cursor: pointer; position: relative; }
+.nav-item svg { flex-shrink: 0; }
+.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-item.active { color: var(--accent); background: var(--accent-sub); }
+.nav-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: var(--accent); border-radius: 0 2px 2px 0; }
+.nav-separator { height: 1px; background: var(--border-subtle); margin: 8px 16px; }
+
+/* ── Table ── */
+.table-demo { width: 100%; border-collapse: collapse; }
+.table-demo th { font-size: 11px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 14px; text-align: left; background: var(--bg-elevated); border-bottom: 1px solid var(--border); }
+.table-demo td { padding: 11px 14px; font-size: 13px; color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+.table-demo tr:hover td { background: var(--bg-hover); }
+.table-thumb { width: 36px; height: 50px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+
+/* ── Modal ── */
+.modal-overlay { background: rgba(0,0,0,0.7); border-radius: var(--radius-lg); padding: 60px 40px; display: flex; align-items: center; justify-content: center; position: relative; }
+.modal { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-xl); width: 560px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+.modal-header { padding: 20px 24px 0; display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.modal-body { padding: 20px 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+.tab { padding: 9px 16px; font-size: 13px; font-weight: 500; color: var(--text-sec); cursor: pointer; position: relative; }
+.tab:hover { color: var(--text-primary); }
+.tab.active { color: var(--accent); }
+.tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--accent); border-radius: 1px 1px 0 0; }
+
+/* ── Progress ── */
+.progress-bar { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+
+/* ── Tooltip ── */
+.tooltip-demo { position: relative; display: inline-block; }
+.tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #2a2a3e; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; color: var(--text-primary); white-space: nowrap; pointer-events: none; }
+
+/* ── Cover mock ── */
+.cover-mock { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.5); }
+
+/* ── Divider ── */
+.divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+/* ── Chip filter ── */
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-sec); cursor: pointer; }
+.chip-active { background: var(--accent-sub); border-color: rgba(124,92,252,0.4); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Design System</h1>
+  <span class="badge badge-neutral">Knowledge Management System</span>
+</div>
+<p class="page-subtitle">カラーパレット・タイポグラフィ・コンポーネント一覧 / 1440px デスクトップ基準</p>
+
+<!-- ════════════ COLORS ════════════ -->
+<section class="section">
+  <h2>🎨 カラーパレット</h2>
+  <h3>背景 / サーフェス</h3>
+  <div class="swatch-grid">
+    <div class="swatch"><div class="swatch-color" style="background:#0a0a12;border:1px solid #333"></div><div class="swatch-name">bg-base</div><div class="swatch-value">#0a0a12</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#12121e"></div><div class="swatch-name">bg-surface</div><div class="swatch-value">#12121e</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#1a1a28"></div><div class="swatch-name">bg-elevated</div><div class="swatch-value">#1a1a28</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#1f1f30"></div><div class="swatch-name">bg-hover</div><div class="swatch-value">#1f1f30</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#252538"></div><div class="swatch-name">border</div><div class="swatch-value">#252538</div></div>
+  </div>
+  <div style="margin-top:20px;">
+  <h3>アクセント / テキスト</h3>
+  <div class="swatch-grid">
+    <div class="swatch"><div class="swatch-color" style="background:#7c5cfc"></div><div class="swatch-name">accent</div><div class="swatch-value">#7c5cfc</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#6a4ae0"></div><div class="swatch-name">accent-hover</div><div class="swatch-value">#6a4ae0</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#e2e2f0"></div><div class="swatch-name">text-primary</div><div class="swatch-value">#e2e2f0</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#8888aa"></div><div class="swatch-name">text-sec</div><div class="swatch-value">#8888aa</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#555570"></div><div class="swatch-name">text-muted</div><div class="swatch-value">#555570</div></div>
+  </div>
+  </div>
+  <div style="margin-top:20px;">
+  <h3>ステータス</h3>
+  <div class="swatch-grid">
+    <div class="swatch"><div class="swatch-color" style="background:#22c55e"></div><div class="swatch-name">success</div><div class="swatch-value">#22c55e</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#f59e0b"></div><div class="swatch-name">warning</div><div class="swatch-value">#f59e0b</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#ef4444"></div><div class="swatch-name">error</div><div class="swatch-value">#ef4444</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#38bdf8"></div><div class="swatch-name">info</div><div class="swatch-value">#38bdf8</div></div>
+  </div>
+  </div>
+  <div style="margin-top:20px;">
+  <h3>メディアタイプカラー</h3>
+  <div class="swatch-grid">
+    <div class="swatch"><div class="swatch-color" style="background:#ec4899"></div><div class="swatch-name">anime</div><div class="swatch-value">#ec4899</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#38bdf8"></div><div class="swatch-name">movie</div><div class="swatch-value">#38bdf8</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#a78bfa"></div><div class="swatch-name">manga</div><div class="swatch-value">#a78bfa</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#34d399"></div><div class="swatch-name">novel</div><div class="swatch-value">#34d399</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#fb923c"></div><div class="swatch-name">game</div><div class="swatch-value">#fb923c</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#f472b6"></div><div class="swatch-name">drama</div><div class="swatch-value">#f472b6</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#60a5fa"></div><div class="swatch-name">book</div><div class="swatch-value">#60a5fa</div></div>
+    <div class="swatch"><div class="swatch-color" style="background:#94a3b8"></div><div class="swatch-name">paper</div><div class="swatch-value">#94a3b8</div></div>
+  </div>
+  </div>
+</section>
+
+<!-- ════════════ TYPOGRAPHY ════════════ -->
+<section class="section">
+  <h2>🔤 タイポグラフィ</h2>
+  <div>
+    <div class="type-row"><span class="type-meta">H1 / 32px 700</span><span class="type-sample t-h1">メディアコレクション</span></div>
+    <div class="type-row"><span class="type-meta">H2 / 24px 600</span><span class="type-sample t-h2">ライブラリ管理</span></div>
+    <div class="type-row"><span class="type-meta">H3 / 20px 600</span><span class="type-sample t-h3">作品を追加する</span></div>
+    <div class="type-row"><span class="type-meta">H4 / 16px 600</span><span class="type-sample t-h4">フィールドカスタマイズ</span></div>
+    <div class="type-row"><span class="type-meta">Body / 14px 400</span><span class="type-sample t-body">京都アニメーション製作のTVアニメ。全13話。2018年放送。</span></div>
+    <div class="type-row"><span class="type-meta">Small / 13px 400</span><span class="type-sample t-sm">最終更新: 2026-03-28　ソース: AniList</span></div>
+    <div class="type-row"><span class="type-meta">XSmall / 12px sec</span><span class="type-sample t-xs">追加日 · タグ · カテゴリ</span></div>
+    <div class="type-row"><span class="type-meta">Code / 13px mono</span><span class="type-sample"><code class="t-code">media_type: anime</code></span></div>
+  </div>
+</section>
+
+<!-- ════════════ BUTTONS ════════════ -->
+<section class="section">
+  <h2>🔘 ボタン</h2>
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <div>
+      <h3>バリアント</h3>
+      <div class="row">
+        <button class="btn btn-primary btn-md">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          作品を追加
+        </button>
+        <button class="btn btn-secondary btn-md">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          API 検索
+        </button>
+        <button class="btn btn-outline btn-md">エクスポート</button>
+        <button class="btn btn-ghost btn-md">キャンセル</button>
+        <button class="btn btn-success btn-md">インポート完了</button>
+        <button class="btn btn-danger btn-md">削除</button>
+      </div>
+    </div>
+    <div>
+      <h3>サイズ</h3>
+      <div class="row" style="align-items:center">
+        <button class="btn btn-primary btn-lg">Large</button>
+        <button class="btn btn-primary btn-md">Medium</button>
+        <button class="btn btn-primary btn-sm">Small</button>
+        <button class="btn btn-secondary btn-icon" title="設定">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+      </div>
+    </div>
+    <div>
+      <h3>状態</h3>
+      <div class="row">
+        <button class="btn btn-primary btn-md" style="opacity:1">通常</button>
+        <button class="btn btn-primary btn-md" style="opacity:0.6;cursor:default">無効</button>
+        <button class="btn btn-primary btn-md" style="background:#5a3ddc">ホバー</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ INPUTS ════════════ -->
+<section class="section">
+  <h2>📝 入力フォーム</h2>
+  <div class="row" style="align-items:flex-start; flex-wrap:wrap; gap:24px;">
+    <div class="col" style="width:260px;">
+      <h3>テキスト入力</h3>
+      <div class="input-wrap">
+        <label class="input-label">タイトル</label>
+        <input class="input" type="text" placeholder="作品タイトルを入力" style="width:100%">
+        <span class="input-hint">日本語・英語どちらでも可</span>
+      </div>
+      <div class="input-wrap" style="margin-top:4px;">
+        <label class="input-label">タイトル（フォーカス中）</label>
+        <input class="input input-focused" type="text" value="ヴァイオレット・エヴァーガーデン" style="width:100%">
+      </div>
+      <div class="input-wrap" style="margin-top:4px;">
+        <label class="input-label">エラー状態</label>
+        <input class="input input-error-state" type="text" value="無効な値" style="width:100%">
+        <span class="input-error-msg">このフィールドは必須です</span>
+      </div>
+    </div>
+    <div class="col" style="width:260px;">
+      <h3>検索・選択</h3>
+      <div class="input-search" style="width:100%">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8888aa" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="タイトル・監督・タグで検索">
+      </div>
+      <div class="input-wrap" style="margin-top:10px;">
+        <label class="input-label">メディアタイプ</label>
+        <select class="select" style="width:100%">
+          <option>アニメ</option>
+          <option>映画</option>
+          <option>漫画</option>
+          <option>ゲーム</option>
+        </select>
+      </div>
+    </div>
+    <div class="col" style="width:260px;">
+      <h3>テキストエリア</h3>
+      <div class="input-wrap">
+        <label class="input-label">あらすじ</label>
+        <textarea class="textarea" style="width:100%">TVアニメ「ヴァイオレット・エヴァーガーデン」は、京都アニメーションが制作した全13話の作品。</textarea>
+      </div>
+    </div>
+    <div class="col" style="width:180px;">
+      <h3>トグル / チェック</h3>
+      <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
+        <div class="toggle"></div>
+        <span style="font-size:13px; color:var(--text-sec)">未選択</span>
+      </div>
+      <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap; margin-top:8px;">
+        <div class="toggle toggle-on"></div>
+        <span style="font-size:13px; color:var(--text-primary)">お気に入り</span>
+      </div>
+      <div style="margin-top:14px;">
+        <div class="row" style="align-items:center; gap:8px; flex-wrap:nowrap;">
+          <div class="checkbox"></div>
+          <span style="font-size:13px; color:var(--text-sec)">全選択</span>
+        </div>
+        <div class="row" style="align-items:center; gap:8px; margin-top:8px; flex-wrap:nowrap;">
+          <div class="checkbox checkbox-checked">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <span style="font-size:13px; color:var(--text-primary)">選択済み</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ BADGES / TAGS / STATUS ════════════ -->
+<section class="section">
+  <h2>🏷️ バッジ・タグ・ステータス</h2>
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <div>
+      <h3>メディアタイプバッジ</h3>
+      <div class="row">
+        <span class="badge badge-anime">アニメ</span>
+        <span class="badge badge-movie">映画</span>
+        <span class="badge badge-manga">漫画</span>
+        <span class="badge badge-novel">小説</span>
+        <span class="badge badge-game">ゲーム</span>
+        <span class="badge badge-drama">ドラマ</span>
+        <span class="badge badge-book">書籍</span>
+        <span class="badge badge-paper">論文</span>
+      </div>
+    </div>
+    <div>
+      <h3>ステータスバッジ</h3>
+      <div class="row">
+        <span class="badge badge-success">視聴済み</span>
+        <span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8">視聴中</span>
+        <span class="badge badge-neutral">未視聴</span>
+        <span class="badge badge-warning">保留中</span>
+        <span class="badge badge-error">中断</span>
+      </div>
+    </div>
+    <div>
+      <h3>タグ</h3>
+      <div class="row">
+        <span class="tag"><span class="tag-dot" style="background:#ec4899"></span>感動</span>
+        <span class="tag"><span class="tag-dot" style="background:#a78bfa"></span>名作</span>
+        <span class="tag tag-accent">お気に入り</span>
+        <span class="tag"><span class="tag-dot" style="background:#34d399"></span>京アニ</span>
+        <span class="tag tag-removable"><span class="tag-dot" style="background:#fb923c"></span>アクション<span class="tag-remove">×</span></span>
+        <span class="tag">SF</span>
+        <span class="tag"><span class="tag-dot" style="background:#38bdf8"></span>劇場版</span>
+      </div>
+    </div>
+    <div>
+      <h3>ステータスドット</h3>
+      <div class="row" style="gap:16px;">
+        <span class="status status-completed"><span class="status-dot"></span>視聴済み</span>
+        <span class="status status-in_progress"><span class="status-dot"></span>視聴中</span>
+        <span class="status status-not_started"><span class="status-dot"></span>未視聴</span>
+        <span class="status status-on_hold"><span class="status-dot"></span>保留中</span>
+        <span class="status status-dropped"><span class="status-dot"></span>中断</span>
+      </div>
+    </div>
+    <div>
+      <h3>評価 (星)</h3>
+      <div class="row" style="gap:16px;">
+        <div class="rating">
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span style="font-size:12px;color:var(--text-sec);margin-left:4px">5.0</span>
+        </div>
+        <div class="rating">
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star star-filled" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span style="font-size:12px;color:var(--text-sec);margin-left:4px">4.0</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>フィルターチップ</h3>
+      <div class="row">
+        <span class="chip chip-active">すべて</span>
+        <span class="chip"><span style="width:7px;height:7px;border-radius:50%;background:#ec4899;display:inline-block"></span>アニメ</span>
+        <span class="chip"><span style="width:7px;height:7px;border-radius:50%;background:#38bdf8;display:inline-block"></span>映画</span>
+        <span class="chip"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block"></span>漫画</span>
+        <span class="chip"><span style="width:7px;height:7px;border-radius:50%;background:#fb923c;display:inline-block"></span>ゲーム</span>
+        <span class="chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          お気に入り
+        </span>
+        <span class="chip">視聴済み</span>
+        <span class="chip">視聴中</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ CARDS ════════════ -->
+<section class="section">
+  <h2>🃏 カード</h2>
+  <div style="display:flex; flex-direction:column; gap:28px;">
+    <div>
+      <h3>メディアカード（大）</h3>
+      <div class="row">
+        <!-- Card 1 -->
+        <div class="card media-card-lg">
+          <div class="cover" style="background:linear-gradient(145deg,#1a1240,#3a1a60)">
+            <div class="cover-mock">VEG</div>
+            <div class="card-type"><span class="badge badge-anime">アニメ</span></div>
+            <div class="card-fav"><svg width="12" height="12" viewBox="0 0 24 24" fill="#ec4899" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
+          </div>
+          <div class="card-body">
+            <div class="card-title">ヴァイオレット・エヴァーガーデン</div>
+            <div class="rating" style="margin-bottom:4px">
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <span class="status status-completed"><span class="status-dot"></span>視聴済み</span>
+          </div>
+        </div>
+        <!-- Card 2 -->
+        <div class="card media-card-lg">
+          <div class="cover" style="background:linear-gradient(145deg,#0a1a30,#1a3a60)">
+            <div class="cover-mock">AoT</div>
+            <div class="card-type"><span class="badge badge-anime">アニメ</span></div>
+          </div>
+          <div class="card-body">
+            <div class="card-title">進撃の巨人 The Final Season</div>
+            <div class="rating" style="margin-bottom:4px">
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <span class="status status-in_progress"><span class="status-dot"></span>視聴中</span>
+          </div>
+        </div>
+        <!-- Card 3 -->
+        <div class="card media-card-lg">
+          <div class="cover" style="background:linear-gradient(145deg,#1a0a30,#400a5c)">
+            <div class="cover-mock">BotW</div>
+            <div class="card-type"><span class="badge badge-game">ゲーム</span></div>
+          </div>
+          <div class="card-body">
+            <div class="card-title">ゼルダの伝説 ブレス オブ ザ ワイルド</div>
+            <div class="rating" style="margin-bottom:4px">
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <span class="status status-completed"><span class="status-dot"></span>クリア済み</span>
+          </div>
+        </div>
+        <!-- Card 4 -->
+        <div class="card media-card-lg">
+          <div class="cover" style="background:linear-gradient(145deg,#0a200a,#1a4020)">
+            <div class="cover-mock">FMA</div>
+            <div class="card-type"><span class="badge badge-manga">漫画</span></div>
+          </div>
+          <div class="card-body">
+            <div class="card-title">鋼の錬金術師</div>
+            <div class="rating" style="margin-bottom:4px">
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <span class="status status-completed"><span class="status-dot"></span>読了</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>統計カード</h3>
+      <div class="row">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--accent-sub)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c5cfc" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h8"/><path d="M18 13l3 3-3 3"/></svg>
+          </div>
+          <div class="stat-label">総作品数</div>
+          <div class="stat-value">127</div>
+          <div class="stat-sub">先週比 +4</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(236,72,153,0.12)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#ec4899" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </div>
+          <div class="stat-label">お気に入り</div>
+          <div class="stat-value" style="color:#ec4899">23</div>
+          <div class="stat-sub">全体の 18%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(56,189,248,0.12)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="stat-label">視聴中</div>
+          <div class="stat-value" style="color:#38bdf8">8</div>
+          <div class="stat-sub">進行中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(34,197,94,0.12)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="stat-label">視聴済み</div>
+          <div class="stat-value" style="color:#22c55e">89</div>
+          <div class="stat-sub">完了率 70%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ NAVIGATION ════════════ -->
+<section class="section">
+  <h2>🧭 サイドバー / ナビゲーション</h2>
+  <div class="row" style="align-items:flex-start;">
+    <!-- Sidebar -->
+    <div class="sidebar-demo">
+      <div class="sidebar-logo">
+        <div class="logo-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M4 6h16M4 10h16M4 14h8"/></svg>
+        </div>
+        <span class="logo-text">MediaVault</span>
+      </div>
+      <div class="nav-section-label">メイン</div>
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        ダッシュボード
+      </div>
+      <div class="nav-separator"></div>
+            <div class="nav-section-label">ライブラリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        作品
+        <span style="margin-left:auto;background:var(--bg-elevated);color:var(--text-muted);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        論文
+        <span style="margin-left:auto;background:var(--bg-elevated);color:var(--text-muted);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600">127</span>
+      </div>
+      
+      <div class="nav-separator"></div>
+      <div class="nav-section-label">ツール</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        
+      </div>
+      <div class="nav-separator"></div>
+      <div class="nav-section-label">システム</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        設定
+      </div>
+    </div>
+    <!-- Tab navigation -->
+    <div style="flex:1">
+      <h3>タブナビゲーション</h3>
+      <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+        <div class="tabs" style="padding:0 20px;">
+          <div class="tab active">基本情報</div>
+          <div class="tab">分析コンテンツ</div>
+          <div class="tab">関連作品</div>
+          <div class="tab">エピソード</div>
+        </div>
+        <div style="padding:20px;color:var(--text-sec);font-size:13px">コンテンツエリア</div>
+      </div>
+      <div style="margin-top:20px;">
+        <h3>プログレスバー</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-sec);margin-bottom:5px;"><span>視聴進捗</span><span>70%</span></div><div class="progress-bar"><div class="progress-fill" style="width:70%"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-sec);margin-bottom:5px;"><span>アニメ</span><span>45%</span></div><div class="progress-bar"><div class="progress-fill" style="width:45%;background:#ec4899"></div></div></div>
+          <div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-sec);margin-bottom:5px;"><span>ゲーム</span><span>20%</span></div><div class="progress-bar"><div class="progress-fill" style="width:20%;background:#fb923c"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ TABLE ════════════ -->
+<section class="section">
+  <h2>📊 テーブルビュー</h2>
+  <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+    <table class="table-demo" style="width:100%">
+      <thead>
+        <tr>
+          <th style="width:36px"><div class="checkbox"></div></th>
+          <th>タイトル</th>
+          <th>メディア</th>
+          <th>ステータス</th>
+          <th>評価</th>
+          <th>追加日</th>
+          <th>タグ</th>
+          <th style="width:80px">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="checkbox checkbox-checked"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div></td>
+          <td><div style="display:flex;align-items:center;gap:10px;">
+            <div class="table-thumb" style="background:linear-gradient(145deg,#1a1240,#3a1a60);display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,0.4)">VEG</div>
+            <div><div style="font-weight:500">ヴァイオレット・エヴァーガーデン</div><div style="font-size:11px;color:var(--text-muted)">Violet Evergarden</div></div>
+          </div></td>
+          <td><span class="badge badge-anime">アニメ</span></td>
+          <td><span class="status status-completed"><span class="status-dot"></span>視聴済み</span></td>
+          <td><div class="rating"><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div></td>
+          <td style="color:var(--text-sec)">2026-01-10</td>
+          <td><div style="display:flex;gap:4px;flex-wrap:wrap;"><span class="tag" style="font-size:11px;padding:2px 7px;">名作</span><span class="tag" style="font-size:11px;padding:2px 7px;">感動</span></div></td>
+          <td><div style="display:flex;gap:4px;">
+            <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">編集</button>
+            <button class="btn btn-ghost btn-sm" style="padding:3px 6px;font-size:11px">…</button>
+          </div></td>
+        </tr>
+        <tr>
+          <td><div class="checkbox"></div></td>
+          <td><div style="display:flex;align-items:center;gap:10px;">
+            <div class="table-thumb" style="background:linear-gradient(145deg,#0a1a30,#1a3a60);display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,0.4)">AoT</div>
+            <div><div style="font-weight:500">進撃の巨人 The Final Season</div><div style="font-size:11px;color:var(--text-muted)">Attack on Titan Final Season</div></div>
+          </div></td>
+          <td><span class="badge badge-anime">アニメ</span></td>
+          <td><span class="status status-in_progress"><span class="status-dot"></span>視聴中</span></td>
+          <td><div class="rating"><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div></td>
+          <td style="color:var(--text-sec)">2026-02-14</td>
+          <td><div style="display:flex;gap:4px;flex-wrap:wrap;"><span class="tag" style="font-size:11px;padding:2px 7px;">アクション</span></div></td>
+          <td><div style="display:flex;gap:4px;">
+            <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">編集</button>
+            <button class="btn btn-ghost btn-sm" style="padding:3px 6px;font-size:11px">…</button>
+          </div></td>
+        </tr>
+        <tr>
+          <td><div class="checkbox"></div></td>
+          <td><div style="display:flex;align-items:center;gap:10px;">
+            <div class="table-thumb" style="background:linear-gradient(145deg,#1a1020,#3a2050);display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,0.4)">君名</div>
+            <div><div style="font-weight:500">君の名は。</div><div style="font-size:11px;color:var(--text-muted)">Your Name</div></div>
+          </div></td>
+          <td><span class="badge badge-movie">映画</span></td>
+          <td><span class="status status-completed"><span class="status-dot"></span>視聴済み</span></td>
+          <td><div class="rating"><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><svg class="star star-filled" width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div></td>
+          <td style="color:var(--text-sec)">2025-11-22</td>
+          <td><div style="display:flex;gap:4px;flex-wrap:wrap;"><span class="tag" style="font-size:11px;padding:2px 7px;">新海誠</span><span class="tag" style="font-size:11px;padding:2px 7px;">感動</span></div></td>
+          <td><div style="display:flex;gap:4px;">
+            <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">編集</button>
+            <button class="btn btn-ghost btn-sm" style="padding:3px 6px;font-size:11px">…</button>
+          </div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ════════════ MODAL ════════════ -->
+<section class="section">
+  <h2>🗔 モーダル / ダイアログ</h2>
+  <div class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">作品を追加 — API 検索</span>
+        <button class="btn btn-ghost btn-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="tabs" style="padding:0 24px;border-bottom:1px solid var(--border);margin-top:16px;">
+        <div class="tab active">API 検索</div>
+        <div class="tab">手動追加</div>
+      </div>
+      <div class="modal-body">
+        <div class="input-search" style="margin-bottom:16px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8888aa" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="作品タイトルで検索... (例: 進撃の巨人)" style="flex:1">
+          <select class="select" style="border:none;background:transparent;padding:0 20px 0 0;font-size:13px;color:var(--text-sec)"><option>AniList</option></select>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);text-align:center;padding:20px">検索結果がここに表示されます</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-md">キャンセル</button>
+        <button class="btn btn-primary btn-md">追加する</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
