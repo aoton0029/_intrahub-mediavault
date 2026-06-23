@@ -12,9 +12,50 @@ cargo add tower
 cargo add tower-http --features cors
 ```
 
+### Docker Compose（Postgres + アプリ）
+`backend/.env.example` を `backend/.env` にコピーし、必要に応じて値を変更する。
+
+```
+cd backend
+cp .env.example .env
+docker compose up -d db          # Postgresコンテナのみ起動（開発時）
+docker compose ps                # healthyになっていることを確認
+docker compose up -d             # アプリコンテナも含めて起動
+```
+
+`.env` はリポジトリにコミットしない（`.gitignore` で除外済み）。
+
 ## frontend
 ```
 cd frontend
 yarn create vite . --template react-ts
 yarn install
+```
+
+## 詳細
+- バックエンドの詳細草案（機能要件・内部REST API・データベース・api-client-lib）は[backend/docs/PRD.md](../backend/docs/PRD.md)を参照。
+- フロントエンドの詳細草案（UI機能要件・画面構成）は[frontend/docs/PRD.md](../frontend/docs/PRD.md)を参照。
+
+- 映画・アニメ・漫画・小説・ドラマ・ゲーム・論文/文献・書籍等のメタデータを一元管理するセルフホスト型アプリケーション。
+- コンテナは`selfhosted-net`・`db-net`([PostgreSQL](../PostgreSQL/README.md)利用)・`ai-net`([RAG-Service](../RAG-Service/README.md)の`POST /ingest`呼び出し用)に参加する。Caddy経由(`app.home.lan`)で公開するため`proxy-net`にも参加し、ホスト直接ポート公開は行わない。
+- アップロードファイルはコンテナ内ではなくファイルサーバー用HDDへ直接保存する（バインドマウント）。
+  - PDF: `/srv/files/pdf`（[Calibre-Web](../Calibre-Web/README.md)のライブラリパスと共用）。アップロードされたPDFはCalibre-Webからも自動でライブラリ認識され、MediaVault側の作品詳細にCalibre-Webの閲覧URL(`calibre.home.lan`)へのリンクを保持して直接遷移できるようにする。
+  - 画像: `/srv/media/photos`（Jellyfin/Sambaの`photos`共有と同一パスを共用）。
+  - OCRテキスト: `/srv/files/ocr`（[RAG-Service](../RAG-Service/README.md)が`/ingest`処理時に書き込み、レスポンスで受け取った`ocr_text_path`をPostgreSQLに保存し、作品詳細から参照する）。
+
+```yaml
+# selfhosted/docker-compose.yml (例)
+services:
+  mediavault:
+    image: <未定>
+    networks:
+      - selfhosted-net
+      - db-net      # PostgreSQL利用
+      - ai-net      # RAG-Service呼び出し(PDF全文ベクトル化トリガー)
+      - proxy-net   # Caddy経由で公開
+    volumes:
+      - /srv/files/pdf:/data/pdf      # PDFアップロード保存先（Calibre-Webと共用）
+      - /srv/media/photos:/data/photos  # 画像アップロード保存先（Samba/Jellyfin photosと共用）
+      - /srv/files/ocr:/data/ocr:ro     # OCRテキスト参照用（RAG-Serviceが書き込み、本サービスは読み取り専用）
+    # ports: ホスト直接公開はしない方針。Caddy経由(app.home.lan)とする
 ```

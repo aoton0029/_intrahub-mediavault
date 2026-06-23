@@ -58,13 +58,13 @@
 
 ### タスク一覧
 
-- [ ] [TASK-0001: Cargo workspaceへのmediavault-apiクレート追加と依存パッケージ設定](TASK-0001.md) - 4h (DIRECT) 🔵
-- [ ] [TASK-0002: docker-compose.yml作成（Postgresコンテナ＋アプリコンテナ）](TASK-0002.md) - 3h (DIRECT) 🔵
-- [ ] [TASK-0003: sqlx-cli導入と初期マイグレーション作成（ENUM型＋items＋詳細テーブル）](TASK-0003.md) - 6h (DIRECT) 🔵
-- [ ] [TASK-0004: 残りのマイグレーション作成（関連テーブル群・トリガー）](TASK-0004.md) - 6h (DIRECT) 🔵
-- [ ] [TASK-0005: 共通エラー型・統一APIレスポンス実装](TASK-0005.md) - 4h (TDD) 🟡
-- [ ] [TASK-0006: 内部API用APIキー検証ミドルウェア実装](TASK-0006.md) - 4h (TDD) 🔵
-- [ ] [TASK-0007: Axumルーター骨格・DB接続プール設定・main.rs実装](TASK-0007.md) - 4h (DIRECT) 🔵
+- [x] [TASK-0001: Cargo workspaceへのmediavault-apiクレート追加と依存パッケージ設定](TASK-0001.md) - 4h (DIRECT) 🔵
+- [x] [TASK-0002: docker-compose.yml作成（Postgresコンテナ＋アプリコンテナ）](TASK-0002.md) - 3h (DIRECT) 🔵 ✅完了 (2026-06-23)
+- [x] [TASK-0003: sqlx-cli導入と初期マイグレーション作成（ENUM型＋items＋詳細テーブル）](TASK-0003.md) - 6h (DIRECT) 🔵 ✅完了 (2026-06-23)
+- [x] [TASK-0004: 残りのマイグレーション作成（関連テーブル群・トリガー）](TASK-0004.md) - 6h (DIRECT) 🔵 ✅完了 (2026-06-23)
+- [x] [TASK-0005: 共通エラー型・統一APIレスポンス実装](TASK-0005.md) - 4h (TDD) 🟡 ✅完了 (2026-06-23)
+- [x] [TASK-0006: 内部API用APIキー検証ミドルウェア実装](TASK-0006.md) - 4h (TDD) 🔵 ✅完了 (2026-06-23)
+- [x] [TASK-0007: Axumルーター骨格・DB接続プール設定・main.rs実装](TASK-0007.md) - 4h (DIRECT) 🔵 ✅完了 (2026-06-23)
 
 ### 依存関係
 
@@ -84,10 +84,10 @@ TASK-0001, TASK-0003 → TASK-0007 → Phase2全タスク
 
 ### タスク一覧
 
-- [ ] [TASK-0008: itemsモデル・リクエストDTO・バリデーション実装](TASK-0008.md) - 6h (TDD) 🔵
-- [ ] [TASK-0009: POST /items（手動作成）実装](TASK-0009.md) - 4h (TDD) 🔵
-- [ ] [TASK-0010: GET /items一覧・絞り込み実装](TASK-0010.md) - 6h (TDD) 🔵
-- [ ] [TASK-0011: GET /items/:id 詳細取得実装](TASK-0011.md) - 4h (TDD) 🟡
+- [x] [TASK-0008: itemsモデル・リクエストDTO・バリデーション実装](TASK-0008.md) - 6h (TDD) 🔵 ✅完了 (2026-06-23)
+- [x] [TASK-0009: POST /items（手動作成）実装](TASK-0009.md) - 4h (TDD) 🔵 ✅完了 (2026-06-23)
+- [x] [TASK-0010: GET /items一覧・絞り込み実装](TASK-0010.md) - 6h (TDD) 🔵 ✅完了 (2026-06-23)
+- [x] [TASK-0011: GET /items/:id 詳細取得実装](TASK-0011.md) - 4h (TDD) 🟡 ✅完了 (2026-06-23)
 - [ ] [TASK-0012: PATCH /items/:id 部分更新実装](TASK-0012.md) - 4h (TDD) 🔵
 - [ ] [TASK-0013: DELETE /items/:id 実装（カスケード削除）](TASK-0013.md) - 4h (TDD) 🔵
 - [ ] [TASK-0014: PATCH /items/:id/status 実装](TASK-0014.md) - 3h (TDD) 🔵

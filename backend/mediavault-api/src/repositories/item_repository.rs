@@ -1,0 +1,1541 @@
+//! items / メディア別詳細テーブルのDB操作
+//!
+//! TASK-0009: POST /items（手動作成）実装
+
+use sqlx::{PgPool, Postgres, QueryBuilder};
+use uuid::Uuid;
+
+use crate::models::item::{
+    has_any_update_field, CategoryRef, CreateItemRequest, Item, ListItemsQuery, MediaType, TagRef,
+    UpdateItemRequest,
+};
+use crate::models::response::{ApiError, ApiErrorCode};
+
+/// 【機能概要】: `media_type`に対応する詳細テーブル名を返す
+/// 【実装方針】: database-schema.sqlで定義された8つの詳細テーブルへmatch式で振り分ける
+/// 【テスト対応】: detail_table_name_for_* の8テストケースを通すための実装
+/// 🔵 信頼性レベル: database-schema.sqlのテーブル定義に直接対応
+pub fn detail_table_name(media_type: MediaType) -> &'static str {
+    // 【振り分け処理】: media_typeのバリアントごとに対応する詳細テーブル名を返す 🔵
+    match media_type {
+        MediaType::Anime => "anime_details",
+        MediaType::Movie => "movie_details",
+        MediaType::Drama => "drama_details",
+        MediaType::Manga => "manga_details",
+        MediaType::Novel => "novel_details",
+        MediaType::Game => "game_details",
+        MediaType::AcademicBook => "academic_book_details",
+        MediaType::Paper => "paper_details",
+    }
+}
+
+/// 【機能概要】: sqlxのDBエラーを統一エラー型（INTERNAL_ERROR）へ変換する
+/// 【改善内容】: 元のSQLエラー詳細（テーブル構造・制約名等の内部情報）をクライアントへの
+/// レスポンスに含めず、サーバーログにのみ出力するよう変更した
+/// 【設計方針】: DB内部実装の詳細が外部に漏洩するとスキーマ推測等の攻撃材料になり得るため、
+/// クライアント向けメッセージは固定の汎用文言とし、詳細は`tracing::error!`でログ出力に留める
+/// 🟡 信頼性レベル: エラーコード一覧（response.rs）から妥当な推測、漏洩対策はセキュリティレビューに基づく改善
+fn db_error(err: sqlx::Error) -> ApiError {
+    // 【詳細ログ出力】: 内部調査用に詳細をサーバーログへ記録する（クライアントへは返さない） 🟡
+    tracing::error!("items repository db error: {err}");
+    // 【汎用エラー返却】: クライアントにはDB内部情報を含まない固定メッセージを返す 🟡
+    ApiError::new(ApiErrorCode::InternalError, "アイテムの登録処理に失敗しました")
+}
+
+/// 【機能概要】: 手動作成アイテムをitemsテーブルとメディア別詳細テーブルへ
+/// 同一トランザクション内でINSERTする
+/// 【実装方針】: items INSERT → detail_table_nameで解決したテーブルへINSERTし、
+/// いずれか失敗時はロールバックする（sqlx::Transaction使用）
+/// 【テスト対応】: TC-001-01等の統合テスト（Green時点ではユニットテスト対象外）に向けた実装
+/// 🔵 信頼性レベル: タスクファイル「トランザクションによるINSERT」に直接対応
+pub async fn create_item(pool: &PgPool, request: CreateItemRequest) -> Result<Item, ApiError> {
+    // 【トランザクション開始】: items・詳細テーブルへのINSERTを原子的に行う 🔵
+    let mut tx = pool.begin().await.map_err(db_error)?;
+
+    // 【items本体INSERT】: source=manual, external_id=NULL固定で登録する 🔵
+    let item: Item = sqlx::query_as(
+        "INSERT INTO items (
+            media_type, title, original_title, description, cover_image_url,
+            release_date, homepage_url, rating, is_favorite, source, external_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'manual', NULL)
+        RETURNING id, media_type, title, original_title, description, cover_image_url,
+            release_date, homepage_url, status, consumed_date, rating, is_favorite,
+            source, external_id, created_at, updated_at",
+    )
+    .bind(request.media_type)
+    .bind(&request.title)
+    .bind(&request.original_title)
+    .bind(&request.description)
+    .bind(&request.cover_image_url)
+    .bind(request.release_date)
+    .bind(&request.homepage_url)
+    .bind(request.rating)
+    .bind(request.is_favorite.unwrap_or(false))
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(db_error)?;
+
+    // 【詳細テーブルINSERT】: media_typeに応じたテーブルへitem_idのみでINSERTする。
+    // 【注意事項】: テーブル名はdetail_table_name()のmatch式で解決した固定文字列のみのため、
+    // SQLインジェクションの危険はない（外部入力を直接埋め込んでいない）。
+    // detailsの個別カラムへの反映はRefactorフェーズで対応する。 🟡
+    let table = detail_table_name(request.media_type);
+    let insert_detail_sql = format!("INSERT INTO {table} (item_id) VALUES ($1)");
+    sqlx::query(&insert_detail_sql)
+        .bind(item.id)
+        .execute(&mut *tx)
+        .await
+        .map_err(db_error)?;
+
+    // 【コミット】: 両方のINSERTが成功した場合のみ確定する 🔵
+    tx.commit().await.map_err(db_error)?;
+
+    Ok(item)
+}
+
+/// 【機能概要】: ListItemsQueryの絞り込み条件をQueryBuilderのWHERE句として共通追加する
+/// 【実装方針】: list用・count用の両クエリで同一のフィルタ条件を共有するための内部ヘルパー。
+/// 1件目の条件追加時のみ "WHERE" を、以降は "AND" を付与する。tag_id/category_idは
+/// 中間テーブルへのEXISTSサブクエリとして追加し、他のフィルタは通常カラム条件として追加する
+/// 【テスト対応】: TC-0010-Q01〜Q06（WHERE句生成）、list_items/count_itemsが同一条件を
+/// 共有することの保証に対応
+/// 🟡 信頼性レベル: テストケース定義書 確定3（EXISTSサブクエリ方針）・完了条件「AND結合」に対応
+#[allow(unused_assignments)]
+fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItemsQuery) {
+    // 【条件追加フラグ】: 2件目以降の条件にANDを付与するためのフラグ 🟡
+    let mut has_condition = false;
+
+    // 【WHERE/AND付与ヘルパー】: 1件目はWHERE、以降はANDを付与する。
+    // 【マクロ採用理由】: builder への可変借用とフラグの可変参照を同時に必要とするため、
+    // クロージャ化すると呼び出し毎に &mut QueryBuilder を引き渡す煩雑さが増す。
+    // 各フィルタブロック内でのみ使う小さな構文糖としてマクロに留める 🟡
+    macro_rules! push_clause_prefix {
+        () => {
+            if has_condition {
+                builder.push(" AND ");
+            } else {
+                builder.push(" WHERE ");
+                has_condition = true;
+            }
+        };
+    }
+
+    // 【media_typeフィルタ】: idx_items_media_typeインデックスを活用する通常カラム条件 🔵
+    if let Some(media_type) = query.media_type {
+        push_clause_prefix!();
+        builder.push("media_type = ");
+        builder.push_bind(media_type);
+    }
+
+    // 【statusフィルタ】: idx_items_statusインデックスを活用する通常カラム条件 🔵
+    if let Some(status) = query.status {
+        push_clause_prefix!();
+        builder.push("status = ");
+        builder.push_bind(status);
+    }
+
+    // 【is_favoriteフィルタ】: idx_items_is_favoriteインデックスを活用する通常カラム条件 🔵
+    if let Some(is_favorite) = query.is_favorite {
+        push_clause_prefix!();
+        builder.push("is_favorite = ");
+        builder.push_bind(is_favorite);
+    }
+
+    // 【tag_idフィルタ】: item_tags中間テーブルへのEXISTSサブクエリ（重複排除のためJOIN+DISTINCTではなくEXISTSを採用） 🟡
+    if let Some(tag_id) = query.tag_id {
+        push_clause_prefix!();
+        builder.push("EXISTS (SELECT 1 FROM item_tags it WHERE it.item_id = items.id AND it.tag_id = ");
+        builder.push_bind(tag_id);
+        builder.push(")");
+    }
+
+    // 【category_idフィルタ】: item_categories中間テーブルへのEXISTSサブクエリ 🟡
+    if let Some(category_id) = query.category_id {
+        push_clause_prefix!();
+        builder.push(
+            "EXISTS (SELECT 1 FROM item_categories ic WHERE ic.item_id = items.id AND ic.category_id = ",
+        );
+        builder.push_bind(category_id);
+        builder.push(")");
+    }
+}
+
+/// 【機能概要】: GET /items 一覧取得用のSELECTクエリをQueryBuilderで構築する
+/// 【実装方針】: SELECT ... FROM items [WHERE ...] LIMIT ... OFFSET ... の形でクエリを組み立てる。
+/// limit/pageはハンドラ側のnormalize_paginationで正規化済みの値を前提とし、未指定時は
+/// デフォルト(page=1, limit=20)を適用する
+/// 【テスト対応】: TC-0010-Q01〜Q05（SQL文字列の構造検証）を通すための実装
+/// 🟡 信頼性レベル: テストケース定義書 確定3・QueryBuilder方針からの妥当な推測
+pub fn build_list_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgres> {
+    let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(
+        "SELECT id, media_type, title, original_title, description, cover_image_url, \
+        release_date, homepage_url, status, consumed_date, rating, is_favorite, \
+        source, external_id, created_at, updated_at FROM items",
+    );
+
+    // 【フィルタ条件追加】: list/countで共有するヘルパーでWHERE句を構築する 🟡
+    push_item_filters(&mut builder, query);
+
+    // 【ページネーション句追加】: limit/pageはハンドラで正規化済みの値、未指定時はデフォルトを適用 🔵
+    let limit = query.limit.unwrap_or(20);
+    let page = query.page.unwrap_or(1).max(1);
+    let offset = (page - 1) as i64 * limit as i64;
+
+    builder.push(" ORDER BY created_at DESC, id LIMIT ");
+    builder.push_bind(limit as i64);
+    builder.push(" OFFSET ");
+    builder.push_bind(offset);
+
+    builder
+}
+
+/// 【機能概要】: GET /items の絞り込み条件に対するCOUNT(*)クエリをQueryBuilderで構築する
+/// 【実装方針】: build_list_items_queryと同一のpush_item_filtersヘルパーを使うことで、
+/// totalがdataと同条件で算出されることを保証する
+/// 【テスト対応】: TC-0010-Q06（list/countのWHERE句一致）を通すための実装
+/// 🟡 信頼性レベル: 要件定義書「totalは同条件COUNT(*)」からの妥当な推測
+pub fn build_count_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgres> {
+    let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new("SELECT COUNT(*) FROM items");
+
+    // 【フィルタ条件追加】: list用と同一ロジックでWHERE句を構築し、total整合性を保証する 🟡
+    push_item_filters(&mut builder, query);
+
+    builder
+}
+
+/// 【機能概要】: 絞り込み条件・ページネーションに従いitems一覧を取得する
+/// 【実装方針】: build_list_items_queryで構築したクエリをfetch_allし、DBエラーはdb_errorで変換する
+/// 【テスト対応】: TC-0010-N01〜N08, B07/B08, E04（実DB統合テスト、#[ignore]）に対応
+/// 🔵 信頼性レベル: 要件定義書 2.4 データフロー・既存db_errorパターンに直接対応
+pub async fn list_items(pool: &PgPool, query: &ListItemsQuery) -> Result<Vec<Item>, ApiError> {
+    let mut builder = build_list_items_query(query);
+    let items: Vec<Item> = builder
+        .build_query_as()
+        .fetch_all(pool)
+        .await
+        .map_err(db_error)?;
+    Ok(items)
+}
+
+/// 【機能概要】: 絞り込み条件に従いitemsの総件数（COUNT(*)）を取得する
+/// 【実装方針】: build_count_items_queryで構築したクエリをfetch_oneし、DBエラーはdb_errorで変換する
+/// 【テスト対応】: TC-0010-N01〜N08, B07/B08, E04（実DB統合テスト、#[ignore]）に対応
+/// 🔵 信頼性レベル: 要件定義書 2.4 データフロー・既存db_errorパターンに直接対応
+pub async fn count_items(pool: &PgPool, query: &ListItemsQuery) -> Result<i64, ApiError> {
+    let mut builder = build_count_items_query(query);
+    let total: i64 = builder
+        .build_query_scalar()
+        .fetch_one(pool)
+        .await
+        .map_err(db_error)?;
+    Ok(total)
+}
+
+/// 【機能概要】: 指定UUIDのitemsレコードを1件取得する
+/// 【実装方針】: 通常のSELECT + fetch_optionalで存在しない場合はNoneを返す（404判定はハンドラ側）
+/// 【テスト対応】: TC-0011-N01〜N05, E01（実DB統合テスト）に対応
+/// 🟡 信頼性レベル: api-endpoints.md GET /items/:id仕様からの妥当な推測
+pub async fn get_item_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Item>, ApiError> {
+    let item: Option<Item> = sqlx::query_as(
+        "SELECT id, media_type, title, original_title, description, cover_image_url, \
+        release_date, homepage_url, status, consumed_date, rating, is_favorite, \
+        source, external_id, created_at, updated_at FROM items WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_error)?;
+    Ok(item)
+}
+
+/// 【機能概要】: media_typeに対応する詳細テーブルからitem_idに紐づく1件をJSON値として取得する
+/// 【実装方針】: detail_table_nameで解決した固定テーブル名（外部入力非依存のためSQLインジェクション安全）
+/// へ`SELECT * FROM {table} WHERE item_id = $1`を実行し、行をserde_json::Valueへ変換する。
+/// レコードが存在しない場合はNoneを返す（エラーにしない）
+/// 【テスト対応】: TC-0011-N01, N03, N05に対応
+/// 🟡 信頼性レベル: タスクファイル「media_typeごとに異なるテーブルへの分岐」からの妥当な推測
+pub async fn get_item_detail(
+    pool: &PgPool,
+    media_type: MediaType,
+    item_id: Uuid,
+) -> Result<Option<serde_json::Value>, ApiError> {
+    let table = detail_table_name(media_type);
+    let sql = format!("SELECT * FROM {table} WHERE item_id = $1");
+    let row: Option<sqlx::postgres::PgRow> = sqlx::query(&sql)
+        .bind(item_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(db_error)?;
+
+    match row {
+        Some(row) => Ok(Some(pg_row_to_json(&row))),
+        None => Ok(None),
+    }
+}
+
+/// 【機能概要】: PgRowを動的にserde_json::Value(Object)へ変換する
+/// 【実装方針】: 詳細テーブルはmedia_type毎にカラム構成が異なるため、固定構造体ではなく
+/// カラム名→値のMapとして汎用的に組み立てる。サポート対象外の型は文字列化を試みる
+/// 🟡 信頼性レベル: 詳細テーブルのカラム構成が可変であることからの設計判断
+fn pg_row_to_json(row: &sqlx::postgres::PgRow) -> serde_json::Value {
+    use sqlx::{Column, Row, TypeInfo, ValueRef};
+
+    let mut map = serde_json::Map::new();
+    for column in row.columns() {
+        let name = column.name();
+        let value_ref = match row.try_get_raw(name) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        if value_ref.is_null() {
+            map.insert(name.to_string(), serde_json::Value::Null);
+            continue;
+        }
+
+        let type_name = column.type_info().name();
+        let json_value = match type_name {
+            "UUID" => row
+                .try_get::<Uuid, _>(name)
+                .map(|v| serde_json::Value::String(v.to_string()))
+                .unwrap_or(serde_json::Value::Null),
+            "INT2" | "INT4" => row
+                .try_get::<i32, _>(name)
+                .map(serde_json::Value::from)
+                .unwrap_or(serde_json::Value::Null),
+            "INT8" => row
+                .try_get::<i64, _>(name)
+                .map(serde_json::Value::from)
+                .unwrap_or(serde_json::Value::Null),
+            "FLOAT4" | "FLOAT8" | "NUMERIC" => row
+                .try_get::<f64, _>(name)
+                .map(serde_json::Value::from)
+                .unwrap_or(serde_json::Value::Null),
+            "BOOL" => row
+                .try_get::<bool, _>(name)
+                .map(serde_json::Value::Bool)
+                .unwrap_or(serde_json::Value::Null),
+            "TEXT_ARRAY" | "VARCHAR_ARRAY" => row
+                .try_get::<Vec<String>, _>(name)
+                .map(serde_json::Value::from)
+                .unwrap_or(serde_json::Value::Null),
+            "DATE" => row
+                .try_get::<chrono::NaiveDate, _>(name)
+                .map(|v| serde_json::Value::String(v.to_string()))
+                .unwrap_or(serde_json::Value::Null),
+            "TIMESTAMP" | "TIMESTAMPTZ" => row
+                .try_get::<chrono::NaiveDateTime, _>(name)
+                .map(|v| serde_json::Value::String(v.to_string()))
+                .unwrap_or(serde_json::Value::Null),
+            _ => row
+                .try_get::<String, _>(name)
+                .map(serde_json::Value::String)
+                .unwrap_or(serde_json::Value::Null),
+        };
+        map.insert(name.to_string(), json_value);
+    }
+    serde_json::Value::Object(map)
+}
+
+/// 【機能概要】: item_idに紐づくタグ一覧をtagsテーブルとのJOINで取得する
+/// 【実装方針】: item_tags中間テーブルをtagsへJOINし、id/nameを取得する
+/// 【テスト対応】: TC-0011-N02, N04に対応
+/// 🟡 信頼性レベル: database-schema.sqlのitem_tags/tagsテーブル定義からの妥当な推測
+pub async fn get_item_tags(pool: &PgPool, item_id: Uuid) -> Result<Vec<TagRef>, ApiError> {
+    let tags: Vec<TagRef> = sqlx::query_as(
+        "SELECT t.id, t.name FROM tags t \
+        INNER JOIN item_tags it ON it.tag_id = t.id \
+        WHERE it.item_id = $1",
+    )
+    .bind(item_id)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)?;
+    Ok(tags)
+}
+
+/// 【機能概要】: item_idに紐づくカテゴリ一覧をcategoriesテーブルとのJOINで取得する
+/// 【実装方針】: item_categories中間テーブルをcategoriesへJOINし、id/nameを取得する
+/// 【テスト対応】: TC-0011-N02, N04に対応
+/// 🟡 信頼性レベル: database-schema.sqlのitem_categories/categoriesテーブル定義からの妥当な推測
+pub async fn get_item_categories(
+    pool: &PgPool,
+    item_id: Uuid,
+) -> Result<Vec<CategoryRef>, ApiError> {
+    let categories: Vec<CategoryRef> = sqlx::query_as(
+        "SELECT c.id, c.name FROM categories c \
+        INNER JOIN item_categories ic ON ic.category_id = c.id \
+        WHERE ic.item_id = $1",
+    )
+    .bind(item_id)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)?;
+    Ok(categories)
+}
+
+/// 【機能概要】: `UpdateItemRequest`のうちSomeであるフィールドのみを対象にUPDATE文のSET句を
+/// `sqlx::QueryBuilder`で構築する。SET対象が0件の場合は`None`を返す
+/// 【実装方針】: `push_item_filters`のカンマ区切り方式（has_conditionフラグで1件目はカンマなし、
+/// 以降は", "を付与）を踏襲する。`updated_at`はDBトリガー(`trg_items_updated_at`)が自動更新する
+/// ためSET句に含めない。`media_type`・`source`・`external_id`は`UpdateItemRequest`に
+/// フィールド自体が存在しないため、型レベルで更新対象外であることが保証される
+/// 【テスト対応】: build_update_item_query_contains_rating_and_is_favorite_only,
+/// build_update_item_query_single_field_has_no_extra_comma,
+/// build_update_item_query_returns_none_when_all_fields_none を通すための実装
+/// 🔵 信頼性レベル: 要件定義書REQ-0012-01・REQ-0012-03・REQ-0012-04・REQ-0012-101、
+/// note.md「push_item_filtersパターンの踏襲」より
+#[allow(unused_assignments)]
+pub fn build_update_item_query(request: &UpdateItemRequest) -> Option<QueryBuilder<'_, Postgres>> {
+    // 【早期リターン】: SET対象フィールドが1つも無い場合はUPDATE文を構築しない 🔵
+    if !has_any_update_field(request) {
+        return None;
+    }
+
+    let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new("UPDATE items SET ");
+
+    // 【カンマ付与フラグ】: 2件目以降のSET項目にのみカンマを付与するためのフラグ 🔵
+    let mut has_condition = false;
+
+    // 【SET句区切りヘルパー】: 1件目はカンマなし、以降は", "を付与する 🔵
+    macro_rules! push_set_separator {
+        () => {
+            if has_condition {
+                builder.push(", ");
+            } else {
+                has_condition = true;
+            }
+        };
+    }
+
+    if let Some(title) = &request.title {
+        push_set_separator!();
+        builder.push("title = ");
+        builder.push_bind(title.clone());
+    }
+    if let Some(original_title) = &request.original_title {
+        push_set_separator!();
+        builder.push("original_title = ");
+        builder.push_bind(original_title.clone());
+    }
+    if let Some(description) = &request.description {
+        push_set_separator!();
+        builder.push("description = ");
+        builder.push_bind(description.clone());
+    }
+    if let Some(cover_image_url) = &request.cover_image_url {
+        push_set_separator!();
+        builder.push("cover_image_url = ");
+        builder.push_bind(cover_image_url.clone());
+    }
+    if let Some(release_date) = request.release_date {
+        push_set_separator!();
+        builder.push("release_date = ");
+        builder.push_bind(release_date);
+    }
+    if let Some(homepage_url) = &request.homepage_url {
+        push_set_separator!();
+        builder.push("homepage_url = ");
+        builder.push_bind(homepage_url.clone());
+    }
+    if let Some(status) = request.status {
+        push_set_separator!();
+        builder.push("status = ");
+        builder.push_bind(status);
+    }
+    if let Some(consumed_date) = request.consumed_date {
+        push_set_separator!();
+        builder.push("consumed_date = ");
+        builder.push_bind(consumed_date);
+    }
+    if let Some(rating) = request.rating {
+        push_set_separator!();
+        builder.push("rating = ");
+        builder.push_bind(rating);
+    }
+    if let Some(is_favorite) = request.is_favorite {
+        push_set_separator!();
+        builder.push("is_favorite = ");
+        builder.push_bind(is_favorite);
+    }
+
+    Some(builder)
+}
+
+/// 【機能概要】: 指定IDのitemに対し`UpdateItemRequest`のSomeフィールドのみを部分更新する
+/// 【実装方針】: `build_update_item_query`でSET句を構築し、Noneの場合（全フィールドNone）は
+/// UPDATE文を実行せず`get_item_by_id`で現在の状態をそのまま返す（REQ-0012-101）。
+/// SET対象がある場合は` WHERE id = `を追加し`RETURNING ...`で更新後の行を直接取得する
+/// （`fetch_optional`）。影響0件（対象が存在しない）の場合は`Ok(None)`を返し、404判定は
+/// ハンドラ層の責務とする（REQ-0012-201・REQ-0012-202）。単一テーブルのみの更新のため
+/// トランザクションは必須としない（NFR-0012-03）
+/// 【テスト対応】: TC-001-02-B, TC-NEW-01, TC-001-EDGE01-B, TC-001-E02-A, TC-NEW-05
+/// （いずれも実DB統合テスト）に対応
+/// 🔵 信頼性レベル: 要件定義書REQ-0012-01〜REQ-0012-202・REQ-0012-402、note.mdのdb_error/
+/// RETURNING+fetch_optional方針より
+pub async fn update_item(
+    pool: &PgPool,
+    id: Uuid,
+    request: UpdateItemRequest,
+) -> Result<Option<Item>, ApiError> {
+    // 【no-op判定】: 全フィールドNoneの場合はUPDATE文を実行せず現在の状態を返す 🔵
+    let Some(mut builder) = build_update_item_query(&request) else {
+        return get_item_by_id(pool, id).await;
+    };
+
+    // 【WHERE句 + RETURNING追加】: 対象idを絞り込み、更新後の全カラムを直接取得する 🔵
+    builder.push(" WHERE id = ");
+    builder.push_bind(id);
+    builder.push(
+        " RETURNING id, media_type, title, original_title, description, cover_image_url, \
+        release_date, homepage_url, status, consumed_date, rating, is_favorite, \
+        source, external_id, created_at, updated_at",
+    );
+
+    // 【UPDATE実行】: RETURNINGの結果をfetch_optionalで受け、0行（対象不存在）ならNoneを返す 🔵
+    let item: Option<Item> = builder
+        .build_query_as()
+        .fetch_optional(pool)
+        .await
+        .map_err(db_error)?;
+
+    Ok(item)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::item::{ItemStatus, ListItemsQuery};
+
+    /// TC-001-03関連: media_type=animeはanime_detailsへ振り分けられる
+    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（anime_details）に直接対応
+    #[test]
+    fn detail_table_name_for_anime() {
+        // 【テスト目的】: MediaType::Animeが正しいテーブル名に解決されることを確認する
+        // 【テスト内容】: detail_table_name関数にMediaType::Animeを渡す
+        // 【期待される動作】: "anime_details"が返る
+        // 🔵 信頼性レベル: database-schema.sql L80のCREATE TABLE anime_detailsに直接対応
+
+        // 【実際の処理実行】: 振り分け関数を呼び出す
+        let result = detail_table_name(MediaType::Anime);
+
+        // 【結果検証】: テーブル名が一致することを確認
+        assert_eq!(result, "anime_details"); // 【確認内容】: anime_detailsテーブルへの振り分けが正しいことを確認 🔵
+    }
+
+    /// TC-001-03: media_type=movieはmovie_detailsへ振り分けられる
+    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（movie_details）に直接対応
+    #[test]
+    fn detail_table_name_for_movie() {
+        // 【テスト目的】: MediaType::Movieが正しいテーブル名に解決されることを確認する
+        // 【テスト内容】: detail_table_name関数にMediaType::Movieを渡す
+        // 【期待される動作】: "movie_details"が返る
+        // 🔵 信頼性レベル: database-schema.sql L91のCREATE TABLE movie_detailsに直接対応
+        let result = detail_table_name(MediaType::Movie);
+        assert_eq!(result, "movie_details"); // 【確認内容】: movie_detailsテーブルへの振り分けが正しいことを確認 🔵
+    }
+
+    /// media_type=dramaはdrama_detailsへ振り分けられる
+    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（drama_details）に直接対応
+    #[test]
+    fn detail_table_name_for_drama() {
+        // 【テスト目的】: MediaType::Dramaが正しいテーブル名に解決されることを確認する
+        // 🔵 信頼性レベル: database-schema.sql L100のCREATE TABLE drama_detailsに直接対応
+        let result = detail_table_name(MediaType::Drama);
+        assert_eq!(result, "drama_details"); // 【確認内容】: drama_detailsテーブルへの振り分けが正しいことを確認 🔵
+    }
+
+    /// media_type=mangaはmanga_detailsへ振り分けられる
+    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（manga_details）に直接対応
+    #[test]
+    fn detail_table_name_for_manga() {
+        // 【テスト目的】: MediaType::Mangaが正しいテーブル名に解決されることを確認する
+        // 🔵 信頼性レベル: database-schema.sql L110のCREATE TABLE manga_detailsに直接対応
+        let result = detail_table_name(MediaType::Manga);
+        assert_eq!(result, "manga_details"); // 【確認内容】: manga_detailsテーブルへの振り分けが正しいことを確認 🔵
+    }
+
+    /// media_type=novelはnovel_detailsへ振り分けられる
+    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（novel_details）に直接対応
+    #[test]
+    fn detail_table_name_for_novel() {
+        // 【テスト目的】: MediaType::Novelが正しいテーブル名に解決されることを確認する
+        // 🔵 信頼性レベル: database-schema.sql L121のCREATE TABLE novel_detailsに直接対応
+        let result = detail_table_name(MediaType::Novel);
+        assert_eq!(result, "novel_details"); // 【確認内容】: novel_detailsテーブルへの振り分けが正しいことを確認 🔵
+    }
+
+    /// media_type=gameはgame_detailsへ振り分けられる
+    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（game_details）に直接対応
+    #[test]
+    fn detail_table_name_for_game() {
+        // 【テスト目的】: MediaType::Gameが正しいテーブル名に解決されることを確認する
+        // 🔵 信頼性レベル: database-schema.sql L132のCREATE TABLE game_detailsに直接対応
+        let result = detail_table_name(MediaType::Game);
+        assert_eq!(result, "game_details"); // 【確認内容】: game_detailsテーブルへの振り分けが正しいことを確認 🔵
+    }
+
+    /// media_type=academic_bookはacademic_book_detailsへ振り分けられる
+    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（academic_book_details）に直接対応
+    #[test]
+    fn detail_table_name_for_academic_book() {
+        // 【テスト目的】: MediaType::AcademicBookが正しいテーブル名に解決されることを確認する
+        // 🔵 信頼性レベル: database-schema.sql L142のCREATE TABLE academic_book_detailsに直接対応
+        let result = detail_table_name(MediaType::AcademicBook);
+        assert_eq!(result, "academic_book_details"); // 【確認内容】: academic_book_detailsテーブルへの振り分けが正しいことを確認 🔵
+    }
+
+    /// media_type=paperはpaper_detailsへ振り分けられる
+    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（paper_details）に直接対応
+    #[test]
+    fn detail_table_name_for_paper() {
+        // 【テスト目的】: MediaType::Paperが正しいテーブル名に解決されることを確認する
+        // 🔵 信頼性レベル: database-schema.sql L152のCREATE TABLE paper_detailsに直接対応
+        let result = detail_table_name(MediaType::Paper);
+        assert_eq!(result, "paper_details"); // 【確認内容】: paper_detailsテーブルへの振り分けが正しいことを確認 🔵
+    }
+
+    /// TC-001-02-A: build_update_item_queryがrating・is_favoriteのみのSET句を生成する
+    /// 【テスト目的】: UpdateItemRequestのうちrating・is_favoriteのみSomeの場合に、
+    /// SET句ビルダー関数が両カラムのみをSET対象として含むSQLを構築するかを確認する
+    /// 【テスト内容】: build_update_item_query(&request)でQueryBuilderを構築しSQL文字列を取得する
+    /// 【期待される動作】: 生成SQLが"rating = "と"is_favorite = "を含み、"title = "は含まない
+    /// 🔵 信頼性レベル: 要件定義書REQ-0012-01・REQ-0012-03、note.md「push_item_filtersパターンの踏襲」より
+    #[test]
+    fn build_update_item_query_contains_rating_and_is_favorite_only() {
+        // 【テストデータ準備】: rating・is_favoriteのみSome、他は全てNoneのUpdateItemRequest
+        // 【初期条件設定】: 要件定義書シナリオ1（TC-001-02）の代表入力
+        let request = update_request_with(|r| {
+            r.rating = Some(4.5);
+            r.is_favorite = Some(true);
+        });
+
+        // 【実際の処理実行】: build_update_item_query関数を呼び出す（戻り値はOption<QueryBuilder>、
+        // SET対象が1件以上ある場合はSomeになる契約のためunwrapする） 🔵
+        // 【処理内容】: 動的SET句構築の基本動作を実DB不要で検証する
+        let builder = build_update_item_query(&request).expect("SET対象がある場合はSomeを返す契約");
+        let sql = builder.sql();
+
+        // 【結果検証】: 対象2フィールドのみSET句に含まれ、他カラムは含まれないことを確認
+        assert!(sql.contains("rating = ")); // 【確認内容】: ratingがSET対象に含まれることを確認 🔵
+        assert!(sql.contains("is_favorite = ")); // 【確認内容】: is_favoriteがSET対象に含まれることを確認 🔵
+        assert!(!sql.contains("title = ")); // 【確認内容】: 対象外のtitleがSET句に含まれないことを確認 🔵
+    }
+
+    /// TC-NEW-02: build_update_item_queryが単一フィールド指定時に余分なカンマを生成しない
+    /// 【テスト目的】: TC-NEW-01のSQL構築部分のみを実DB無しで検証する。カンマ結合ロジックの
+    /// 境界（0→1→2項目）を保証する
+    /// 【テスト内容】: statusのみSomeのUpdateItemRequestでSQLを生成する
+    /// 【期待される動作】: "SET status = "を含み、SET句部分にカンマが含まれない
+    /// 🟡 信頼性レベル: note.mdのhas_condition方式記載からの妥当な推測
+    #[test]
+    fn build_update_item_query_single_field_has_no_extra_comma() {
+        // 【テストデータ準備】: statusのみSome、他は全てNoneのUpdateItemRequest
+        // 【初期条件設定】: SET句項目数=1の境界を表す代表値
+        let request = update_request_with(|r| {
+            r.status = Some(ItemStatus::Completed);
+        });
+
+        // 【実際の処理実行】: build_update_item_query関数を呼び出す（SET対象1件のためSomeを期待） 🟡
+        let builder = build_update_item_query(&request).expect("SET対象がある場合はSomeを返す契約");
+        let sql = builder.sql();
+
+        // 【結果検証】: status条件が含まれ、SET句にカンマが残らないことを確認
+        assert!(sql.contains("SET status = ")); // 【確認内容】: status条件がSET句に含まれることを確認 🟡
+        assert_eq!(sql.matches(',').count(), 0); // 【確認内容】: 単一フィールド時に不要なカンマが残らないことを確認 🟡
+    }
+
+    /// TC-001-EDGE01-A: 全フィールドNoneのUpdateItemRequestに対してbuild_update_item_queryがNoneを返す
+    /// 【テスト目的】: SET句生成関数が「更新対象なし」を呼び出し元（リポジトリ関数）に伝え、
+    /// UPDATE文を組み立てない分岐に入れる契約になっているかを確認する
+    /// 【テスト内容】: 全フィールドNoneのUpdateItemRequestでbuild_update_item_queryを呼び出す
+    /// 【期待される動作】: 戻り値がNone（QueryBuilder構築不要を示す）
+    /// 🔵 信頼性レベル: 要件定義書REQ-0012-101・EDGE-0012-01、note.md L36「SET句が0件のときはUPDATE文を
+    /// 実行せず取得のみ」より
+    #[test]
+    fn build_update_item_query_returns_none_when_all_fields_none() {
+        // 【テストデータ準備】: 全フィールドNoneのUpdateItemRequest（リクエストボディ{}相当）
+        let request = update_request_with(|_| {});
+
+        // 【実際の処理実行】: build_update_item_queryがOption<QueryBuilder>を返す契約になっているかを確認する
+        let builder_opt = build_update_item_query(&request);
+
+        // 【結果検証】: SET対象フィールド数が0であることを示すNoneが返ることを確認
+        assert!(builder_opt.is_none()); // 【確認内容】: 全フィールドNoneの場合にNone（構築不要）が返ることを確認 🔵
+    }
+
+    /// 全フィールドNoneのUpdateItemRequestを生成し、クロージャで一部のみ上書きするテスト用ヘルパー
+    /// 【テストデータ準備】: 各テストケースで対象フィールドのみを明示的に設定するための共通基盤
+    fn update_request_with(
+        f: impl FnOnce(&mut crate::models::item::UpdateItemRequest),
+    ) -> crate::models::item::UpdateItemRequest {
+        let mut request = crate::models::item::UpdateItemRequest {
+            title: None,
+            original_title: None,
+            description: None,
+            cover_image_url: None,
+            release_date: None,
+            homepage_url: None,
+            status: None,
+            consumed_date: None,
+            rating: None,
+            is_favorite: None,
+        };
+        f(&mut request);
+        request
+    }
+
+    /// 空のListItemsQueryを生成するヘルパー（テスト用）
+    /// 【テストデータ準備】: 全フィルタ未指定の基準ケースを表現するため
+    fn empty_query() -> ListItemsQuery {
+        ListItemsQuery {
+            media_type: None,
+            tag_id: None,
+            category_id: None,
+            is_favorite: None,
+            status: None,
+            page: None,
+            limit: None,
+        }
+    }
+
+    /// TC-0010-Q01: フィルタなし時のSQLにWHERE句が付かない
+    /// 🟡 信頼性レベル: 確定3・QueryBuilder方針からの妥当な推測
+    #[test]
+    fn build_list_items_sql_has_no_where_clause_when_no_filters() {
+        // 【テスト目的】: 全フィルタ未指定時、生成SQLにWHERE句が含まれないことを確認する
+        // 【テスト内容】: build_list_items_query(&empty_query()) でQueryBuilderを構築しSQL文字列を取得する
+        // 【期待される動作】: SQLが "SELECT ... FROM items" ベースでWHEREを含まず、LIMIT/OFFSETを含む
+        // 🟡 信頼性レベル: テストケース定義書 TC-0010-Q01（確定3・QueryBuilder方針からの妥当な推測）
+
+        // 【テストデータ準備】: 絞り込みなしの基準ケース
+        // 【初期条件設定】: build_list_items_query はまだ未実装のため、この呼び出し自体がコンパイルエラーとなる想定
+        let query = empty_query();
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        // 【結果検証】: 不要なWHERE句が付かないこと、LIMIT/OFFSETが付くことを確認
+        assert!(!sql.contains("WHERE")); // 【確認内容】: フィルタなし時にWHERE句が生成されないことを確認 🟡
+        assert!(sql.contains("FROM items")); // 【確認内容】: itemsテーブルを対象としたクエリであることを確認 🟡
+        assert!(sql.contains("LIMIT")); // 【確認内容】: ページネーション用LIMIT句が含まれることを確認 🟡
+        assert!(sql.contains("OFFSET")); // 【確認内容】: ページネーション用OFFSET句が含まれることを確認 🟡
+    }
+
+    /// TC-0010-Q02: media_type 指定時のSQLに `media_type = ` を含む
+    /// 🔵 信頼性レベル: 完了条件「media_type 絞り込み」に対応
+    #[test]
+    fn build_list_items_sql_contains_media_type_filter() {
+        // 【テスト目的】: media_typeフィルタ指定時、生成SQLにmedia_typeカラム条件が含まれることを確認する
+        // 【テスト内容】: media_type=Some(Anime)のみ設定したクエリでSQLを生成する
+        // 【期待される動作】: 生成SQLに "media_type = " を含む（値はバインドパラメータ化）
+        // 🔵 信頼性レベル: タスク完了条件「media_type 絞り込み」に直接対応
+
+        // 【テストデータ準備】: media_typeのみ指定する単一フィルタケース
+        let mut query = empty_query();
+        query.media_type = Some(MediaType::Anime);
+
+        // 【実際の処理実行】: build_list_items_query呼び出し
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        // 【結果検証】: media_typeカラムへの条件句が含まれることを確認
+        assert!(sql.contains("media_type = ")); // 【確認内容】: 単一カラムフィルタの句が生成されることを確認 🔵
+    }
+
+    /// TC-0010-Q03: tag_id 指定時のSQLに item_tags の EXISTS を含む
+    /// 🟡 信頼性レベル: 確定3に基づく
+    #[test]
+    fn build_list_items_sql_contains_item_tags_exists_subquery() {
+        // 【テスト目的】: tag_idフィルタ指定時、item_tags中間テーブルへのEXISTSサブクエリが含まれることを確認する
+        // 【テスト内容】: tag_id=Some(uuid)のみ設定したクエリでSQLを生成する
+        // 【期待される動作】: 生成SQLに "EXISTS" と "item_tags" を含む
+        // 🟡 信頼性レベル: テストケース定義書 確定3（EXISTSサブクエリパターン）に基づく
+
+        // 【テストデータ準備】: tag_idのみ指定する単一フィルタケース
+        let mut query = empty_query();
+        query.tag_id = Some(Uuid::new_v4());
+
+        // 【実際の処理実行】: build_list_items_query呼び出し
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        // 【結果検証】: item_tagsへのEXISTSサブクエリが含まれることを確認
+        assert!(sql.contains("EXISTS")); // 【確認内容】: EXISTSサブクエリ構文が使われていることを確認 🟡
+        assert!(sql.contains("item_tags")); // 【確認内容】: item_tags中間テーブルが参照されていることを確認 🟡
+    }
+
+    /// TC-0010-Q04: category_id 指定時のSQLに item_categories の EXISTS を含む
+    /// 🟡 信頼性レベル: 確定3に基づく
+    #[test]
+    fn build_list_items_sql_contains_item_categories_exists_subquery() {
+        // 【テスト目的】: category_idフィルタ指定時、item_categories中間テーブルへのEXISTSサブクエリが含まれることを確認する
+        // 【テスト内容】: category_id=Some(uuid)のみ設定したクエリでSQLを生成する
+        // 【期待される動作】: 生成SQLに "EXISTS" と "item_categories" を含む
+        // 🟡 信頼性レベル: テストケース定義書 確定3（EXISTSサブクエリパターン）に基づく
+
+        // 【テストデータ準備】: category_idのみ指定する単一フィルタケース
+        let mut query = empty_query();
+        query.category_id = Some(Uuid::new_v4());
+
+        // 【実際の処理実行】: build_list_items_query呼び出し
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        // 【結果検証】: item_categoriesへのEXISTSサブクエリが含まれることを確認
+        assert!(sql.contains("EXISTS")); // 【確認内容】: EXISTSサブクエリ構文が使われていることを確認 🟡
+        assert!(sql.contains("item_categories")); // 【確認内容】: item_categories中間テーブルが参照されていることを確認 🟡
+    }
+
+    /// TC-0010-Q05: 複数フィルタ時にSQLが AND で結合される
+    /// 🟡 信頼性レベル: 完了条件「AND結合」＋QueryBuilder方針からの妥当な推測
+    #[test]
+    fn build_list_items_sql_joins_multiple_filters_with_and() {
+        // 【テスト目的】: 複数フィルタ指定時、各条件がANDで結合されることを確認する
+        // 【テスト内容】: media_type=Some(Anime), is_favorite=Some(true) を設定したクエリでSQLを生成する
+        // 【期待される動作】: 生成SQLに "AND" を含み、両カラム条件が連結される
+        // 🟡 信頼性レベル: タスク完了条件「各フィルタはAND結合」＋QueryBuilder方針からの妥当な推測
+
+        // 【テストデータ準備】: 2つのフィルタ（media_type, is_favorite）を同時指定
+        let mut query = empty_query();
+        query.media_type = Some(MediaType::Anime);
+        query.is_favorite = Some(true);
+
+        // 【実際の処理実行】: build_list_items_query呼び出し
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        // 【結果検証】: AND結合と両カラム条件が含まれることを確認
+        assert!(sql.contains("AND")); // 【確認内容】: 複数フィルタがAND結合されることを確認 🟡
+        assert!(sql.contains("media_type = ")); // 【確認内容】: media_type条件が含まれることを確認 🟡
+        assert!(sql.contains("is_favorite = ")); // 【確認内容】: is_favorite条件が含まれることを確認 🟡
+    }
+
+    /// TC-0010-Q06: list_items と count_items が同一WHERE句を共有
+    /// 🟡 信頼性レベル: 要件 2.2/3章「total は同条件 COUNT(*)」からの妥当な推測
+    #[test]
+    fn build_count_items_sql_shares_same_where_clause_as_list() {
+        // 【テスト目的】: list用クエリとcount用クエリで同一のWHERE句（フィルタ条件）が使われることを確認する
+        // 【テスト内容】: 同一フィルタ集合からbuild_list_items_query / build_count_items_query を構築し、
+        //   両者のWHERE以降の文字列断片を比較する
+        // 【期待される動作】: フィルタ部分のSQL断片が一致する（totalがdataと同条件であることの保証）
+        // 🟡 信頼性レベル: 要件定義書「totalは同条件COUNT(*)」からの妥当な推測（build_count_items_queryは未実装関数）
+
+        // 【テストデータ準備】: status絞り込みを持つクエリ
+        let mut query = empty_query();
+        query.status = Some(ItemStatus::InProgress);
+
+        // 【実際の処理実行】: list用・count用それぞれのクエリビルダーを構築する
+        let list_builder = build_list_items_query(&query);
+        let count_builder = build_count_items_query(&query);
+        let list_sql = list_builder.sql();
+        let count_sql = count_builder.sql();
+
+        // 【結果検証】: 両方に同一のstatus条件が含まれることを確認（フィルタ句の整合性）
+        assert!(list_sql.contains("status = ")); // 【確認内容】: list用SQLにstatus条件が含まれることを確認 🟡
+        assert!(count_sql.contains("status = ")); // 【確認内容】: count用SQLにも同じstatus条件が含まれることを確認 🟡
+        assert!(count_sql.contains("COUNT(")); // 【確認内容】: count用SQLがCOUNT(*)クエリであることを確認 🟡
+    }
+
+    /// TC-0010-N01: 絞り込みなしの一覧取得（デフォルトページネーション、実DB必要）
+    /// 🔵 信頼性レベル: TASK-0010 単体テスト要件TC-001・要件 UC-1 に直接対応
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn list_items_returns_first_20_with_total_25() {
+        // 【テスト目的】: items25件投入時、絞り込みなしのlist_itemsが先頭20件、count_itemsがtotal=25を返すことを確認する
+        // 【テスト内容】: テスト用DBへitemsを25件投入し、list_items/count_itemsをデフォルトページネーションで呼ぶ
+        // 【期待される動作】: items.len()==20、total==25
+        // 🔵 信頼性レベル: タスク単体テスト要件TC-001・要件UC-1に直接対応（実装はGreenフェーズで行う）
+
+        // 【テスト前準備】: 環境変数TEST_DATABASE_URL等からテスト用PgPoolを取得する想定（未実装のためここでは到達しない）
+        // 【環境初期化】: マイグレーション適用済みDBに対し25件のitemsをINSERTする
+        let pool = test_pool().await;
+        seed_items(&pool, 25).await;
+
+        // 【実際の処理実行】: list_items + count_items を既定ページネーションで呼ぶ
+        let query = empty_query();
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        // 【結果検証】: 先頭20件 + total=25であることを確認
+        assert_eq!(items.len(), 20); // 【確認内容】: limit=20で先頭20件のみ取得されることを確認 🔵
+        assert_eq!(total, 25); // 【確認内容】: totalがlimitに依存せず全件数であることを確認 🔵
+    }
+
+    /// TC-0010-N02: media_type による絞り込み（実DB必要）
+    /// 🔵 信頼性レベル: TASK-0010 単体テスト要件TC-002・要件 UC-2 に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_filters_by_media_type() {
+        // 【テスト目的】: media_type=animeで絞り込んだ場合、anime以外が除外されることを確認する
+        // 【テスト内容】: anime3件+movie2件を投入し、media_type=Some(Anime)で取得する
+        // 【期待される動作】: data.len()==3、全要素がmedia_type==Anime、total==3
+        // 🔵 信頼性レベル: タスク単体テスト要件TC-002・要件UC-2に直接対応
+
+        let pool = test_pool().await;
+        seed_items_by_media_type(&pool, MediaType::Anime, 3).await;
+        seed_items_by_media_type(&pool, MediaType::Movie, 2).await;
+
+        let mut query = empty_query();
+        query.media_type = Some(MediaType::Anime);
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 3); // 【確認内容】: anime種別のみ3件取得されることを確認 🔵
+        assert!(items.iter().all(|i| i.media_type == MediaType::Anime)); // 【確認内容】: 全要素がanimeであることを確認 🔵
+        assert_eq!(total, 3); // 【確認内容】: totalが絞り込み後件数(3)であることを確認 🔵
+    }
+
+    /// TC-0010-N03: 複数条件のAND絞り込み（実DB必要）
+    /// 🟡 信頼性レベル: TASK-0010 単体テスト要件TC-003・要件 UC-3 に対応
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_applies_multiple_filters_with_and() {
+        // 【テスト目的】: media_type=anime かつ is_favorite=true の両方を満たすitemのみが返ることを確認する
+        // 【テスト内容】: anime/fav=true 2件, anime/fav=false 2件, movie/fav=true 1件を投入する
+        // 【期待される動作】: data.len()==2、全要素がanime かつ fav=true、total==2
+        // 🟡 信頼性レベル: タスク単体テスト要件TC-003・要件UC-3に対応（具体データ件数は妥当な推測）
+
+        let pool = test_pool().await;
+        seed_items_with_favorite(&pool, MediaType::Anime, true, 2).await;
+        seed_items_with_favorite(&pool, MediaType::Anime, false, 2).await;
+        seed_items_with_favorite(&pool, MediaType::Movie, true, 1).await;
+
+        let mut query = empty_query();
+        query.media_type = Some(MediaType::Anime);
+        query.is_favorite = Some(true);
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 2); // 【確認内容】: AND結合で両条件を満たす2件のみ取得されることを確認 🟡
+        assert!(items
+            .iter()
+            .all(|i| i.media_type == MediaType::Anime && i.is_favorite)); // 【確認内容】: 全要素が両条件を満たすことを確認 🟡
+        assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🟡
+    }
+
+    /// TC-0010-N04: status による絞り込み（実DB必要）
+    /// 🔵 信頼性レベル: 要件 入力仕様表（status）・完了条件に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_filters_by_status() {
+        // 【テスト目的】: status=in_progressで絞り込んだ場合、該当ステータスのみ返ることを確認する
+        // 【テスト内容】: in_progress2件, not_started1件, completed1件を投入する
+        // 【期待される動作】: data.len()==2、全要素status==InProgress、total==2
+        // 🔵 信頼性レベル: 要件入力仕様表（status）・完了条件に直接対応
+
+        let pool = test_pool().await;
+        seed_items_with_status(&pool, ItemStatus::InProgress, 2).await;
+        seed_items_with_status(&pool, ItemStatus::NotStarted, 1).await;
+        seed_items_with_status(&pool, ItemStatus::Completed, 1).await;
+
+        let mut query = empty_query();
+        query.status = Some(ItemStatus::InProgress);
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 2); // 【確認内容】: in_progressのみ2件取得されることを確認 🔵
+        assert!(items.iter().all(|i| i.status == ItemStatus::InProgress)); // 【確認内容】: 全要素がin_progressであることを確認 🔵
+        assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🔵
+    }
+
+    /// TC-0010-N05: is_favorite による絞り込み（実DB必要）
+    /// 🔵 信頼性レベル: 要件 入力仕様表（is_favorite）に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_filters_by_is_favorite() {
+        // 【テスト目的】: is_favorite=trueで絞り込んだ場合、お気に入りitemのみ返ることを確認する
+        // 【テスト内容】: fav=true3件, fav=false2件を投入する
+        // 【期待される動作】: data.len()==3、全要素is_favorite==true、total==3
+        // 🔵 信頼性レベル: 要件入力仕様表（is_favorite）に直接対応
+
+        let pool = test_pool().await;
+        seed_items_with_favorite(&pool, MediaType::Anime, true, 3).await;
+        seed_items_with_favorite(&pool, MediaType::Anime, false, 2).await;
+
+        let mut query = empty_query();
+        query.is_favorite = Some(true);
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 3); // 【確認内容】: fav=trueのみ3件取得されることを確認 🔵
+        assert!(items.iter().all(|i| i.is_favorite)); // 【確認内容】: 全要素がfav=trueであることを確認 🔵
+        assert_eq!(total, 3); // 【確認内容】: totalが絞り込み後件数(3)であることを確認 🔵
+    }
+
+    /// TC-0010-N06: tag_id による絞り込み（EXISTSサブクエリ、実DB必要）
+    /// 🟡 信頼性レベル: 要件 UC-4・統合テスト要件に対応
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_filters_by_tag_id_without_duplicates() {
+        // 【テスト目的】: tag_id指定時、item_tags経由で当該タグを持つitemのみが重複なく返ることを確認する
+        // 【テスト内容】: TAG_A紐付け2件、TAG_B紐付け1件、タグなし1件を投入する
+        // 【期待される動作】: data.len()==2（重複なし）、total==2
+        // 🟡 信頼性レベル: 要件UC-4・統合テスト要件に対応（SQL形状は確定3のEXISTSパターンの推測）
+
+        let pool = test_pool().await;
+        let tag_a = Uuid::new_v4();
+        let tag_b = Uuid::new_v4();
+        seed_items_with_tag(&pool, tag_a, 2).await;
+        seed_items_with_tag(&pool, tag_b, 1).await;
+        seed_items(&pool, 1).await; // タグなし1件
+
+        let mut query = empty_query();
+        query.tag_id = Some(tag_a);
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 2); // 【確認内容】: TAG_Aを持つitemのみ2件取得され、重複しないことを確認 🟡
+        assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🟡
+    }
+
+    /// TC-0010-N07: category_id による絞り込み（EXISTSサブクエリ、実DB必要）
+    /// 🟡 信頼性レベル: 要件 UC-5・統合テスト要件に対応
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_filters_by_category_id_without_duplicates() {
+        // 【テスト目的】: category_id指定時、item_categories経由で当該カテゴリのitemのみが返ることを確認する
+        // 【テスト内容】: CAT_A紐付け2件、CAT_B1件、カテゴリなし1件を投入する
+        // 【期待される動作】: data.len()==2、total==2
+        // 🟡 信頼性レベル: 要件UC-5・統合テスト要件に対応（SQL形状は確定3のEXISTSパターンの推測）
+
+        let pool = test_pool().await;
+        let cat_a = Uuid::new_v4();
+        let cat_b = Uuid::new_v4();
+        seed_items_with_category(&pool, cat_a, 2).await;
+        seed_items_with_category(&pool, cat_b, 1).await;
+        seed_items(&pool, 1).await; // カテゴリなし1件
+
+        let mut query = empty_query();
+        query.category_id = Some(cat_a);
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 2); // 【確認内容】: CAT_Aを持つitemのみ2件取得されることを確認 🟡
+        assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🟡
+    }
+
+    /// TC-0010-N08: tag_id と media_type の AND 複合（実DB必要）
+    /// 🟡 信頼性レベル: 完了条件 + 確定3 からの妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_combines_tag_id_and_media_type_with_and() {
+        // 【テスト目的】: media_type条件（通常カラム）とtag_id条件（EXISTSサブクエリ）がAND結合されることを確認する
+        // 【テスト内容】: anime+TAG_A1件、anime+TAG_B1件、movie+TAG_A1件を投入する
+        // 【期待される動作】: data.len()==1（anime+TAG_Aのみ）、total==1
+        // 🟡 信頼性レベル: 完了条件「AND結合」+確定3を組み合わせた妥当な推測
+
+        let pool = test_pool().await;
+        let tag_a = Uuid::new_v4();
+        let tag_b = Uuid::new_v4();
+        seed_item_with_media_type_and_tag(&pool, MediaType::Anime, tag_a).await;
+        seed_item_with_media_type_and_tag(&pool, MediaType::Anime, tag_b).await;
+        seed_item_with_media_type_and_tag(&pool, MediaType::Movie, tag_a).await;
+
+        let mut query = empty_query();
+        query.media_type = Some(MediaType::Anime);
+        query.tag_id = Some(tag_a);
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 1); // 【確認内容】: anime+TAG_Aの組合せのみ1件取得されることを確認 🟡
+        assert_eq!(total, 1); // 【確認内容】: totalが絞り込み後件数(1)であることを確認 🟡
+    }
+
+    /// TC-0010-B07: 範囲外page → 空配列 + 正しいtotal（実DB必要）
+    /// 🟡 信頼性レベル: 要件 UC-8 に対応
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_returns_empty_array_with_correct_total_for_out_of_range_page() {
+        // 【テスト目的】: 件数を超えるpage指定時に空配列＋正しいtotalを返すことを確認する
+        // 【テスト内容】: items5件に対しpage=10,limit=20（OFFSET=180）で取得する
+        // 【期待される動作】: data==[]、total==5
+        // 🟡 信頼性レベル: 要件UC-8（件数超過pageは空配列+正しいtotal）に対応
+
+        let pool = test_pool().await;
+        seed_items(&pool, 5).await;
+
+        let mut query = empty_query();
+        query.page = Some(10);
+        query.limit = Some(20);
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 0); // 【確認内容】: 範囲外pageでは空配列が返ることを確認 🟡
+        assert_eq!(total, 5); // 【確認内容】: dataが空でもtotalは全条件件数(5)を維持することを確認 🟡
+    }
+
+    /// TC-0010-B08: 全件0件（空テーブル）→ data=[], total=0（実DB必要）
+    /// 🟡 信頼性レベル: 要件 2.2 から妥当な推測（空集合の自明ケース）
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_returns_empty_array_and_zero_total_when_table_is_empty() {
+        // 【テスト目的】: itemsテーブルが0件の場合、data=[]、total=0のフォーマットが維持されることを確認する
+        // 【テスト内容】: items0件の状態でGET /items相当のlist_items/count_itemsを呼ぶ
+        // 【期待される動作】: data==[]、total==0
+        // 🟡 信頼性レベル: 要件2.2から妥当な推測（空集合の自明ケース）
+
+        let pool = test_pool().await;
+        // 【テスト前準備】: 事前データなし（空テーブルの状態をそのまま利用）
+
+        let query = empty_query();
+        let items = list_items(&pool, &query).await.unwrap();
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 0); // 【確認内容】: 0件テーブルでdataが空配列であることを確認 🟡
+        assert_eq!(total, 0); // 【確認内容】: 0件テーブルでtotalが0であることを確認 🟡
+    }
+
+    /// TC-0010-E04: DBエラー時 → 500 INTERNAL_ERROR（実DB必要、接続不能プールで再現）
+    /// 🟡 信頼性レベル: 要件 EC-2・既存 db_error 関数からの妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_converts_db_error_to_internal_error() {
+        // 【テスト目的】: DB接続障害時、list_itemsの戻り値がApiErrorCode::InternalError（500）に変換されることを確認する
+        // 【テスト内容】: 接続不能なPgPool（不正な接続文字列）に対しlist_itemsを呼ぶ
+        // 【期待される動作】: Err(ApiError)が返り、error.codeが"INTERNAL_ERROR"、statusが500
+        // 🟡 信頼性レベル: 要件EC-2・既存db_error関数の方針からの妥当な推測
+
+        // 【テスト前準備】: 意図的に接続不能なプールを構築する（接続失敗を誘発）
+        let pool = unreachable_pool().await;
+        let query = empty_query();
+
+        // 【実際の処理実行】: list_itemsを呼び、エラー変換を確認する
+        let result = list_items(&pool, &query).await;
+
+        // 【結果検証】: DB内部情報が漏洩せず汎用INTERNAL_ERRORに変換されることを確認
+        let err = result.unwrap_err();
+        assert_eq!(err.error.code, "INTERNAL_ERROR"); // 【確認内容】: DBエラーが汎用INTERNAL_ERRORコードに変換されることを確認 🟡
+        assert_eq!(err.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR); // 【確認内容】: HTTPステータスが500であることを確認 🟡
+    }
+
+    /// TC-0011-N01: 存在するitemの詳細取得（詳細テーブルあり、実DB必要）
+    /// 🟡 信頼性レベル: タスクファイル テストケース1に対応
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_by_id_and_detail_returns_anime_details() {
+        let pool = test_pool().await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
+        sqlx::query("INSERT INTO anime_details (item_id, studio) VALUES ($1, 'Test Studio')")
+            .bind(item_id)
+            .execute(&pool)
+            .await
+            .expect("anime_detailsへの投入に失敗しました");
+
+        let item = get_item_by_id(&pool, item_id).await.unwrap().unwrap();
+        let detail = get_item_detail(&pool, item.media_type, item_id)
+            .await
+            .unwrap();
+
+        assert_eq!(item.id, item_id); // 【確認内容】: 取得したitemのIDが一致することを確認 🟡
+        let detail = detail.unwrap();
+        assert_eq!(detail["studio"], serde_json::json!("Test Studio")); // 【確認内容】: anime_detailsのstudioカラムが含まれることを確認 🟡
+    }
+
+    /// TC-0011-N02: タグ・カテゴリが紐付いている場合の取得（実DB必要）
+    /// 🟡 信頼性レベル: タスクファイル完了条件「紐づくタグ・カテゴリ一覧をレスポンスに含める」に対応
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_tags_and_categories_returns_linked_records() {
+        let pool = test_pool().await;
+        let tag_id = insert_test_tag(&pool, "タグA").await;
+        let category_id = insert_test_category(&pool, "カテゴリA").await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            Some(tag_id),
+            Some(category_id),
+        )
+        .await;
+
+        let tags = get_item_tags(&pool, item_id).await.unwrap();
+        let categories = get_item_categories(&pool, item_id).await.unwrap();
+
+        assert_eq!(tags.len(), 1); // 【確認内容】: 紐付けたタグが1件取得されることを確認 🟡
+        assert_eq!(tags[0].id, tag_id);
+        assert_eq!(categories.len(), 1); // 【確認内容】: 紐付けたカテゴリが1件取得されることを確認 🟡
+        assert_eq!(categories[0].id, category_id);
+    }
+
+    /// TC-0011-N03: 詳細テーブルにレコードが無い場合（実DB必要）
+    /// 🟡 信頼性レベル: タスクファイル「該当item存在しない場合」とは別に詳細欠落ケースを想定した妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_detail_returns_none_when_detail_record_missing() {
+        let pool = test_pool().await;
+        // 【テストデータ準備】: detail_table_nameへのINSERTを行わず、items単体のみ作成する
+        let item_id: Uuid = sqlx::query_scalar(
+            "INSERT INTO items (media_type, title, status, is_favorite, source, external_id) \
+            VALUES ('anime', 'テストアイテム', 'not_started', false, 'manual', NULL) RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("詳細レコード無しitemの投入に失敗しました");
+
+        let detail = get_item_detail(&pool, MediaType::Anime, item_id)
+            .await
+            .unwrap();
+
+        assert!(detail.is_none()); // 【確認内容】: 詳細テーブルにレコードが無い場合エラーにならずNoneが返ることを確認 🟡
+    }
+
+    /// TC-0011-N04: タグ・カテゴリが紐付いていない場合（実DB必要）
+    /// 🟡 信頼性レベル: タスクファイル完了条件からの妥当な推測（境界ケース）
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_tags_and_categories_returns_empty_when_not_linked() {
+        let pool = test_pool().await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
+
+        let tags = get_item_tags(&pool, item_id).await.unwrap();
+        let categories = get_item_categories(&pool, item_id).await.unwrap();
+
+        assert!(tags.is_empty()); // 【確認内容】: 紐付けが無い場合空配列が返ることを確認 🟡
+        assert!(categories.is_empty()); // 【確認内容】: 紐付けが無い場合空配列が返ることを確認 🟡
+    }
+
+    /// TC-0011-E01: 存在しないitemで取得結果がNone（実DB必要）
+    /// 🔵 信頼性レベル: タスクファイル テストケース2（存在しないitemで404）に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_by_id_returns_none_for_nonexistent_id() {
+        let pool = test_pool().await;
+        let item = get_item_by_id(&pool, Uuid::new_v4()).await.unwrap();
+        assert!(item.is_none()); // 【確認内容】: 存在しないUUIDではNoneが返り、ハンドラ側で404に変換できることを確認 🔵
+    }
+
+    /// TC-0011-N05: media_typeごとの詳細テーブル分岐（movie/game、実DB必要）
+    /// 🔵 信頼性レベル: タスクファイル「media_typeに応じたメディア別詳細テーブルをJOIN」に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_detail_dispatches_to_correct_table_per_media_type() {
+        let pool = test_pool().await;
+
+        let movie_id = insert_test_item(
+            &pool,
+            MediaType::Movie,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
+        sqlx::query("INSERT INTO movie_details (item_id, director) VALUES ($1, 'Test Director')")
+            .bind(movie_id)
+            .execute(&pool)
+            .await
+            .expect("movie_detailsへの投入に失敗しました");
+
+        let game_id = insert_test_item(
+            &pool,
+            MediaType::Game,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
+        sqlx::query("INSERT INTO game_details (item_id, developer) VALUES ($1, 'Test Developer')")
+            .bind(game_id)
+            .execute(&pool)
+            .await
+            .expect("game_detailsへの投入に失敗しました");
+
+        let movie_detail = get_item_detail(&pool, MediaType::Movie, movie_id)
+            .await
+            .unwrap()
+            .unwrap();
+        let game_detail = get_item_detail(&pool, MediaType::Game, game_id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(movie_detail["director"], serde_json::json!("Test Director")); // 【確認内容】: movie_detailsから正しくdirectorが取得されることを確認 🔵
+        assert_eq!(game_detail["developer"], serde_json::json!("Test Developer")); // 【確認内容】: game_detailsから正しくdeveloperが取得されることを確認 🔵
+    }
+
+    /// TC-001-02-B: update_itemがrating・is_favoriteのみを更新し他フィールドを変化させない（実DB必要）
+    /// 【テスト目的】: 実DB上でPATCH相当の更新を行い、対象2フィールドのみ変化し他フィールド
+    /// （title等）が変化しないことを確認する
+    /// 【テスト内容】: insert_test_itemで1件投入したitemに対しupdate_itemを呼び出す
+    /// 【期待される動作】: 戻り値のrating==4.5・is_favorite==true、titleは投入時の値のまま、
+    /// updated_atが更新前より新しい
+    /// 🔵 信頼性レベル: 要件定義書シナリオ1・REQ-0012-04、タスクファイルテストケース1より
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn update_item_changes_only_rating_and_is_favorite() {
+        // 【テスト前準備】: items一件を事前投入する
+        let pool = test_pool().await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
+        let before = get_item_by_id(&pool, item_id).await.unwrap().unwrap();
+
+        // 【実際の処理実行】: まだ実装されていないupdate_item関数を呼び出す
+        let request = update_request_with(|r| {
+            r.rating = Some(4.5);
+            r.is_favorite = Some(true);
+        });
+        let updated = update_item(&pool, item_id, request).await.unwrap().unwrap();
+
+        // 【結果検証】: 対象2フィールドのみ変化し、titleとupdated_atの整合性が保たれることを確認
+        assert_eq!(updated.rating, Some(4.5)); // 【確認内容】: ratingが更新値に変化することを確認 🔵
+        assert!(updated.is_favorite); // 【確認内容】: is_favoriteが更新値に変化することを確認 🔵
+        assert_eq!(updated.title, before.title); // 【確認内容】: 対象外のtitleが変化しないことを確認 🔵
+        assert!(updated.updated_at > before.updated_at); // 【確認内容】: トリガーによりupdated_atが新しくなることを確認 🔵
+    }
+
+    /// TC-NEW-01: update_itemがstatusのみを更新する（実DB必要）
+    /// 【テスト目的】: 更新対象フィールドが1個のみの場合でもSET句生成・UPDATE実行が正しく機能するか
+    /// （カンマ区切りロジックの境界）を確認する
+    /// 【テスト内容】: statusのみSomeのUpdateItemRequestでupdate_itemを呼び出す
+    /// 【期待される動作】: statusのみ変化し、他フィールドは変化しない
+    /// 🟡 信頼性レベル: note.mdの「has_condition方式（カンマ区切り）」記載から妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_changes_only_status_when_single_field_specified() {
+        let pool = test_pool().await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
+
+        let request = update_request_with(|r| {
+            r.status = Some(ItemStatus::Completed);
+        });
+        let updated = update_item(&pool, item_id, request).await.unwrap().unwrap();
+
+        assert_eq!(updated.status, ItemStatus::Completed); // 【確認内容】: statusが更新値に変化することを確認 🟡
+        assert!(!updated.is_favorite); // 【確認内容】: 対象外のis_favoriteが変化しないことを確認 🟡
+    }
+
+    /// TC-001-EDGE01-B: update_itemが全フィールドNoneのとき現在の状態をそのまま返す（実DB必要）
+    /// 【テスト目的】: 空オブジェクト相当の更新リクエストに対し、UPDATE文を実行せず、
+    /// 現在のitem状態がそのまま返るかを確認する
+    /// 【テスト内容】: 全フィールドNoneのUpdateItemRequestでupdate_itemを呼び出す
+    /// 【期待される動作】: 戻り値が投入時の値と完全一致し、updated_atも変化しない
+    /// 🔵 信頼性レベル: 要件定義書シナリオ2・REQ-0012-101・REQ-0012-202、タスクファイル
+    /// 「全フィールドがNoneの場合は何もUPDATEせず現在の状態を返す」より
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_returns_current_state_when_all_fields_none() {
+        let pool = test_pool().await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
+        let before = get_item_by_id(&pool, item_id).await.unwrap().unwrap();
+
+        let request = update_request_with(|_| {});
+        let updated = update_item(&pool, item_id, request).await.unwrap().unwrap();
+
+        // 【結果検証】: updated_atが不変であることが「UPDATE文未実行」の最も強い検証となる
+        assert_eq!(updated.updated_at, before.updated_at); // 【確認内容】: トリガー未発火＝UPDATE未実行であることを確認 🔵
+        assert_eq!(updated.title, before.title); // 【確認内容】: titleが変化しないことを確認 🔵
+    }
+
+    /// TC-001-E02-A: update_itemが存在しないitem IDに対してOk(None)を返す（実DB必要）
+    /// 【テスト目的】: 有効なUUID形式だがDB上に該当レコードが存在しない場合の処理を確認する
+    /// 【テスト内容】: 未登録のUUIDに対しupdate_itemを呼び出す
+    /// 【期待される動作】: Ok(None)が返る（ApiErrorへの変換はハンドラ層の責務）
+    /// 🔵 信頼性レベル: 要件定義書REQ-0012-201・REQ-0012-202、タスクファイルテストケース2より
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_returns_ok_none_for_nonexistent_id() {
+        let pool = test_pool().await;
+        let request = update_request_with(|r| {
+            r.rating = Some(3.0);
+        });
+
+        let result = update_item(&pool, Uuid::new_v4(), request).await.unwrap();
+
+        assert!(result.is_none()); // 【確認内容】: 存在しないIDではOk(None)が返り、ハンドラ側で404に変換できることを確認 🔵
+    }
+
+    /// TC-NEW-05: update_itemがDB接続不能時にdb_error経由でInternalErrorへ変換される（実DB必要）
+    /// 【テスト目的】: DB接続自体が失敗するケースでSQLやDB内部情報をクライアントに漏洩させないことを確認する
+    /// 【テスト内容】: unreachable_pool()で構築した到達不能なPgPoolに対しupdate_itemを呼び出す
+    /// 【期待される動作】: Err(ApiError)が返り、ApiErrorCode::InternalError（500）であること
+    /// 🔵 信頼性レベル: 要件定義書REQ-0012-402、note.md「db_errorヘルパーを必ず通す」
+    /// 「unreachable_poolパターン」より
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_converts_db_error_to_internal_error() {
+        let pool = unreachable_pool().await;
+        let request = update_request_with(|r| {
+            r.rating = Some(3.0);
+        });
+
+        let result = update_item(&pool, Uuid::new_v4(), request).await;
+
+        let err = result.unwrap_err();
+        assert_eq!(err.error.code, "INTERNAL_ERROR"); // 【確認内容】: DBエラーが汎用INTERNAL_ERRORコードに変換されることを確認 🔵
+        assert_eq!(err.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR); // 【確認内容】: HTTPステータスが500であることを確認 🔵
+    }
+
+    /// 【テスト用ヘルパー】: tagsテーブルへ1件投入しidを返す
+    async fn insert_test_tag(pool: &PgPool, name: &str) -> Uuid {
+        sqlx::query_scalar("INSERT INTO tags (name) VALUES ($1) RETURNING id")
+            .bind(name)
+            .fetch_one(pool)
+            .await
+            .expect("テスト用tagの投入に失敗しました")
+    }
+
+    /// 【テスト用ヘルパー】: categoriesテーブルへ1件投入しidを返す
+    async fn insert_test_category(pool: &PgPool, name: &str) -> Uuid {
+        sqlx::query_scalar("INSERT INTO categories (name) VALUES ($1) RETURNING id")
+            .bind(name)
+            .fetch_one(pool)
+            .await
+            .expect("テスト用categoryの投入に失敗しました")
+    }
+
+    // --- 以下はRedフェーズの統合テストが利用するヘルパー（未実装のためコンパイルエラーとなる想定） ---
+    // Greenフェーズでテスト用DBセットアップユーティリティとして実装すること。
+
+    // 【テスト用ヘルパー実装】: docker-compose のテスト用Postgres（DATABASE_URL環境変数）を利用する。
+    // これらのヘルパーは#[ignore]統合テストからのみ呼び出され、`cargo test -p mediavault-api`（無印）では
+    // 実行されないため、実DB非依存のGreenフェーズ完了確認には影響しない。 🟡
+    async fn test_pool() -> PgPool {
+        let url = std::env::var("DATABASE_URL")
+            .expect("TASK-0010統合テストにはDATABASE_URL環境変数が必要です");
+        PgPool::connect(&url)
+            .await
+            .expect("テスト用DBへの接続に失敗しました")
+    }
+
+    async fn unreachable_pool() -> PgPool {
+        // 【接続不能プール構築】: 到達不能なホストを指定し、接続失敗（DBエラー変換）を誘発する 🟡
+        PgPool::connect("postgres://invalid:invalid@127.0.0.1:1/invalid")
+            .await
+            .expect("到達不能プールの構築検証用接続に失敗しました")
+    }
+
+    async fn seed_items(pool: &PgPool, count: u32) {
+        for _ in 0..count {
+            insert_test_item(pool, MediaType::Anime, ItemStatus::NotStarted, false, None, None).await;
+        }
+    }
+
+    async fn seed_items_by_media_type(pool: &PgPool, media_type: MediaType, count: u32) {
+        for _ in 0..count {
+            insert_test_item(pool, media_type, ItemStatus::NotStarted, false, None, None).await;
+        }
+    }
+
+    async fn seed_items_with_favorite(
+        pool: &PgPool,
+        media_type: MediaType,
+        is_favorite: bool,
+        count: u32,
+    ) {
+        for _ in 0..count {
+            insert_test_item(pool, media_type, ItemStatus::NotStarted, is_favorite, None, None).await;
+        }
+    }
+
+    async fn seed_items_with_status(pool: &PgPool, status: ItemStatus, count: u32) {
+        for _ in 0..count {
+            insert_test_item(pool, MediaType::Anime, status, false, None, None).await;
+        }
+    }
+
+    async fn seed_items_with_tag(pool: &PgPool, tag_id: Uuid, count: u32) {
+        for _ in 0..count {
+            insert_test_item(pool, MediaType::Anime, ItemStatus::NotStarted, false, Some(tag_id), None)
+                .await;
+        }
+    }
+
+    async fn seed_items_with_category(pool: &PgPool, category_id: Uuid, count: u32) {
+        for _ in 0..count {
+            insert_test_item(
+                pool,
+                MediaType::Anime,
+                ItemStatus::NotStarted,
+                false,
+                None,
+                Some(category_id),
+            )
+            .await;
+        }
+    }
+
+    async fn seed_item_with_media_type_and_tag(pool: &PgPool, media_type: MediaType, tag_id: Uuid) {
+        insert_test_item(pool, media_type, ItemStatus::NotStarted, false, Some(tag_id), None).await;
+    }
+
+    /// 【テスト用ヘルパー】: items（+任意でitem_tags/item_categories）へ1件投入する共通処理
+    async fn insert_test_item(
+        pool: &PgPool,
+        media_type: MediaType,
+        status: ItemStatus,
+        is_favorite: bool,
+        tag_id: Option<Uuid>,
+        category_id: Option<Uuid>,
+    ) -> Uuid {
+        let item_id: Uuid = sqlx::query_scalar(
+            "INSERT INTO items (media_type, title, status, is_favorite, source, external_id) \
+            VALUES ($1, 'テストアイテム', $2, $3, 'manual', NULL) RETURNING id",
+        )
+        .bind(media_type)
+        .bind(status)
+        .bind(is_favorite)
+        .fetch_one(pool)
+        .await
+        .expect("テスト用itemの投入に失敗しました");
+
+        if let Some(tag_id) = tag_id {
+            sqlx::query("INSERT INTO item_tags (item_id, tag_id) VALUES ($1, $2)")
+                .bind(item_id)
+                .bind(tag_id)
+                .execute(pool)
+                .await
+                .expect("テスト用item_tagsの投入に失敗しました");
+        }
+
+        if let Some(category_id) = category_id {
+            sqlx::query("INSERT INTO item_categories (item_id, category_id) VALUES ($1, $2)")
+                .bind(item_id)
+                .bind(category_id)
+                .execute(pool)
+                .await
+                .expect("テスト用item_categoriesの投入に失敗しました");
+        }
+
+        item_id
+    }
+}
