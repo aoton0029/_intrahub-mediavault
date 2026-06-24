@@ -1,2 +1,11 @@
+pub mod category;
 pub mod item;
+pub mod item_episode;
+pub mod item_group;
+pub mod item_link;
+pub mod item_relation;
+pub mod item_trailer;
+pub mod mylist;
 pub mod response;
+pub mod staff;
+pub mod tag;

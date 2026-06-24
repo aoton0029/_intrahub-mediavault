@@ -9,7 +9,7 @@ use axum::Json;
 
 use crate::models::item::{
     deserialize_request, parse_create_item_request, parse_item_id, validate_update_title, Item,
-    ItemDetail, ListItemsQuery, UpdateItemRequest,
+    ItemDetail, ListItemsQuery, UpdateItemRequest, UpdateStatusRequest,
 };
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk, PaginatedOk, Pagination};
 use crate::repositories::item_repository;
@@ -141,6 +141,51 @@ pub async fn update_item_handler(
     validate_update_title(&request.title)?;
 
     let item = item_repository::update_item(&state.db, id, request)
+        .await?
+        .ok_or_else(|| ApiError::new(ApiErrorCode::ItemNotFound, "アイテムが見つかりません"))?;
+
+    Ok(ApiOk::new(item))
+}
+
+/// 【機能概要】: `DELETE /items/:id` ハンドラ。指定itemを削除し、関連テーブルは
+/// DBの`ON DELETE CASCADE`制約に委ねて連動削除する
+/// 【実装方針】: パスパラメータをUUIDへパース → item_repository::delete_itemでDELETE実行 →
+/// 削除件数が0件（対象不存在）の場合は404を返す
+/// 【テスト対応】: TC-001-03（正常削除で204）、存在しないitemで404 に対応
+/// 🔵 信頼性レベル: タスクファイル「DELETE /items/:idが指定itemを削除し、成功時204を返す」
+/// 「該当itemが存在しない場合、ITEM_NOT_FOUND（404）を返す」に直接対応
+pub async fn delete_item_handler(
+    State(state): State<AppState>,
+    Path(id_raw): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let id = parse_item_id(&id_raw)?;
+
+    let deleted = item_repository::delete_item(&state.db, id).await?;
+    if !deleted {
+        return Err(ApiError::new(ApiErrorCode::ItemNotFound, "アイテムが見つかりません"));
+    }
+
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// 【機能概要】: `PATCH /items/:id/status` ハンドラ。視聴・読了状況（`status`）および
+/// 消費日（`consumed_date`）のみを更新する専用エンドポイント
+/// 【実装方針】: パスパラメータをUUIDへパース → リクエストボディを`UpdateStatusRequest`へ
+/// デシリアライズ（`status`不正値はここでVALIDATION_ERRORになる） →
+/// `item_repository::update_item_status`でDB反映 → 存在しなければ404
+/// 【テスト対応】: タスクファイル テストケース1（正常更新）・2（status不正値で400）・
+/// 3（存在しないitemで404）に対応
+/// 🔵 信頼性レベル: REQ-008・user-stories 1.5、タスクファイル完了条件に直接対応
+pub async fn update_item_status_handler(
+    State(state): State<AppState>,
+    Path(id_raw): Path<String>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<ApiOk<Item>, ApiError> {
+    let id = parse_item_id(&id_raw)?;
+
+    let request: UpdateStatusRequest = deserialize_request(body)?;
+
+    let item = item_repository::update_item_status(&state.db, id, request)
         .await?
         .ok_or_else(|| ApiError::new(ApiErrorCode::ItemNotFound, "アイテムが見つかりません"))?;
 
@@ -390,6 +435,97 @@ mod tests {
         let err = result.unwrap_err();
         assert_eq!(err.error.code, "VALIDATION_ERROR"); // 【確認内容】: 不正なUUID形式でVALIDATION_ERRORが返ることを確認 🟡
         assert_eq!(err.status, StatusCode::BAD_REQUEST); // 【確認内容】: HTTPステータスが400であることを確認 🟡
+    }
+
+    /// TC-001-03: delete_item_handlerが正常削除で204を返す（実DB必要）
+    /// 【テスト目的】: 既存itemに対しDELETEを実行した際、ステータス204が返ることを確認する
+    /// 【テスト内容】: テスト用itemを投入し、そのIDでdelete_item_handlerを呼ぶ
+    /// 【期待される動作】: HTTPステータス204
+    /// 🔵 信頼性レベル: タスクファイル テストケース1（TC-001-03）に直接対応
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn delete_item_handler_returns_204_for_existing_item() {
+        let state = test_app_state().await;
+        let item_id = insert_test_item_for_handler(&state).await;
+
+        let response = delete_item_handler(State(state), Path(item_id.to_string()))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT); // 【確認内容】: 正常削除でHTTPステータスが204であることを確認 🔵
+    }
+
+    /// 存在しないitemで404 ITEM_NOT_FOUND（実DB必要）
+    /// 【テスト目的】: 未登録UUIDを指定した場合に404 ITEM_NOT_FOUNDが返ることを確認する
+    /// 【テスト内容】: 未登録UUIDをパスパラメータにdelete_item_handlerを呼ぶ
+    /// 【期待される動作】: HTTPステータス404、ApiErrorCode::ItemNotFound
+    /// 🔵 信頼性レベル: タスクファイル テストケース2（存在しないitemで404）に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn delete_item_handler_returns_404_for_nonexistent_item() {
+        let state = test_app_state().await;
+        let id = Uuid::new_v4();
+
+        let result = delete_item_handler(State(state), Path(id.to_string())).await;
+
+        let err = result.unwrap_err();
+        assert_eq!(err.error.code, "ITEM_NOT_FOUND"); // 【確認内容】: 存在しないIDでITEM_NOT_FOUNDが返ることを確認 🔵
+        assert_eq!(err.status, StatusCode::NOT_FOUND); // 【確認内容】: HTTPステータスが404であることを確認 🔵
+    }
+
+    /// テストケース2: update_item_status_handlerがstatus不正値に対し400 VALIDATION_ERRORを返す（実DB必要）
+    /// 【テスト目的】: ハンドラ層でdeserialize_requestのエラーがApiErrorに変換される分岐を確認する
+    /// 🟡 信頼性レベル: タスクファイル テストケース2（status不正値で400）に対応
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_status_handler_returns_400_for_invalid_status() {
+        let state = test_app_state().await;
+        let item_id = insert_test_item_for_handler(&state).await;
+        let body = serde_json::json!({ "status": "invalid_status" });
+
+        let result =
+            update_item_status_handler(State(state), Path(item_id.to_string()), Json(body)).await;
+
+        let err = result.unwrap_err();
+        assert_eq!(err.error.code, "VALIDATION_ERROR"); // 【確認内容】: status不正値でVALIDATION_ERRORが返ることを確認 🟡
+        assert_eq!(err.status, StatusCode::BAD_REQUEST); // 【確認内容】: HTTPステータスが400であることを確認 🟡
+    }
+
+    /// テストケース3: update_item_status_handlerが存在しないitemに対し404 ITEM_NOT_FOUNDを返す（実DB必要）
+    /// 🟡 信頼性レベル: タスクファイル テストケース3（存在しないitemで404）に対応
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_status_handler_returns_404_for_nonexistent_item() {
+        let state = test_app_state().await;
+        let id = Uuid::new_v4();
+        let body = serde_json::json!({ "status": "completed" });
+
+        let result = update_item_status_handler(State(state), Path(id.to_string()), Json(body)).await;
+
+        let err = result.unwrap_err();
+        assert_eq!(err.error.code, "ITEM_NOT_FOUND"); // 【確認内容】: 存在しないIDでITEM_NOT_FOUNDが返ることを確認 🟡
+        assert_eq!(err.status, StatusCode::NOT_FOUND); // 【確認内容】: HTTPステータスが404であることを確認 🟡
+    }
+
+    /// テストケース1: update_item_status_handlerがstatus・consumed_dateを正常更新し200を返す（実DB必要）
+    /// 🔵 信頼性レベル: タスクファイル テストケース1（statusとconsumed_dateの正常更新）に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_status_handler_updates_status_and_consumed_date() {
+        let state = test_app_state().await;
+        let item_id = insert_test_item_for_handler(&state).await;
+        let body = serde_json::json!({ "status": "completed", "consumed_date": "2026-06-20" });
+
+        let response =
+            update_item_status_handler(State(state), Path(item_id.to_string()), Json(body))
+                .await
+                .unwrap();
+
+        assert_eq!(response.data.status, ItemStatus::Completed); // 【確認内容】: statusが更新値に変化することを確認 🔵
+        assert_eq!(
+            response.data.consumed_date,
+            Some(NaiveDate::from_ymd_opt(2026, 6, 20).unwrap())
+        ); // 【確認内容】: consumed_dateが更新値に変化することを確認 🔵
     }
 
     /// 【テスト用ヘルパー】: 実DB接続済みのAppStateを構築する（Greenフェーズで実装する想定）

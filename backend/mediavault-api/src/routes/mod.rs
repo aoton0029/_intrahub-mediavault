@@ -5,9 +5,28 @@
 use axum::routing::get;
 use axum::Router;
 
+use crate::handlers::categories::{
+    attach_category_handler, create_category_handler, delete_category_handler,
+    detach_category_handler,
+};
 use crate::handlers::health::health_handler;
+use crate::handlers::item_episodes::{create_item_episode_handler, list_item_episodes_handler};
+use crate::handlers::item_groups::{create_item_group_handler, list_item_groups_handler};
+use crate::handlers::item_links::{create_item_link_handler, delete_item_link_handler};
+use crate::handlers::item_relations::{create_item_relation_handler, delete_item_relation_handler};
+use crate::handlers::item_trailers::{create_item_trailer_handler, delete_item_trailer_handler};
+use crate::handlers::mylists::{
+    add_mylist_item_handler, create_mylist_handler, remove_mylist_item_handler,
+};
 use crate::handlers::items::{
-    create_item_handler, get_item_handler, list_items_handler, update_item_handler,
+    create_item_handler, delete_item_handler, get_item_handler, list_items_handler,
+    update_item_handler, update_item_status_handler,
+};
+use crate::handlers::staff::{
+    create_item_staff_handler, create_staff_handler, delete_item_staff_handler,
+};
+use crate::handlers::tags::{
+    attach_tag_handler, create_tag_handler, delete_tag_handler, detach_tag_handler,
 };
 use crate::AppState;
 
@@ -20,9 +39,88 @@ pub fn build_router(state: AppState) -> Router {
         .route("/items", get(list_items_handler).post(create_item_handler))
         // 【TASK-0011】: GET /items/:id（個別詳細取得） 🟡
         // 【TASK-0012】: PATCH /items/:id（部分更新）を同一パスに追加 🔵
+        // 【TASK-0013】: DELETE /items/:id（カスケード削除）を同一パスに追加 🔵
         .route(
             "/items/:id",
-            get(get_item_handler).patch(update_item_handler),
+            get(get_item_handler)
+                .patch(update_item_handler)
+                .delete(delete_item_handler),
+        )
+        // 【TASK-0014】: PATCH /items/:id/status（視聴・読了状況更新専用エンドポイント） 🔵
+        .route("/items/:id/status", axum::routing::patch(update_item_status_handler))
+        // 【TASK-0015】: タグCRUD・アイテムへの付与・削除 🔵🟡
+        .route("/tags", axum::routing::post(create_tag_handler))
+        .route("/tags/:id", axum::routing::delete(delete_tag_handler))
+        .route(
+            "/items/:id/tags/:tag_id",
+            axum::routing::post(attach_tag_handler).delete(detach_tag_handler),
+        )
+        // 【TASK-0015】: カテゴリCRUD・アイテムへの付与・削除 🔵🟡
+        .route("/categories", axum::routing::post(create_category_handler))
+        .route(
+            "/categories/:id",
+            axum::routing::delete(delete_category_handler),
+        )
+        .route(
+            "/items/:id/categories/:category_id",
+            axum::routing::post(attach_category_handler).delete(detach_category_handler),
+        )
+        // 【TASK-0016】: マイリストCRUD・itemの追加・削除 🔵
+        .route("/mylists", axum::routing::post(create_mylist_handler))
+        .route(
+            "/mylists/:id/items",
+            axum::routing::post(add_mylist_item_handler),
+        )
+        .route(
+            "/mylists/:id/items/:item_id",
+            axum::routing::delete(remove_mylist_item_handler),
+        )
+        // 【TASK-0017】: item_relations（関連付け・DLC）CRUD 🔵
+        .route(
+            "/item-relations",
+            axum::routing::post(create_item_relation_handler),
+        )
+        .route(
+            "/item-relations/:id",
+            axum::routing::delete(delete_item_relation_handler),
+        )
+        // 【TASK-0018】: item_groups（シーズン/巻/章）CRUD 🔵🟡
+        .route(
+            "/items/:id/groups",
+            axum::routing::post(create_item_group_handler).get(list_item_groups_handler),
+        )
+        // 【TASK-0019】: item_episodes（season/chapter配下の話数）CRUD + EDGE-101検証 🔵
+        .route(
+            "/groups/:group_id/episodes",
+            axum::routing::post(create_item_episode_handler).get(list_item_episodes_handler),
+        )
+        // 【TASK-0020】: スタッフ管理CRUD（staff作成・itemへの紐付け・紐付け削除） 🔵🟡
+        .route("/staff", axum::routing::post(create_staff_handler))
+        .route(
+            "/items/:id/staff",
+            axum::routing::post(create_item_staff_handler),
+        )
+        .route(
+            "/items/:id/staff/:item_staff_id",
+            axum::routing::delete(delete_item_staff_handler),
+        )
+        // 【TASK-0021】: item_links（参考リンク）CRUD 🔵🟡
+        .route(
+            "/items/:id/links",
+            axum::routing::post(create_item_link_handler),
+        )
+        .route(
+            "/items/:id/links/:link_id",
+            axum::routing::delete(delete_item_link_handler),
+        )
+        // 【TASK-0021】: item_trailers（トレーラー動画リンク）CRUD 🔵🟡
+        .route(
+            "/items/:id/trailers",
+            axum::routing::post(create_item_trailer_handler),
+        )
+        .route(
+            "/items/:id/trailers/:trailer_id",
+            axum::routing::delete(delete_item_trailer_handler),
         )
         .with_state(state)
 }
@@ -151,6 +249,51 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
+                    .uri("/items/not-a-uuid")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 不正なUUID形式が400で拒否されることを確認 🟡
+    }
+
+    /// TASK-0013: 存在しないitemへのDELETEで404（ルーター経由、実DB必要）
+    /// 🔵 信頼性レベル: タスクファイル テストケース2（存在しないitemで404）に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn delete_item_with_nonexistent_id_returns_404() {
+        let state = test_app_state().await;
+        let app = build_router(state);
+        let id = uuid::Uuid::new_v4();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/items/{id}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND); // 【確認内容】: 存在しないitemのDELETEで404が返ることを確認 🔵
+    }
+
+    /// TASK-0013: 不正なUUID形式のDELETEで400（ルーター経由）
+    /// 🟡 信頼性レベル: 既存parse_item_id再利用方針からの妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn delete_item_with_invalid_uuid_returns_400() {
+        let state = test_app_state().await;
+        let app = build_router(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
                     .uri("/items/not-a-uuid")
                     .body(Body::empty())
                     .unwrap(),

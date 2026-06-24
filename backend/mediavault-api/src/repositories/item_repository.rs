@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::models::item::{
     has_any_update_field, CategoryRef, CreateItemRequest, Item, ListItemsQuery, MediaType, TagRef,
-    UpdateItemRequest,
+    UpdateItemRequest, UpdateStatusRequest,
 };
 use crate::models::response::{ApiError, ApiErrorCode};
 
@@ -497,6 +497,53 @@ pub async fn update_item(
         .fetch_optional(pool)
         .await
         .map_err(db_error)?;
+
+    Ok(item)
+}
+
+/// 【機能概要】: 指定IDのitemを削除する。`ON DELETE CASCADE`がDBスキーマで設定済みのため、
+/// item_tags・item_categories・mylist_items・item_relations・item_links・item_files・
+/// item_trailers・item_groups・item_staff・メディア別詳細テーブルの関連レコードは
+/// アプリケーション側で個別削除せずDB制約に委ねる
+/// 【実装方針】: `DELETE FROM items WHERE id = $1`を実行し、`rows_affected()`が0の場合は
+/// 対象が存在しなかったことを示す`Ok(false)`を返す。404判定はハンドラ層の責務とする
+/// 【テスト対応】: TC-001-03（正常削除で204）、存在しないitemで404 に対応
+/// 🔵 信頼性レベル: タスクファイル「DELETE FROM items WHERE id = $1」「rows_affected()が0の場合404」に直接対応
+pub async fn delete_item(pool: &PgPool, id: Uuid) -> Result<bool, ApiError> {
+    let result = sqlx::query("DELETE FROM items WHERE id = $1")
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(db_error)?;
+
+    Ok(result.rows_affected() > 0)
+}
+
+/// 【機能概要】: 指定IDのitemに対し`status`・`consumed_date`のみを更新する
+/// 【実装方針】: `status`は必須のため常にSET対象、`consumed_date`は未指定（None）の場合は
+/// `COALESCE($2, consumed_date)`で既存値を維持する（注意事項「consumed_date未指定時は
+/// 既存値を維持する」より）。`RETURNING`+`fetch_optional`で更新後の行を取得し、0行（対象不存在）
+/// の場合は`Ok(None)`を返す（404判定はハンドラ層の責務）
+/// 【テスト対応】: テストケース1（正常更新）・テストケース3（存在しないitemで404）に対応
+/// 🔵 信頼性レベル: タスクファイル「items テーブルのstatus, consumed_dateカラムのみをUPDATE」に直接対応
+pub async fn update_item_status(
+    pool: &PgPool,
+    id: Uuid,
+    request: UpdateStatusRequest,
+) -> Result<Option<Item>, ApiError> {
+    let item: Option<Item> = sqlx::query_as(
+        "UPDATE items SET status = $1, consumed_date = COALESCE($2, consumed_date) \
+        WHERE id = $3 \
+        RETURNING id, media_type, title, original_title, description, cover_image_url, \
+        release_date, homepage_url, status, consumed_date, rating, is_favorite, \
+        source, external_id, created_at, updated_at",
+    )
+    .bind(request.status)
+    .bind(request.consumed_date)
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_error)?;
 
     Ok(item)
 }
@@ -1496,6 +1543,148 @@ mod tests {
 
     async fn seed_item_with_media_type_and_tag(pool: &PgPool, media_type: MediaType, tag_id: Uuid) {
         insert_test_item(pool, media_type, ItemStatus::NotStarted, false, Some(tag_id), None).await;
+    }
+
+    /// TC-001-03: 正常削除でtrueが返り、itemsテーブルからレコードが消える（実DB必要）
+    /// 🔵 信頼性レベル: タスクファイル テストケース1（TC-001-03）に直接対応
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn delete_item_removes_existing_item() {
+        let pool = test_pool().await;
+        let item_id =
+            insert_test_item(&pool, MediaType::Anime, ItemStatus::NotStarted, false, None, None)
+                .await;
+
+        let deleted = delete_item(&pool, item_id).await.unwrap();
+
+        assert!(deleted); // 【確認内容】: 既存itemの削除がtrueを返すことを確認 🔵
+        let after = get_item_by_id(&pool, item_id).await.unwrap();
+        assert!(after.is_none()); // 【確認内容】: itemsテーブルからレコードが消えていることを確認 🔵
+    }
+
+    /// 存在しないitemでfalseが返る（実DB必要）
+    /// 🔵 信頼性レベル: タスクファイル テストケース2（存在しないitemで404）に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn delete_item_returns_false_for_nonexistent_item() {
+        let pool = test_pool().await;
+        let id = Uuid::new_v4();
+
+        let deleted = delete_item(&pool, id).await.unwrap();
+
+        assert!(!deleted); // 【確認内容】: 存在しないitemの削除はfalseを返すことを確認 🔵
+    }
+
+    /// カスケード削除統合テスト: item_tags・item_categoriesが連動削除される（実DB必要）
+    /// 🔵 信頼性レベル: database-schema.sqlのON DELETE CASCADE設定・タスクファイル統合テスト要件に対応
+    #[tokio::test]
+    #[ignore]
+    async fn delete_item_cascades_to_item_tags_and_item_categories() {
+        let pool = test_pool().await;
+        let tag_id = insert_test_tag(&pool, "削除確認タグ").await;
+        let category_id = insert_test_category(&pool, "削除確認カテゴリ").await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            Some(tag_id),
+            Some(category_id),
+        )
+        .await;
+
+        let deleted = delete_item(&pool, item_id).await.unwrap();
+        assert!(deleted); // 【確認内容】: itemの削除が成功することを確認 🔵
+
+        let remaining_tags: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM item_tags WHERE item_id = $1",
+        )
+        .bind(item_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let remaining_categories: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM item_categories WHERE item_id = $1",
+        )
+        .bind(item_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        assert_eq!(remaining_tags, 0); // 【確認内容】: item_tagsがカスケード削除されることを確認 🔵
+        assert_eq!(remaining_categories, 0); // 【確認内容】: item_categoriesがカスケード削除されることを確認 🔵
+    }
+
+    /// テストケース1: update_item_statusがstatus・consumed_dateを正常に更新する（実DB必要）
+    /// 🔵 信頼性レベル: TASK-0014 テストケース1（statusとconsumed_dateの正常更新）に直接対応
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn update_item_status_updates_status_and_consumed_date() {
+        let pool = test_pool().await;
+        let item_id =
+            insert_test_item(&pool, MediaType::Anime, ItemStatus::NotStarted, false, None, None)
+                .await;
+
+        let request = crate::models::item::UpdateStatusRequest {
+            status: ItemStatus::Completed,
+            consumed_date: Some(chrono::NaiveDate::from_ymd_opt(2026, 6, 20).unwrap()),
+        };
+        let updated = update_item_status(&pool, item_id, request)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(updated.status, ItemStatus::Completed); // 【確認内容】: statusが更新値に変化することを確認 🔵
+        assert_eq!(
+            updated.consumed_date,
+            Some(chrono::NaiveDate::from_ymd_opt(2026, 6, 20).unwrap())
+        ); // 【確認内容】: consumed_dateが更新値に変化することを確認 🔵
+    }
+
+    /// consumed_date未指定時は既存値を維持する（実DB必要）
+    /// 🔵 信頼性レベル: タスクファイル注意事項「consumed_date未指定時は既存値を維持する」に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_status_keeps_existing_consumed_date_when_omitted() {
+        let pool = test_pool().await;
+        let item_id =
+            insert_test_item(&pool, MediaType::Anime, ItemStatus::NotStarted, false, None, None)
+                .await;
+        let existing_date = chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        sqlx::query("UPDATE items SET consumed_date = $1 WHERE id = $2")
+            .bind(existing_date)
+            .bind(item_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let request = crate::models::item::UpdateStatusRequest {
+            status: ItemStatus::InProgress,
+            consumed_date: None,
+        };
+        let updated = update_item_status(&pool, item_id, request)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(updated.status, ItemStatus::InProgress); // 【確認内容】: statusのみ変化することを確認 🔵
+        assert_eq!(updated.consumed_date, Some(existing_date)); // 【確認内容】: consumed_dateが既存値のまま維持されることを確認 🔵
+    }
+
+    /// テストケース3: 存在しないitemでOk(None)が返る（実DB必要）
+    /// 🟡 信頼性レベル: TASK-0014 テストケース3（存在しないitemで404）に対応
+    #[tokio::test]
+    #[ignore]
+    async fn update_item_status_returns_none_for_nonexistent_item() {
+        let pool = test_pool().await;
+        let request = crate::models::item::UpdateStatusRequest {
+            status: ItemStatus::Completed,
+            consumed_date: None,
+        };
+
+        let result = update_item_status(&pool, Uuid::new_v4(), request).await.unwrap();
+
+        assert!(result.is_none()); // 【確認内容】: 存在しないIDではOk(None)が返り、ハンドラ側で404に変換できることを確認 🟡
     }
 
     /// 【テスト用ヘルパー】: items（+任意でitem_tags/item_categories）へ1件投入する共通処理

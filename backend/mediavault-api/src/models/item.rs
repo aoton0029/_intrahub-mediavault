@@ -118,6 +118,19 @@ pub struct UpdateItemRequest {
     pub is_favorite: Option<bool>,
 }
 
+/// `PATCH /items/:id/status` 専用リクエスト
+///
+/// 【機能概要】: 視聴・読了状況（`status`）および消費日（`consumed_date`）のみを
+/// 更新するための専用DTO。`status`は必須、`consumed_date`はoptional
+/// 【実装方針】: `status`が不正な文字列の場合はserdeデシリアライズ自体が失敗し、
+/// `deserialize_request`により`VALIDATION_ERROR`へ変換される
+/// 🔵 信頼性レベル: TASK-0014 api-endpoints.md PATCH /items/:id/status リクエスト例より
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateStatusRequest {
+    pub status: ItemStatus,
+    pub consumed_date: Option<NaiveDate>,
+}
+
 /// JSON値を任意のリクエストDTOへデシリアライズし、失敗時は`VALIDATION_ERROR`へ変換する。
 ///
 /// `parse_create_item_request`・`update_item_handler`のいずれもserdeデシリアライズ失敗を
@@ -474,6 +487,49 @@ mod tests {
     #[test]
     fn parse_item_id_returns_validation_error_for_invalid_string() {
         let err = parse_item_id("abc").unwrap_err();
+        assert_eq!(err.error.code, "VALIDATION_ERROR");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    }
+
+    /// テストケース1: UpdateStatusRequestの正常デシリアライズ（status・consumed_date両方）
+    /// 🔵 信頼性レベル: TASK-0014 テストケース1（statusとconsumed_dateの正常更新）に対応
+    #[test]
+    fn update_status_request_deserializes_status_and_consumed_date() {
+        let value = serde_json::json!({ "status": "completed", "consumed_date": "2026-06-20" });
+        let request: UpdateStatusRequest = deserialize_request(value).unwrap();
+        assert_eq!(request.status, ItemStatus::Completed);
+        assert_eq!(
+            request.consumed_date,
+            Some(NaiveDate::from_ymd_opt(2026, 6, 20).unwrap())
+        );
+    }
+
+    /// UpdateStatusRequestはconsumed_date省略時はNoneになる
+    /// 🔵 信頼性レベル: タスクファイル注意事項「consumed_date未指定時は既存値を維持する」に対応
+    #[test]
+    fn update_status_request_allows_omitted_consumed_date() {
+        let value = serde_json::json!({ "status": "in_progress" });
+        let request: UpdateStatusRequest = deserialize_request(value).unwrap();
+        assert_eq!(request.status, ItemStatus::InProgress);
+        assert_eq!(request.consumed_date, None);
+    }
+
+    /// テストケース2: status不正値はVALIDATION_ERROR(400)になる
+    /// 🟡 信頼性レベル: TASK-0014 テストケース2（status不正値で400）に対応
+    #[test]
+    fn update_status_request_rejects_invalid_status_value() {
+        let value = serde_json::json!({ "status": "invalid_status" });
+        let err = deserialize_request::<UpdateStatusRequest>(value).unwrap_err();
+        assert_eq!(err.error.code, "VALIDATION_ERROR");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    }
+
+    /// statusが未指定の場合もVALIDATION_ERROR(400)になる（必須フィールド）
+    /// 🟡 信頼性レベル: タスクファイル「statusは必須」より
+    #[test]
+    fn update_status_request_rejects_missing_status_field() {
+        let value = serde_json::json!({ "consumed_date": "2026-06-20" });
+        let err = deserialize_request::<UpdateStatusRequest>(value).unwrap_err();
         assert_eq!(err.error.code, "VALIDATION_ERROR");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
     }

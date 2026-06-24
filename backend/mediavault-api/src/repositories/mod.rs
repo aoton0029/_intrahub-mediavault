@@ -1,1 +1,11 @@
+pub mod category_repository;
+pub mod db_error_utils;
+pub mod item_episode_repository;
+pub mod item_group_repository;
+pub mod item_link_repository;
+pub mod item_relation_repository;
 pub mod item_repository;
+pub mod item_trailer_repository;
+pub mod mylist_repository;
+pub mod staff_repository;
+pub mod tag_repository;

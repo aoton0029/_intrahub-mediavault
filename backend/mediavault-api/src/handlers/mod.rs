@@ -1,2 +1,11 @@
+pub mod categories;
 pub mod health;
+pub mod item_episodes;
+pub mod item_groups;
+pub mod item_links;
+pub mod item_relations;
+pub mod item_trailers;
 pub mod items;
+pub mod mylists;
+pub mod staff;
+pub mod tags;

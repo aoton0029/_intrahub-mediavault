@@ -54,6 +54,36 @@ pub enum ApiErrorCode {
     UnprocessableEntity,
     InternalError,
     ExternalApiError,
+    /// タグ名の一意制約違反（TASK-0015）
+    /// 🟡 信頼性レベル: TASK-0015.md 注意事項「例: DUPLICATE_TAG_NAME」より新規追加
+    DuplicateTagName,
+    /// タグが見つからない（TASK-0015のDELETE/付与時404）
+    /// 🟡 信頼性レベル: 既存ItemNotFoundパターンからタグ専用に分離した妥当な推測
+    TagNotFound,
+    /// カテゴリ名の一意制約違反（TASK-0015）
+    /// 🟡 信頼性レベル: TASK-0015.md 注意事項「例: DUPLICATE_CATEGORY_NAME」より新規追加
+    DuplicateCategoryName,
+    /// カテゴリが見つからない（TASK-0015のDELETE/付与時404）
+    /// 🟡 信頼性レベル: TagNotFoundと対称な推測
+    CategoryNotFound,
+    /// マイリストが見つからない（TASK-0016のitem追加時404）
+    /// 🟡 信頼性レベル: TagNotFound/CategoryNotFoundと対称な推測
+    MylistNotFound,
+    /// 関連付けの一意制約違反（TASK-0017、同一(item_id, related_item_id, relation_type)組み合わせ）
+    /// 🟡 信頼性レベル: DuplicateTagName/DuplicateCategoryNameと対称な推測
+    DuplicateRelation,
+    /// グループが見つからない（TASK-0019のepisode登録・一覧時404）
+    /// 🟡 信頼性レベル: TagNotFound/CategoryNotFoundと対称な推測
+    GroupNotFound,
+    /// volume配下のグループへのepisode登録拒否（TASK-0019、EDGE-101）
+    /// 🔵 信頼性レベル: TASK-0019.md 完了条件「INVALID_GROUP_TYPE_FOR_EPISODES（400）」に直接対応
+    InvalidGroupTypeForEpisodes,
+    /// 同一group_id内のepisode_number重複（TASK-0019、uq_item_episodes制約違反）
+    /// 🟡 信頼性レベル: TASK-0019.md テストケース3「一意制約違反に対応したエラー」より
+    DuplicateEpisodeNumber,
+    /// スタッフが見つからない（TASK-0020のitem紐付け時404）
+    /// 🟡 信頼性レベル: staff-requirements.md 3 制約条件「STAFF_NOT_FOUND新規追加」に明記
+    StaffNotFound,
 }
 
 impl ApiErrorCode {
@@ -68,6 +98,22 @@ impl ApiErrorCode {
             }
             ApiErrorCode::InternalError => ("INTERNAL_ERROR", StatusCode::INTERNAL_SERVER_ERROR),
             ApiErrorCode::ExternalApiError => ("EXTERNAL_API_ERROR", StatusCode::BAD_GATEWAY),
+            ApiErrorCode::DuplicateTagName => ("DUPLICATE_TAG_NAME", StatusCode::CONFLICT),
+            ApiErrorCode::TagNotFound => ("TAG_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::DuplicateCategoryName => {
+                ("DUPLICATE_CATEGORY_NAME", StatusCode::CONFLICT)
+            }
+            ApiErrorCode::CategoryNotFound => ("CATEGORY_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::MylistNotFound => ("MYLIST_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::DuplicateRelation => ("DUPLICATE_RELATION", StatusCode::CONFLICT),
+            ApiErrorCode::GroupNotFound => ("GROUP_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::InvalidGroupTypeForEpisodes => {
+                ("INVALID_GROUP_TYPE_FOR_EPISODES", StatusCode::BAD_REQUEST)
+            }
+            ApiErrorCode::DuplicateEpisodeNumber => {
+                ("DUPLICATE_EPISODE_NUMBER", StatusCode::CONFLICT)
+            }
+            ApiErrorCode::StaffNotFound => ("STAFF_NOT_FOUND", StatusCode::NOT_FOUND),
         }
     }
 

@@ -90,13 +90,13 @@ TASK-0001, TASK-0003 → TASK-0007 → Phase2全タスク
 - [x] [TASK-0011: GET /items/:id 詳細取得実装](TASK-0011.md) - 4h (TDD) 🟡 ✅完了 (2026-06-23)
 - [ ] [TASK-0012: PATCH /items/:id 部分更新実装](TASK-0012.md) - 4h (TDD) 🔵
 - [ ] [TASK-0013: DELETE /items/:id 実装（カスケード削除）](TASK-0013.md) - 4h (TDD) 🔵
-- [ ] [TASK-0014: PATCH /items/:id/status 実装](TASK-0014.md) - 3h (TDD) 🔵
-- [ ] [TASK-0015: タグ・カテゴリCRUD実装](TASK-0015.md) - 6h (TDD) 🔵
-- [ ] [TASK-0016: マイリストCRUD実装](TASK-0016.md) - 6h (TDD) 🔵
-- [ ] [TASK-0017: item_relations（関連付け・DLC）CRUD実装](TASK-0017.md) - 5h (TDD) 🔵
-- [ ] [TASK-0018: item_groups（シーズン/巻/章）CRUD実装](TASK-0018.md) - 5h (TDD) 🔵
-- [ ] [TASK-0019: item_episodes CRUD + EDGE-101検証実装](TASK-0019.md) - 6h (TDD) 🔵
-- [ ] [TASK-0020: スタッフ管理CRUD実装](TASK-0020.md) - 5h (TDD) 🔵
+- [x] [TASK-0014: PATCH /items/:id/status 実装](TASK-0014.md) - 3h (TDD) 🔵 ✅完了 (2026-06-24)
+- [x] [TASK-0015: タグ・カテゴリCRUD実装](TASK-0015.md) - 6h (TDD) 🔵 ✅完了 (2026-06-24)
+- [x] [TASK-0016: マイリストCRUD実装](TASK-0016.md) - 6h (TDD) 🔵 ✅完了 (2026-06-24)
+- [x] [TASK-0017: item_relations（関連付け・DLC）CRUD実装](TASK-0017.md) - 5h (TDD) 🔵 ✅完了 (2026-06-24)
+- [x] [TASK-0018: item_groups（シーズン/巻/章）CRUD実装](TASK-0018.md) - 5h (TDD) 🔵 ✅完了 (2026-06-24)
+- [x] [TASK-0019: item_episodes CRUD + EDGE-101検証実装](TASK-0019.md) - 6h (TDD) 🔵 ✅完了 (2026-06-24)
+- [x] [TASK-0020: スタッフ管理CRUD実装](TASK-0020.md) - 5h (TDD) 🔵 ✅完了 (2026-06-24)
 - [ ] [TASK-0021: item_links/item_trailers CRUD実装](TASK-0021.md) - 4h (TDD) 🔵
 
 ### 依存関係
