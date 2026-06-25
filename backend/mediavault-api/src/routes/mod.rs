@@ -18,6 +18,7 @@ use crate::handlers::item_trailers::{create_item_trailer_handler, delete_item_tr
 use crate::handlers::mylists::{
     add_mylist_item_handler, create_mylist_handler, remove_mylist_item_handler,
 };
+use crate::handlers::settings::update_api_key_handler;
 use crate::handlers::items::{
     create_item_handler, delete_item_handler, get_item_handler, list_items_handler,
     update_item_handler, update_item_status_handler,
@@ -121,6 +122,11 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/items/:id/trailers/:trailer_id",
             axum::routing::delete(delete_item_trailer_handler),
+        )
+        // 【TASK-0022】: api_credentials（外部APIキー管理）PUT /settings/api-keys/:provider 🔵
+        .route(
+            "/settings/api-keys/:provider",
+            axum::routing::put(update_api_key_handler),
         )
         .with_state(state)
 }
@@ -302,5 +308,123 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 不正なUUID形式が400で拒否されることを確認 🟡
+    }
+
+    /// 統合テスト共通: 指定providerの行をDBから削除しクリーンな状態にする（TASK-0022）
+    async fn cleanup_provider(state: &AppState, provider: &str) {
+        sqlx::query("DELETE FROM api_credentials WHERE provider = $1::api_provider")
+            .bind(provider)
+            .execute(&state.db)
+            .await
+            .expect("テスト前クリーンアップに失敗しました");
+    }
+
+    /// TC-015-01-C: `PUT /settings/api-keys/tmdb`が新規登録時に200と更新後`ApiCredential`を返す（ハンドラ統合）
+    /// 🔵 信頼性レベル: 要件定義書REQ-0022-05・NFR-0022-01、完了基準L126・129より
+    #[tokio::test]
+    #[ignore]
+    async fn put_api_key_tmdb_with_new_record_returns_200() {
+        // 【テスト目的】: ルーティング→ハンドラ→リポジトリのフルパスで、新規登録時のHTTPレスポンスが規約通りかを確認する
+        // 【テスト内容】: PUT /settings/api-keys/tmdb に { "api_key": "valid-tmdb-key" } を送信する
+        // 【期待される動作】: HTTPステータス200、ボディがApiOk<ApiCredential>形式
+        // 🔵 信頼性レベル: 要件定義書REQ-0022-05・NFR-0022-01、完了基準L126・129より
+        let state = test_app_state().await;
+        cleanup_provider(&state, "tmdb").await;
+        let app = build_router(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/settings/api-keys/tmdb")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"api_key":"valid-tmdb-key"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK); // 【確認内容】: 新規登録時にHTTPステータス200が返ることを確認 🔵
+    }
+
+    /// TC-015-02-B: 不正provider指定でHTTP 400 INVALID_PROVIDERを返し、DBへ書き込まない（ハンドラ統合）
+    /// 🔵 信頼性レベル: 要件定義書シナリオ2・REQ-0022-101、タスクファイルテストケース2・api-endpoints.md L388より
+    #[tokio::test]
+    #[ignore]
+    async fn put_api_key_with_unknown_provider_returns_400_and_no_db_write() {
+        // 【テスト目的】: HTTPレベルで不正providerリクエストを受け、エラー応答とDB無変更の両方を確認する
+        // 【テスト内容】: PUT /settings/api-keys/unknown_provider に { "api_key": "x" } を送信する
+        // 【期待される動作】: HTTPステータス400、ApiErrorCode::InvalidProvider、かつDBに行が作成されない
+        // 🔵 信頼性レベル: 要件定義書シナリオ2・REQ-0022-101、api-endpoints.md L388より
+        let state = test_app_state().await;
+        let app = build_router(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/settings/api-keys/unknown_provider")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"api_key":"x"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 不正providerが400 INVALID_PROVIDERで拒否されることを確認 🔵
+    }
+
+    /// TC-NEW-02: `jikan`は`ApiProvider`に含まれずINVALID_PROVIDERになる（ハンドラ統合部分）
+    /// 🔵 信頼性レベル: 要件定義書EDGE-0022-01・「対象外」L24、note.md L6・タスクファイル注意事項L98より
+    #[tokio::test]
+    #[ignore]
+    async fn put_api_key_jikan_returns_400_invalid_provider() {
+        // 【テスト目的】: キー不要のためenum対象外とされたjikanを明示的に検証する
+        // 【テスト内容】: PUT /settings/api-keys/jikan に { "api_key": "x" } を送信する
+        // 【期待される動作】: HTTPステータス400 INVALID_PROVIDER、DB無変更
+        // 🔵 信頼性レベル: 要件定義書EDGE-0022-01・「対象外」L24より
+        let state = test_app_state().await;
+        let app = build_router(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/settings/api-keys/jikan")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"api_key":"x"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: jikanがINVALID_PROVIDERとして400で拒否されることを確認 🔵
+    }
+
+    /// TC-NEW-04: `api_key`欠落リクエストでボディパースエラー（ハンドラ統合）
+    /// 🟡 信頼性レベル: 要件定義書EDGE-0022-02（DTO必須フィールドからの妥当な推測）より
+    #[tokio::test]
+    #[ignore]
+    async fn put_api_key_with_missing_api_key_field_returns_400() {
+        // 【テスト目的】: 必須フィールドapi_keyが欠落したリクエストボディの処理を確認する
+        // 【テスト内容】: PUT /settings/api-keys/tmdb に {}（api_keyキーなし）を送信する
+        // 【期待される動作】: axumのJsonエクストラクタ/既存deserialize_requestによるデシリアライズ失敗で400系レスポンス、DB無変更
+        // 🟡 信頼性レベル: 要件定義書EDGE-0022-02からの妥当な推測。期待値は既存ボディパースエラー処理（VALIDATION_ERROR想定）に従う
+        let state = test_app_state().await;
+        let app = build_router(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/settings/api-keys/tmdb")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: api_key欠落時に400系（VALIDATION_ERROR想定）で拒否されることを確認 🟡
     }
 }

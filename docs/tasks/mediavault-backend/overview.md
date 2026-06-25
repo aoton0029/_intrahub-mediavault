@@ -120,8 +120,8 @@ TASK-0004, TASK-0007 → TASK-0021
 
 ### タスク一覧
 
-- [ ] [TASK-0022: api_credentials（外部APIキー管理）CRUD実装](TASK-0022.md) - 5h (TDD) 🔵
-- [ ] [TASK-0023: ExternalSearchServiceラッパー実装（media_type→provider振り分け）](TASK-0023.md) - 6h (TDD) 🔵
+- [x] [TASK-0022: api_credentials（外部APIキー管理）CRUD実装](TASK-0022.md) - 5h (TDD) 🔵 ✅完了 (2026-06-25)
+- [x] [TASK-0023: ExternalSearchServiceラッパー実装（media_type→provider振り分け）](TASK-0023.md) - 6h (TDD) 🔵 ✅完了 (2026-06-25)
 - [ ] [TASK-0024: GET /items/search 実装](TASK-0024.md) - 5h (TDD) 🔵
 - [ ] [TASK-0025: POST /items/import 実装](TASK-0025.md) - 5h (TDD) 🔵
 

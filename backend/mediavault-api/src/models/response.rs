@@ -84,6 +84,9 @@ pub enum ApiErrorCode {
     /// スタッフが見つからない（TASK-0020のitem紐付け時404）
     /// 🟡 信頼性レベル: staff-requirements.md 3 制約条件「STAFF_NOT_FOUND新規追加」に明記
     StaffNotFound,
+    /// 不正なapi_credentialsプロバイダ指定（TASK-0022のPUT /settings/api-keys/:provider時400）
+    /// 🔵 信頼性レベル: TASK-0022-requirements.md REQ-0022-102・note.md L19に直接対応
+    InvalidProvider,
 }
 
 impl ApiErrorCode {
@@ -114,6 +117,7 @@ impl ApiErrorCode {
                 ("DUPLICATE_EPISODE_NUMBER", StatusCode::CONFLICT)
             }
             ApiErrorCode::StaffNotFound => ("STAFF_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::InvalidProvider => ("INVALID_PROVIDER", StatusCode::BAD_REQUEST),
         }
     }
 
@@ -295,6 +299,28 @@ mod tests {
                 "pagination": {"page": 1, "limit": 20, "total": 100}
             })
         ); // 【確認内容】: success/data/paginationの3キー構成、pagination内のpage/limit/totalキー名が要件通りであることを確認 🟡
+    }
+
+    /// TC-NEW-10: `ApiErrorCode::InvalidProvider`が400ステータスにマッピングされる
+    /// 🔵 信頼性レベル: 要件定義書REQ-0022-102・完了基準L125、note.md L19より
+    #[test]
+    fn invalid_provider_returns_400() {
+        // 【テスト目的】: 新規追加ApiErrorCode::InvalidProviderがIntoResponseでHTTP 400を返すことを確認する
+        // 【テスト内容】: ApiError::new(ApiErrorCode::InvalidProvider, ...)を構築し、into_response()のステータスを検証する
+        // 【期待される動作】: StatusCode::BAD_REQUEST（400）が返る。既存400系（ValidationError等）と同一であること
+        // 🔵 信頼性レベル: 要件定義書REQ-0022-102・note.md L19（既存DuplicateTagName等のパターン踏襲）より
+
+        // 【テストデータ準備】: 不正provider時のエラー応答生成を想定したApiError構築
+        // 【初期条件設定】: 特になし
+        let err = ApiError::new(ApiErrorCode::InvalidProvider, "不正なproviderです");
+
+        // 【実際の処理実行】: into_response()でAxumレスポンスへ変換する
+        // 【処理内容】: IntoResponse実装によるHTTPレスポンス構築
+        let response = err.into_response();
+
+        // 【結果検証】: ステータスコードが400であることを確認する
+        // 【期待値確認】: 新規バリアントが500（デフォルト）等に誤マッピングされていないことの確認
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: InvalidProviderが既存400系と同一のBAD_REQUESTにマッピングされることを確認 🔵
     }
 
     /// TC-0010-N10: PaginatedOk<T> が HTTP 200 を返す

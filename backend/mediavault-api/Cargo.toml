@@ -17,3 +17,6 @@ tracing-subscriber = "0.3"
 tower = "0.5.3"
 tower-http = { version = "0.7.0", features = ["cors"] }
 api-client-lib = { path = "../api-client-lib" }
+
+[dev-dependencies]
+wiremock = "0.6"

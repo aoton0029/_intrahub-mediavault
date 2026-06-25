@@ -7,5 +7,6 @@ pub mod item_relations;
 pub mod item_trailers;
 pub mod items;
 pub mod mylists;
+pub mod settings;
 pub mod staff;
 pub mod tags;

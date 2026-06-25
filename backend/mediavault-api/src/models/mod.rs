@@ -1,4 +1,6 @@
+pub mod api_credential;
 pub mod category;
+pub mod external_search;
 pub mod item;
 pub mod item_episode;
 pub mod item_group;
