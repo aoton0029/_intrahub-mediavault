@@ -63,6 +63,48 @@ pub async fn create_item_group(
     })
 }
 
+/// 【機能概要】: item_groupsへグループをupsert（既存なら更新、なければ新規作成）する
+/// 【実装方針】: item_groups には(item_id, group_type, number)の一意制約が存在しないため、
+/// アプリケーション層でSELECTにより既存行の有無を判定し、存在すればUPDATE、なければ
+/// 既存create_item_groupと同じINSERT文を実行する（TASK-0029 TC-018-06「再送で重複作成しない」対応）
+/// 【テスト対応】: TC-018-06（同一グループ再送でupsert）、TC-018-05（groups→episodes連鎖）に直接対応
+/// 🔵 信頼性レベル: TASK-0029.md「実装詳細4」「注意事項：Upsert処理の一貫性保証」に直接対応
+pub async fn upsert_item_group(
+    pool: &PgPool,
+    item_id: Uuid,
+    request: CreateItemGroupRequest,
+) -> Result<ItemGroup, ApiError> {
+    // 【既存行検索】: 同一item_id・group_type・numberの組み合わせで既存グループを検索する 🔵
+    let existing_id: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM item_groups WHERE item_id = $1 AND group_type = $2 AND number = $3",
+    )
+    .bind(item_id)
+    .bind(request.group_type)
+    .bind(request.number)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_error)?;
+
+    match existing_id {
+        // 【更新パス】: 既存グループが見つかった場合はUPDATEで内容を反映する 🔵
+        Some(id) => sqlx::query_as(
+            "UPDATE item_groups
+             SET parent_item_id = $1, group_name = $2, display_order = $3, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $4
+             RETURNING id, item_id, parent_item_id, group_type, group_name, number, display_order, created_at, updated_at",
+        )
+        .bind(request.parent_item_id)
+        .bind(&request.group_name)
+        .bind(request.display_order)
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .map_err(db_error),
+        // 【新規作成パス】: 既存グループが無い場合は通常のINSERTを行う 🔵
+        None => create_item_group(pool, item_id, request).await,
+    }
+}
+
 /// 【機能概要】: item_idに紐づくグループ一覧をdisplay_order昇順で取得する
 /// 🟡 信頼性レベル: タスク仕様完了条件「display_order昇順で一覧取得」に直接対応
 pub async fn list_item_groups(pool: &PgPool, item_id: Uuid) -> Result<Vec<ItemGroup>, ApiError> {

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — 検索・追加（一般メディア）</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+    <div class="nav-section">
+      <div class="nav-item">📚 全体一覧</div>
+      <div class="nav-item active">🎬 一般メディア</div>
+      <div class="nav-item indent">　アニメ</div>
+      <div class="nav-item indent">　映画</div>
+      <div class="nav-item indent">　ドラマ</div>
+      <div class="nav-item indent">　漫画</div>
+      <div class="nav-item indent">　小説</div>
+      <div class="nav-item indent">　ゲーム</div>
+      <div class="nav-item">🎓 学術書・専門書</div>
+      <div class="nav-item">📄 論文・文献</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">ライブラリ</div>
+      <div class="nav-item">⭐ マイリスト</div>
+      <div class="nav-item">🏷️ タグ・カテゴリ</div>
+      <div class="nav-item">👤 スタッフ</div>
+    </div>
+    <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-item">⚙️ 設定</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="titlebar">
+      <h1>検索・追加（一般メディア）</h1>
+      <a href="04_item_form.html" class="btn">手動で追加する</a>
+    </div>
+
+    <div class="content">
+      <div class="filter-bar">
+        <div class="chip active">アニメ (Jikan)</div>
+        <div class="chip">映画 (TMDb)</div>
+        <div class="chip">ドラマ (TMDb)</div>
+        <div class="chip">漫画 (Jikan)</div>
+        <div class="chip">小説 (OpenLibrary)</div>
+        <div class="chip">ゲーム (Steam/IGDB)</div>
+      </div>
+
+      <div class="search-box" style="max-width:480px; margin: 0 0 22px;">
+        🔍 <input type="text" value="星屑の" placeholder="作品タイトルで検索…">
+      </div>
+
+      <div class="result-row">
+        <div class="thumb"></div>
+        <div class="info">
+          <div class="title">星屑のシンフォニア</div>
+          <div class="sub">jikan_id: 58231 · 2024-04-06 · TV (24 episodes)</div>
+        </div>
+        <button class="btn btn-accent btn-sm">＋ コレクションに追加</button>
+      </div>
+
+      <div class="result-row">
+        <div class="thumb"></div>
+        <div class="info">
+          <div class="title">星屑のシンフォニア OVA</div>
+          <div class="sub">jikan_id: 58980 · 2025-01-12 · OVA (2 episodes)</div>
+        </div>
+        <button class="btn btn-accent btn-sm">＋ コレクションに追加</button>
+      </div>
+
+      <div class="result-row">
+        <div class="thumb"></div>
+        <div class="info">
+          <div class="title">星屑伝説 シンフォニア・クロニクル</div>
+          <div class="sub">jikan_id: 41203 · 2019-10-03 · TV (50 episodes)</div>
+        </div>
+        <button class="btn btn-accent btn-sm">＋ コレクションに追加</button>
+      </div>
+
+      <div class="empty-state" style="margin-top:32px; border-top:1px solid var(--border-soft); padding-top:32px;">
+        <h3>見つからない場合</h3>
+        <p>外部APIに該当作品が無い場合は、手動で作品情報を入力して追加できます。</p>
+        <a href="04_item_form.html" class="btn" style="margin-top:8px; display:inline-flex;">手動で追加する</a>
+      </div>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

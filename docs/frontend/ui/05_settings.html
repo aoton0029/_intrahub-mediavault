@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — 設定</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+    <div class="nav-section">
+      <div class="nav-item">📚 全体一覧</div>
+      <div class="nav-item">🎬 一般メディア</div>
+      <div class="nav-item indent">　アニメ</div>
+      <div class="nav-item indent">　映画</div>
+      <div class="nav-item indent">　ドラマ</div>
+      <div class="nav-item indent">　漫画</div>
+      <div class="nav-item indent">　小説</div>
+      <div class="nav-item indent">　ゲーム</div>
+      <div class="nav-item">🎓 学術書・専門書</div>
+      <div class="nav-item">📄 論文・文献</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">ライブラリ</div>
+      <div class="nav-item">⭐ マイリスト</div>
+      <div class="nav-item">🏷️ タグ・カテゴリ</div>
+      <div class="nav-item">👤 スタッフ</div>
+    </div>
+    <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-item active">⚙️ 設定</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="titlebar">
+      <h1>設定</h1>
+    </div>
+
+    <div class="content">
+      <div class="settings-shell">
+        <nav class="settings-tabs">
+          <div class="settings-tab active">APIキー管理</div>
+          <div class="settings-tab">インポート</div>
+          <div class="settings-tab">エクスポート</div>
+        </nav>
+
+        <section class="settings-panel">
+          <h2>APIキー管理</h2>
+          <p class="desc">外部API連携に使うキーを登録・更新します。Jikanはキー不要のため対象外です。</p>
+
+          <div class="kv-card">
+            <div>
+              <div class="provider">TMDb</div>
+              <div class="key">••••••••••••a3f1</div>
+            </div>
+            <button class="btn btn-sm">更新</button>
+          </div>
+
+          <div class="kv-card">
+            <div>
+              <div class="provider">IGDB</div>
+              <div class="key">••••••••••••91cd</div>
+            </div>
+            <button class="btn btn-sm">更新</button>
+          </div>
+
+          <div class="kv-card">
+            <div>
+              <div class="provider">NDL</div>
+              <div class="key" style="color: var(--text-faint);">未設定</div>
+            </div>
+            <button class="btn btn-sm btn-accent">登録</button>
+          </div>
+
+          <div class="kv-card">
+            <div>
+              <div class="provider">Steam</div>
+              <div class="key">••••••••••••70e2</div>
+            </div>
+            <button class="btn btn-sm">更新</button>
+          </div>
+
+          <div class="kv-card">
+            <div>
+              <div class="provider">OpenLibrary / Google Books</div>
+              <div class="key" style="color: var(--text-faint);">未設定</div>
+            </div>
+            <button class="btn btn-sm btn-accent">登録</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

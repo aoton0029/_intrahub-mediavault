@@ -78,6 +78,53 @@ pub async fn create_item_episode(
     })
 }
 
+/// 【機能概要】: item_episodesへ話数をupsert（既存なら更新、なければ新規作成）する
+/// 【実装方針】: `uq_item_episodes UNIQUE (group_id, episode_number)`制約を利用し、
+/// `INSERT ... ON CONFLICT (group_id, episode_number) DO UPDATE`で1クエリでupsertを行う
+/// （TASK-0029 内部APIの巡回バッチ再送に対する冪等性要件への対応）
+/// 【テスト対応】: TC-018-05（groups→episodes連鎖）、要件定義3.4「Upsert処理」に直接対応
+/// 🔵 信頼性レベル: database-schema.sqlのuq_item_episodes制約・TASK-0029.md「実装詳細4」に直接対応
+pub async fn upsert_item_episode(
+    pool: &PgPool,
+    group_id: Uuid,
+    request: CreateItemEpisodeRequest,
+) -> Result<ItemEpisode, ApiError> {
+    sqlx::query_as(
+        "INSERT INTO item_episodes (group_id, episode_number, title, original_title, air_date, description)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (group_id, episode_number) DO UPDATE
+         SET title = EXCLUDED.title,
+             original_title = EXCLUDED.original_title,
+             air_date = EXCLUDED.air_date,
+             description = EXCLUDED.description,
+             updated_at = CURRENT_TIMESTAMP
+         RETURNING id, group_id, episode_number, title, original_title, air_date, description, created_at, updated_at",
+    )
+    .bind(group_id)
+    .bind(request.episode_number)
+    .bind(&request.title)
+    .bind(&request.original_title)
+    .bind(request.air_date)
+    .bind(&request.description)
+    .fetch_one(pool)
+    .await
+    .map_err(|err| {
+        if is_foreign_key_violation(&err) {
+            ApiError::new(
+                ApiErrorCode::GroupNotFound,
+                "指定されたグループが見つかりません",
+            )
+        } else if is_episode_group_type_trigger_violation(&err) {
+            ApiError::new(
+                ApiErrorCode::InvalidGroupTypeForEpisodes,
+                "volume配下のグループには話数を登録できません",
+            )
+        } else {
+            db_error(err)
+        }
+    })
+}
+
 /// 【機能概要】: DBトリガー`trg_check_episode_group_type`が発生させるRAISE EXCEPTIONかどうかを判定する
 /// 【実装方針】: トリガーはSQLSTATEを指定していないためPostgresのデフォルト（P0001）となる。
 /// アプリケーション層チェックをすり抜けた競合状態（EDGE-101の二重防御）でのみ到達する経路。

@@ -6,9 +6,10 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;
 
 use crate::models::item::{
-    has_any_update_field, CategoryRef, CreateItemRequest, Item, ListItemsQuery, MediaType, TagRef,
-    UpdateItemRequest, UpdateStatusRequest,
+    has_any_update_field, CategoryRef, CreateItemRequest, Item, ItemSource, ListItemsQuery,
+    MediaType, TagRef, UpdateItemRequest, UpdateStatusRequest,
 };
+use crate::models::item_import::ImportItemRequest;
 use crate::models::response::{ApiError, ApiErrorCode};
 
 /// 【機能概要】: `media_type`に対応する詳細テーブル名を返す
@@ -44,20 +45,39 @@ fn db_error(err: sqlx::Error) -> ApiError {
 
 /// 【機能概要】: 手動作成アイテムをitemsテーブルとメディア別詳細テーブルへ
 /// 同一トランザクション内でINSERTする
-/// 【実装方針】: items INSERT → detail_table_nameで解決したテーブルへINSERTし、
-/// いずれか失敗時はロールバックする（sqlx::Transaction使用）
+/// 【実装方針】: TASK-0025のリファクタにより、本関数は`create_item_with_source`の薄いラッパーへ
+/// 変更された。`source=manual`・`external_id=None`を固定で渡すのみで、既存の挙動・テストへの
+/// 影響は無い想定（回帰防止はTC-0025-N04で確認する）
 /// 【テスト対応】: TC-001-01等の統合テスト（Green時点ではユニットテスト対象外）に向けた実装
 /// 🔵 信頼性レベル: タスクファイル「トランザクションによるINSERT」に直接対応
 pub async fn create_item(pool: &PgPool, request: CreateItemRequest) -> Result<Item, ApiError> {
+    // 【薄いラッパー化】: source=manual, external_id=Noneを固定で内部関数へ委譲する 🔵
+    create_item_with_source(pool, request, ItemSource::Manual, None).await
+}
+
+/// 【機能概要】: CreateItemRequest相当の入力に対し、`source`・`external_id`を引数で指定して
+/// itemsテーブルとメディア別詳細テーブルへ同一トランザクション内でINSERTする
+/// 【実装方針】: 既存`create_item`のSQLリテラルハードコード（'manual', NULL）を引数化したのみで、
+/// トランザクション構造自体は変更しない。重複チェック（TC-0025-E06）はこの関数の責務外とし、
+/// 呼び出し元（import_item_handler等）であらかじめ判定する想定（Greenフェーズで確定）
+/// 【テスト対応】: TC-0025-N03（source=api作成）、TC-0025-N04（manualラッパー回帰）、
+/// TC-0025-N05（パリティ）、TC-0025-N07（8種media_type網羅）に対応
+/// 🔵 信頼性レベル: item-import-requirements.md 3.1（Option B再利用方針）、note.md L237-238より
+pub async fn create_item_with_source(
+    pool: &PgPool,
+    request: CreateItemRequest,
+    source: ItemSource,
+    external_id: Option<String>,
+) -> Result<Item, ApiError> {
     // 【トランザクション開始】: items・詳細テーブルへのINSERTを原子的に行う 🔵
     let mut tx = pool.begin().await.map_err(db_error)?;
 
-    // 【items本体INSERT】: source=manual, external_id=NULL固定で登録する 🔵
+    // 【items本体INSERT】: source/external_idを$10/$11としてbindし、ハードコードを撤廃する 🔵
     let item: Item = sqlx::query_as(
         "INSERT INTO items (
             media_type, title, original_title, description, cover_image_url,
             release_date, homepage_url, rating, is_favorite, source, external_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'manual', NULL)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING id, media_type, title, original_title, description, cover_image_url,
             release_date, homepage_url, status, consumed_date, rating, is_favorite,
             source, external_id, created_at, updated_at",
@@ -71,6 +91,8 @@ pub async fn create_item(pool: &PgPool, request: CreateItemRequest) -> Result<It
     .bind(&request.homepage_url)
     .bind(request.rating)
     .bind(request.is_favorite.unwrap_or(false))
+    .bind(source)
+    .bind(&external_id)
     .fetch_one(&mut *tx)
     .await
     .map_err(db_error)?;
@@ -91,6 +113,58 @@ pub async fn create_item(pool: &PgPool, request: CreateItemRequest) -> Result<It
     tx.commit().await.map_err(db_error)?;
 
     Ok(item)
+}
+
+/// 【機能概要】: 同一(media_type, external_id)のitemが既に存在するかを判定する
+/// 【実装方針】: `idx_items_external_id`は非UNIQUEのため、アプリ層で明示的にSELECTし重複を検知する。
+/// 存在すれば`ItemAlreadyImported`（409）エラーを返す
+/// 【テスト対応】: TC-0025-E06（重複検知）、TC-0025-B03（複合キー境界）に対応
+/// 🟡 信頼性レベル: item-import-requirements.md 第6章6.3（重複チェックSQL方針）より
+pub async fn find_existing_import(
+    pool: &PgPool,
+    media_type: MediaType,
+    external_id: &str,
+) -> Result<bool, ApiError> {
+    // 【重複検知SELECT】: (media_type, external_id)の複合キーで既存行の有無を判定する。
+    // idx_items_external_idは非UNIQUEのため、アプリ層で明示的にSELECTする必要がある 🟡
+    let existing: Option<i32> = sqlx::query_scalar(
+        "SELECT 1 FROM items WHERE media_type = $1 AND external_id = $2 LIMIT 1",
+    )
+    .bind(media_type)
+    .bind(external_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_error)?;
+
+    Ok(existing.is_some())
+}
+
+/// 【機能概要】: `ImportItemRequest`をリポジトリ層のトランザクション処理（create_item_with_source）へ
+/// 橋渡しするためのインポート専用関数
+/// 【実装方針】: 重複チェック（find_existing_import）→ 存在すれば`ItemAlreadyImported`（409）で
+/// 早期return → 存在しなければ`ImportItemRequest`を`CreateItemRequest`へ変換し
+/// `create_item_with_source(pool, request, ItemSource::Api, Some(external_id))`を呼び出す
+/// 【テスト対応】: TC-0025-N03、TC-0025-E06、TC-0025-E08に対応
+/// 🟡 信頼性レベル: item-import-requirements.md 2.3データフロー・第6章6.3より
+pub async fn import_item(pool: &PgPool, request: ImportItemRequest) -> Result<Item, ApiError> {
+    // 【重複チェック】: 同一(media_type, external_id)が既存の場合は409エラーで早期returnする 🟡
+    let duplicate = find_existing_import(pool, request.media_type, &request.external_id).await?;
+    if duplicate {
+        // 【エラー処理】: 重複インポートは要件第6章の決定に従い409 ITEM_ALREADY_IMPORTEDを返す 🟡
+        return Err(ApiError::new(
+            ApiErrorCode::ItemAlreadyImported,
+            "既にインポート済みです",
+        ));
+    }
+
+    // 【DTO変換】: ImportItemRequestをcreate_item_with_source用のCreateItemRequestへ変換する。
+    // フィールド列挙はImportItemRequest側のFrom実装（models/item_import.rs）へ集約し、
+    // 本関数では呼び出しのみを行う（DRY・CreateItemRequestのフィールド追加時の検知漏れ防止） 🟡
+    let external_id = request.external_id.clone();
+    let create_request = CreateItemRequest::from(request);
+
+    // 【DB登録】: source=Api・external_id=Some(...)でitems+詳細テーブルへ同一トランザクションでINSERTする 🔵
+    create_item_with_source(pool, create_request, ItemSource::Api, Some(external_id)).await
 }
 
 /// 【機能概要】: ListItemsQueryの絞り込み条件をQueryBuilderのWHERE句として共通追加する
@@ -157,6 +231,14 @@ fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItems
         );
         builder.push_bind(category_id);
         builder.push(")");
+    }
+
+    // 【TASK-0029】: titleフィルタ（部分一致・ILIKE）。/internal/items/search の検索条件として
+    // list_items_handlerの検索ロジックを再利用するために追加した 🔵
+    if let Some(title) = &query.title {
+        push_clause_prefix!();
+        builder.push("title ILIKE ");
+        builder.push_bind(format!("%{title}%"));
     }
 }
 
@@ -740,6 +822,7 @@ mod tests {
             category_id: None,
             is_favorite: None,
             status: None,
+            title: None,
             page: None,
             limit: None,
         }
@@ -1726,5 +1809,281 @@ mod tests {
         }
 
         item_id
+    }
+
+    /// テスト用ヘルパー: 最小構成のCreateItemRequestを構築する
+    fn create_item_request(media_type: MediaType, title: &str) -> CreateItemRequest {
+        CreateItemRequest {
+            media_type,
+            title: title.to_string(),
+            original_title: None,
+            description: None,
+            cover_image_url: None,
+            release_date: None,
+            homepage_url: None,
+            rating: None,
+            is_favorite: None,
+            details: None,
+        }
+    }
+
+    /// テスト用ヘルパー: 最小構成のImportItemRequestを構築する
+    fn import_item_request(media_type: MediaType, external_id: &str, title: &str) -> ImportItemRequest {
+        ImportItemRequest {
+            media_type,
+            external_id: external_id.to_string(),
+            title: title.to_string(),
+            original_title: None,
+            description: None,
+            cover_image_url: None,
+            release_date: None,
+            homepage_url: None,
+            details: None,
+        }
+    }
+
+    /// TC-0025-N03: create_item_with_sourceがsource=api/external_idでitems本体とanime_detailsを
+    /// 同一トランザクションで作成する（実DB必要）
+    /// 【テスト目的】: 再利用可能な内部関数create_item_with_sourceが、source=api・external_id付きで
+    /// items+詳細テーブルを作成することを確認する
+    /// 【テスト内容】: media_type=Anime, source=Api, external_id=Some("12345")でcreate_item_with_source
+    /// を呼び出す
+    /// 【期待される動作】: 戻り値item.source==Api、item.external_id==Some("12345")
+    /// 🔵 信頼性レベル: 要件4.1 TC-002-03、TASK-0025.mdテストケース1、既存create_item実装より
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn create_item_with_source_creates_item_with_api_source_and_external_id() {
+        // 【テスト前準備】: 実DBプールを取得する
+        let pool = test_pool().await;
+        let request = create_item_request(MediaType::Anime, "鬼滅の刃");
+
+        // 【実際の処理実行】: まだsource/external_idを反映しないcreate_item_with_sourceを呼び出す
+        let item = create_item_with_source(&pool, request, ItemSource::Api, Some("12345".to_string()))
+            .await
+            .unwrap();
+
+        // 【結果検証】: source/external_idが引数通りに反映されることを確認
+        assert_eq!(item.source, ItemSource::Api); // 【確認内容】: sourceがApiとして作成されることを確認 🔵
+        assert_eq!(item.external_id, Some("12345".to_string())); // 【確認内容】: external_idが引数通り保持されることを確認 🔵
+    }
+
+    /// TC-0025-N04: 既存create_itemがcreate_item_with_sourceのラッパー化後もsource=manual/
+    /// external_id=NULLを維持する（実DB・回帰確認必要）
+    /// 【テスト目的】: リファクタ後もPOST /items（手動作成）の挙動が不変であることを確認する
+    /// 【テスト内容】: CreateItemRequest{media_type: Movie, title: "君の名は。"}でcreate_itemを呼ぶ
+    /// 【期待される動作】: item.source==Manual、item.external_id==None
+    /// 🔵 信頼性レベル: 要件3.1（Option B再利用方針・既存テスト非破壊）、note.md L237-238より
+    #[tokio::test]
+    #[ignore]
+    async fn create_item_wrapper_still_creates_manual_source_with_null_external_id() {
+        let pool = test_pool().await;
+        let request = create_item_request(MediaType::Movie, "君の名は。");
+
+        // 【実際の処理実行】: 薄いラッパー化後のcreate_itemを呼び出す
+        let item = create_item(&pool, request).await.unwrap();
+
+        // 【結果検証】: 既存の挙動（manual/NULL固定）が維持されることを確認
+        assert_eq!(item.source, ItemSource::Manual); // 【確認内容】: ラッパー化後もsource=manualが維持されることを確認 🔵
+        assert_eq!(item.external_id, None); // 【確認内容】: ラッパー化後もexternal_id=NULLが維持されることを確認 🔵
+    }
+
+    /// TC-0025-N05: 同等の詳細データでmanual作成とapiインポートを行うと、source/external_id以外の
+    /// Item内容が一致する（実DB必要）
+    /// 【テスト目的】: 手動作成とインポートが同一のトランザクション処理経路を通り、差分が
+    /// source/external_idのみであることを確認する
+    /// 【テスト内容】: 同一media_type/titleでcreate_item（manual）とcreate_item_with_source（api）を
+    /// それぞれ呼び出し、結果を比較する
+    /// 【期待される動作】: media_type/titleが一致し、source/external_idのみ異なる
+    /// 🔵 信頼性レベル: 要件4.1「TASK-0009一貫性」、TASK-0025.mdテストケース4に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn create_item_and_create_item_with_source_share_same_fields_except_source_and_external_id() {
+        let pool = test_pool().await;
+        let manual_request = create_item_request(MediaType::Anime, "作品X");
+        let import_request = create_item_request(MediaType::Anime, "作品X");
+
+        let manual_item = create_item(&pool, manual_request).await.unwrap();
+        let import_item = create_item_with_source(
+            &pool,
+            import_request,
+            ItemSource::Api,
+            Some("999".to_string()),
+        )
+        .await
+        .unwrap();
+
+        // 【結果検証】: 共通カラムが一致し、source/external_idのみ差分であることを確認
+        assert_eq!(manual_item.media_type, import_item.media_type); // 【確認内容】: media_typeが一致することを確認 🔵
+        assert_eq!(manual_item.title, import_item.title); // 【確認内容】: titleが一致することを確認 🔵
+        assert_eq!(manual_item.source, ItemSource::Manual); // 【確認内容】: manual側がsource=Manualであることを確認 🔵
+        assert_eq!(import_item.source, ItemSource::Api); // 【確認内容】: import側がsource=Apiであることを確認 🔵
+        assert_eq!(manual_item.external_id, None); // 【確認内容】: manual側のexternal_idがNoneであることを確認 🔵
+        assert_eq!(import_item.external_id, Some("999".to_string())); // 【確認内容】: import側のexternal_idが引数通りであることを確認 🔵
+    }
+
+    /// TC-0025-N07: 全8 media_typeでcreate_item_with_sourceが対応詳細テーブルへ振り分ける（実DB必要）
+    /// 【テスト目的】: インポート経路でも8種すべてのmedia_typeで対応詳細テーブルへ正しくINSERTされる
+    /// ことを確認する
+    /// 【テスト内容】: 8種のmedia_typeそれぞれでcreate_item_with_source(Api)を呼び出す
+    /// 【期待される動作】: 8回すべてエラーなく成功し、source=Apiのitemが作成される
+    /// 🟡 信頼性レベル: 既存detail_table_nameの8 variant網羅テストとの整合からの妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn create_item_with_source_handles_all_eight_media_types() {
+        let pool = test_pool().await;
+        let media_types = [
+            MediaType::Anime,
+            MediaType::Movie,
+            MediaType::Drama,
+            MediaType::Manga,
+            MediaType::Novel,
+            MediaType::Game,
+            MediaType::AcademicBook,
+            MediaType::Paper,
+        ];
+
+        for (idx, media_type) in media_types.iter().enumerate() {
+            let request = create_item_request(*media_type, "テスト作品");
+            let external_id = format!("ext-{idx}");
+
+            // 【実際の処理実行】: 各media_typeでインポート経路の作成処理を呼び出す
+            let item = create_item_with_source(&pool, request, ItemSource::Api, Some(external_id.clone()))
+                .await
+                .unwrap();
+
+            // 【結果検証】: 各media_typeで例外なく成功し、source=Apiが反映されることを確認
+            assert_eq!(item.media_type, *media_type); // 【確認内容】: media_typeが指定通りであることを確認 🟡
+            assert_eq!(item.source, ItemSource::Api); // 【確認内容】: 8種すべてでsource=Apiが反映されることを確認 🟡
+        }
+    }
+
+    /// TC-0025-E06: 同一media_type+external_idのitemが既存の状態で再インポートすると
+    /// 409 ITEM_ALREADY_IMPORTEDになり重複作成されない（実DB必要）
+    /// 【テスト目的】: 重複検知ロジック（アプリ層SELECT）と409マッピングを確認する
+    /// 【テスト内容】: 事前にmedia_type=anime/external_id="12345"を1件投入し、同一値で
+    /// find_existing_importを呼んでtrueが返ることを確認する（importハンドラ層の重複判定の土台）
+    /// 【期待される動作】: find_existing_importがtrueを返し、再投入してもitems行数が増えない
+    /// 🟡 信頼性レベル: 要件第6章の決定（案A: 409 ITEM_ALREADY_IMPORTED）、TASK-0025.mdテストケース3より
+    #[tokio::test]
+    #[ignore]
+    async fn find_existing_import_detects_duplicate_media_type_and_external_id() {
+        let pool = test_pool().await;
+        let request = create_item_request(MediaType::Anime, "鬼滅の刃");
+        create_item_with_source(&pool, request, ItemSource::Api, Some("12345".to_string()))
+            .await
+            .unwrap();
+
+        // 【実際の処理実行】: find_existing_importを呼び出す
+        let exists = find_existing_import(&pool, MediaType::Anime, "12345")
+            .await
+            .unwrap();
+
+        // 【結果検証】: 同一(media_type, external_id)が既存と判定されることを確認
+        assert!(exists); // 【確認内容】: 重複検知が機能し、trueが返ることを確認 🟡
+    }
+
+    /// TC-0025-E06-B: import_itemが重複インポート時に409 ITEM_ALREADY_IMPORTEDを返し、
+    /// items行数が増えない（実DB必要）
+    /// 【テスト目的】: import_item関数全体（重複チェック+INSERT）が409マッピング・原子性を
+    /// 保つことを確認する
+    /// 【テスト内容】: 事前に1件インポート済みの状態で同一media_type+external_idを再度import_item
+    /// に渡す
+    /// 【期待される動作】: 2回目はErr(ApiError{code:"ITEM_ALREADY_IMPORTED", status:409})、
+    /// items総数が1件のまま変化しない
+    /// 🟡 信頼性レベル: 要件第6章6.3（トランザクション内SELECT検知）より
+    #[tokio::test]
+    #[ignore]
+    async fn import_item_returns_409_and_does_not_create_duplicate_row() {
+        let pool = test_pool().await;
+        let first_request = import_item_request(MediaType::Anime, "12345", "鬼滅の刃");
+        import_item(&pool, first_request).await.unwrap();
+
+        let count_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE external_id = $1")
+            .bind("12345")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        // 【実際の処理実行】: 同一media_type+external_idで再度import_itemを呼び出す
+        let second_request = import_item_request(MediaType::Anime, "12345", "鬼滅の刃");
+        let err = import_item(&pool, second_request).await.unwrap_err();
+
+        // 【結果検証】: 409 ITEM_ALREADY_IMPORTED・items行数不変であることを確認
+        assert_eq!(err.error.code, "ITEM_ALREADY_IMPORTED"); // 【確認内容】: 重複時にITEM_ALREADY_IMPORTEDが返ることを確認 🟡
+        assert_eq!(err.status, axum::http::StatusCode::CONFLICT); // 【確認内容】: HTTPステータスが409であることを確認 🟡
+
+        let count_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE external_id = $1")
+            .bind("12345")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count_before, count_after); // 【確認内容】: 重複検知時にitems行数が増えないことを確認（最重要） 🟡
+    }
+
+    /// TC-0025-E08: create_item_with_source実行中のDBエラーが500 INTERNAL_ERRORへ変換され、
+    /// DB内部情報を漏洩しない（接続不能プールで再現）
+    /// 【テスト目的】: DBエラーの汎用500変換と情報漏洩防止を確認する
+    /// 【テスト内容】: 接続不能なPgPoolに対しcreate_item_with_sourceを呼ぶ
+    /// 【期待される動作】: Err(ApiError)が返り、error.code=="INTERNAL_ERROR"、status==500
+    /// 🟡 信頼性レベル: 既存db_error関数・既存list_items_converts_db_error_to_internal_errorとのパリティ
+    #[tokio::test]
+    #[ignore]
+    async fn create_item_with_source_converts_db_error_to_internal_error() {
+        // 【テスト前準備】: 接続不能なプールを構築する
+        let pool = unreachable_pool().await;
+        let request = create_item_request(MediaType::Anime, "鬼滅の刃");
+
+        // 【実際の処理実行】: create_item_with_sourceを呼び、DB接続不能エラーの変換を確認する
+        let result = create_item_with_source(&pool, request, ItemSource::Api, Some("1".to_string())).await;
+
+        // 【結果検証】: DB内部情報が漏洩せず汎用INTERNAL_ERRORに変換されることを確認
+        let err = result.unwrap_err();
+        assert_eq!(err.error.code, "INTERNAL_ERROR"); // 【確認内容】: DB接続不能が汎用INTERNAL_ERRORコードに変換されることを確認 🟡
+        assert_eq!(err.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR); // 【確認内容】: HTTPステータスが500であることを確認 🟡
+    }
+
+    /// TC-0025-B01: 必須3項目のみ（任意項目すべて省略）の最小構成でインポートが成功する（実DB必要）
+    /// 【テスト目的】: 任意項目を一切伴わない最小構成でもトランザクションが成功することを確認する
+    /// 【テスト内容】: media_type=anime, external_id="1", title="A"のみでcreate_item_with_sourceを呼ぶ
+    /// 【期待される動作】: 201相当の成功（Item作成）、任意項目はNone/NULL
+    /// 🟡 信頼性レベル: 要件2.1入力仕様表（任意項目）からの妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn create_item_with_source_succeeds_with_minimal_fields_only() {
+        let pool = test_pool().await;
+        let request = create_item_request(MediaType::Anime, "A");
+
+        // 【実際の処理実行】: 任意項目を一切指定しない最小構成で呼び出す
+        let item = create_item_with_source(&pool, request, ItemSource::Api, Some("1".to_string()))
+            .await
+            .unwrap();
+
+        // 【結果検証】: 任意項目がNoneのまま登録成功することを確認
+        assert_eq!(item.original_title, None); // 【確認内容】: 任意項目省略時にoriginal_titleがNoneであることを確認 🟡
+        assert_eq!(item.external_id, Some("1".to_string())); // 【確認内容】: external_idが最短境界値("1")でも保持されることを確認 🟡
+    }
+
+    /// TC-0025-B03: 異なるmedia_type・同一external_idは重複とみなされず両方作成される（実DB必要）
+    /// 【テスト目的】: 重複判定キーが(media_type, external_id)の複合キーであることを確認する
+    /// 【テスト内容】: media_type=anime/external_id="100"を投入後、find_existing_importに
+    /// media_type=movie/external_id="100"を渡す
+    /// 【期待される動作】: find_existing_importがfalseを返す（異なるmedia_typeのため重複ではない）
+    /// 🟡 信頼性レベル: 要件第6章6.3（重複チェックWHERE media_type=$1 AND external_id=$2）からの妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn find_existing_import_does_not_treat_different_media_type_as_duplicate() {
+        let pool = test_pool().await;
+        let request = create_item_request(MediaType::Anime, "アニメ100");
+        create_item_with_source(&pool, request, ItemSource::Api, Some("100".to_string()))
+            .await
+            .unwrap();
+
+        // 【実際の処理実行】: 異なるmedia_type（movie）+同一external_id（100）で重複判定を呼ぶ
+        let exists = find_existing_import(&pool, MediaType::Movie, "100")
+            .await
+            .unwrap();
+
+        // 【結果検証】: media_typeが異なるため重複と判定されないことを確認
+        assert!(!exists); // 【確認内容】: external_id単独一致のみでは重複と判定されないことを確認 🟡
     }
 }

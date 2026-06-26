@@ -7,12 +7,17 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 
+use crate::models::external_search::ExternalSearchResult;
 use crate::models::item::{
     deserialize_request, parse_create_item_request, parse_item_id, validate_update_title, Item,
     ItemDetail, ListItemsQuery, UpdateItemRequest, UpdateStatusRequest,
 };
+use crate::models::item_import::parse_import_item_request;
+use crate::models::item_search::ItemSearchQuery;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk, PaginatedOk, Pagination};
+use crate::repositories::item_file_repository;
 use crate::repositories::item_repository;
+use crate::services::external_search::ExternalSearchService;
 use crate::AppState;
 
 /// 【機能概要】: `POST /items` ハンドラ。フォーム入力によるアイテム手動作成を行う
@@ -121,7 +126,16 @@ pub async fn get_item_handler(
     let tags = item_repository::get_item_tags(&state.db, id).await?;
     let categories = item_repository::get_item_categories(&state.db, id).await?;
 
-    Ok(ApiOk::new(ItemDetail::from_parts(item, detail, tags, categories)))
+    // 【Calibre-Web遷移情報取得】: calibre_book_id設定済みPDFについて遷移情報を付加する（TASK-0028 TC-020-02） 🟡
+    let calibre_links = item_file_repository::get_item_calibre_links(&state.db, id).await?;
+
+    Ok(ApiOk::new(ItemDetail::from_parts_with_calibre_links(
+        item,
+        detail,
+        tags,
+        categories,
+        calibre_links,
+    )))
 }
 
 /// 【機能概要】: `PATCH /items/:id` ハンドラ。UpdateItemRequestのSomeフィールドのみを対象アイテムに適用する
@@ -192,10 +206,54 @@ pub async fn update_item_status_handler(
     Ok(ApiOk::new(item))
 }
 
+/// 【機能概要】: `GET /items/search` ハンドラ。外部API（Jikan/TMDb/NDL/OpenLibrary/Steam/IGDB/AniList）
+/// を検索し、未登録アイテムの候補一覧を返す
+/// 【実装方針】: AppStateはExternalSearchServiceを保持しないため、ハンドラ内で都度構築する。
+/// `?`演算子で`ExternalSearchError`を`From`実装経由で`ApiError`へ自動変換し、422/502へ伝播させる
+/// 【テスト対応】: TC-0024-N01相当（200成功）、TC-0024-E01相当（422 APIキー未設定）に対応
+/// 🔵 信頼性レベル: note.md「Greenフェーズで実装すべき内容」・item-search-red-phase.md 4章に直接対応
+pub async fn search_items_handler(
+    State(state): State<AppState>,
+    Query(query): Query<ItemSearchQuery>,
+) -> Result<ApiOk<Vec<ExternalSearchResult>>, ApiError> {
+    // 【サービス構築】: AppStateはPgPoolのみ保持するため、ハンドラ内で都度ExternalSearchServiceを構築する 🔵
+    let service = ExternalSearchService::new(state.db.clone());
+
+    // 【外部API検索実行】: media_type別ディスパッチで対応プロバイダへ検索を委譲する。
+    // エラー時は`?`でExternalSearchError→ApiErrorへ自動変換され、422/502として伝播する 🔵
+    let results = service.search(query.media_type, &query.q).await?;
+
+    // 【成功レスポンス】: 統一フォーマット{"success":true,"data":[...]}で200を返す 🔵
+    Ok(ApiOk::new(results))
+}
+
+/// 【機能概要】: `POST /items/import` ハンドラ。外部API検索結果（GET /items/search）から
+/// 選択した1件をインポートし、items+メディア別詳細テーブルへ`source=api`で登録する
+/// 【実装方針】: `parse_import_item_request`でバリデーション → `item_repository::import_item`で
+/// 重複チェック+DB登録 → 成功時は既存`created_response`を再利用して201を返す
+/// 【テスト対応】: TC-0025-N02（created_response再利用）、TC-0025-N06（ルーター経由201）、
+/// TC-0025-E01〜E08（各種エラー）に対応
+/// 🔵 信頼性レベル: item-import-requirements.md 2.2・2.3データフロー、note.mdより
+pub async fn import_item_handler(
+    State(state): State<AppState>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<axum::response::Response, ApiError> {
+    // 【入力値検証】: media_type/external_id/titleの妥当性をparse_import_item_requestで検証する 🔵
+    let request = parse_import_item_request(body)?;
+
+    // 【DB登録】: 重複チェック+items+詳細テーブルへ同一トランザクションでINSERTする。
+    // 重複時はitem_repository::import_item内でItemAlreadyImported（409）として早期returnされる 🟡
+    let item = item_repository::import_item(&state.db, request).await?;
+
+    // 【成功レスポンス】: 既存create_item_handlerと同一のcreated_responseを再利用し201で返す 🔵
+    Ok(created_response(item))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models::item::{ItemSource, ItemStatus, MediaType};
+    use crate::models::item_search::ItemSearchQuery;
     use chrono::NaiveDate;
     use uuid::Uuid;
 
@@ -542,6 +600,163 @@ mod tests {
         }
     }
 
+    /// TC-0024-N01相当（ハンドラ単体呼び出し）: search_items_handlerがanime検索で200を返す（実DB+外部API必要）
+    /// 【テスト目的】: まだ実装されていないsearch_items_handlerが、ItemSearchQueryを受け取り
+    /// ExternalSearchService経由で200・ApiOk<Vec<ExternalSearchResult>>を返すことを確認する
+    /// 【テスト内容】: ItemSearchQuery { media_type: Anime, q: "鬼滅" } を渡してsearch_items_handlerを呼ぶ
+    /// 【期待される動作】: ハンドラ呼び出し自体がコンパイルエラーとなる想定（Red状態）。
+    /// Green実装後はHTTPステータス200、ApiOk<Vec<ExternalSearchResult>>形式で返る
+    /// 🔵 信頼性レベル: 要件 4.1 TC-002-01・external_search.rs L18-28・dataflow.md（機能1正常系）より
+    #[tokio::test]
+    #[ignore] // 実DB・外部API（wiremock）が必要。Greenフェーズでwiremock注入経路を確定し#[ignore]解除またはユニット化する
+    async fn search_items_handler_returns_200_for_anime_search() {
+        // 【テスト前準備】: 実DBプールからAppStateを構築する（Jikanはキー不要のためDB未登録でも到達可能）
+        let state = test_app_state().await;
+        let query = ItemSearchQuery {
+            media_type: MediaType::Anime,
+            q: "鬼滅".to_string(),
+        };
+
+        // 【実際の処理実行】: まだ実装されていないsearch_items_handlerを呼び出す
+        // 【処理内容】: ExternalSearchService::new(state.db.clone()).search(Anime, "鬼滅")への委譲を期待する
+        let result = search_items_handler(State(state), Query(query)).await;
+
+        // 【結果検証】: 200・ApiOk<Vec<ExternalSearchResult>>が返ることを確認する（Green phaseで検証予定）
+        assert!(result.is_ok()); // 【確認内容】: Green実装後はOk(ApiOk<Vec<ExternalSearchResult>>)が返ることを確認する 🔵
+    }
+
+    /// TC-0024-E01相当（ハンドラ単体呼び出し）: search_items_handlerがAPIキー未設定で422を返す（実DB+外部API必要）
+    /// 【テスト目的】: ExternalSearchError::ApiKeyNotConfiguredがハンドラの`?`演算子経由で
+    /// HTTPステータス422・API_KEY_NOT_CONFIGUREDへ伝播することを確認する
+    /// 【テスト内容】: TMDbキー未登録の状態でItemSearchQuery { media_type: Movie, q: "Matrix" } を渡して呼ぶ
+    /// 【期待される動作】: ハンドラ呼び出し自体がコンパイルエラーとなる想定（Red状態）。
+    /// Green実装後はErr(ApiError { status: 422, error.code: "API_KEY_NOT_CONFIGURED", .. })が返る
+    /// 🟡 信頼性レベル: 要件 4.2 TC-002-E01・EDGE-001より妥当推測
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn search_items_handler_returns_422_when_api_key_not_configured() {
+        let state = test_app_state().await;
+        let query = ItemSearchQuery {
+            media_type: MediaType::Movie,
+            q: "Matrix".to_string(),
+        };
+
+        // 【実際の処理実行】: まだ実装されていないsearch_items_handlerを呼び出す
+        let result = search_items_handler(State(state), Query(query)).await;
+
+        // 【結果検証】: 422 API_KEY_NOT_CONFIGUREDが返ることを確認する
+        let err = result.unwrap_err();
+        assert_eq!(err.error.code, "API_KEY_NOT_CONFIGURED"); // 【確認内容】: TMDbキー未登録でAPI_KEY_NOT_CONFIGUREDが返ることを確認 🟡
+        assert_eq!(err.status, StatusCode::UNPROCESSABLE_ENTITY); // 【確認内容】: HTTPステータスが422であることを確認 🟡
+    }
+
+    /// TC-0025-N02: import_item_handler成功時のレスポンスがHTTP 201・統一フォーマットになる
+    /// （created_response再利用確認、DB非依存）
+    /// 【テスト目的】: インポート成功時のレスポンス構築が、手動作成POST /itemsと同一の
+    /// created_responseを再利用して201を返すことを確認する
+    /// 【テスト内容】: source=Api/external_id=Some("12345")のsample_itemをcreated_responseへ渡す
+    /// 【期待される動作】: response.status() == StatusCode::CREATED
+    /// 🔵 信頼性レベル: 要件2.2、既存created_response（L49-52）に直接対応
+    #[tokio::test]
+    async fn created_response_returns_201_for_api_sourced_item() {
+        // 【テストデータ準備】: source=Api/external_id=Someのitemを用意する
+        // 【初期条件設定】: import経路（source=api）でも同一の201契約が成り立つことを代表する
+        let mut item = sample_item();
+        item.source = ItemSource::Api;
+        item.external_id = Some("12345".to_string());
+
+        // 【実際の処理実行】: 既存created_responseをapi-source itemに対して呼び出す
+        let response = created_response(item);
+
+        // 【結果検証】: ステータスコードが201であることを確認
+        assert_eq!(response.status(), StatusCode::CREATED); // 【確認内容】: import経路でも201が返ることを確認 🔵
+    }
+
+    /// TC-0025-N06: POST /items/importがルーター経由で有効リクエストに対し201を返す（実DB必要・E2E）
+    /// 【テスト目的】: build_routerに登録されたPOST /items/importが、tower::oneshot駆動で201を
+    /// 返すE2Eパスを確認する
+    /// 【テスト内容】: import_item_handlerを直接呼び出し、有効なJSONボディに対する応答を確認する
+    /// 【期待される動作】: ステータス201、ボディがsource:"api"・external_id:"12345"を含むItem
+    /// 🔵 信頼性レベル: 要件2.3データフロー、note.mdルーティング方針より
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn import_item_handler_returns_201_for_valid_request() {
+        let state = test_app_state().await;
+        let body = serde_json::json!({
+            "media_type": "anime",
+            "external_id": "12345",
+            "title": "鬼滅の刃"
+        });
+
+        // 【実際の処理実行】: import_item_handlerを呼び出す
+        let response = import_item_handler(State(state), Json(body)).await.unwrap();
+
+        // 【結果検証】: HTTPステータスが201であることを確認
+        assert_eq!(response.status(), StatusCode::CREATED); // 【確認内容】: 有効なインポートリクエストで201が返ることを確認 🔵
+    }
+
+    /// TC-0025-E01相当（ハンドラ単体）: import_item_handlerがexternal_id欠落で400 VALIDATION_ERROR
+    /// を返す（実DB不要・バリデーション先行のため副作用なし）
+    /// 【テスト目的】: ハンドラ層でのバリデーション失敗が、DB到達前にApiErrorへ変換されることを確認する
+    /// 【テスト内容】: external_idキーを含まないJSONボディでimport_item_handlerを呼ぶ
+    /// 【期待される動作】: Err(ApiError{code:"VALIDATION_ERROR", status:400})
+    /// 🔵 信頼性レベル: 要件2.2エラー表・4.2、TASK-0025.mdテストケース2に直接対応
+    /// 【補足】: external_id欠落はserdeデシリアライズ失敗（VALIDATION_ERROR）経路で弾かれる。
+    /// AppState構築（DB接続）を要するため#[ignore]とする
+    #[tokio::test]
+    #[ignore]
+    async fn import_item_handler_returns_400_for_missing_external_id() {
+        let state = test_app_state().await;
+        let body = serde_json::json!({
+            "media_type": "anime",
+            "title": "鬼滅の刃"
+        });
+
+        // 【実際の処理実行】: import_item_handlerを呼び出す
+        let result = import_item_handler(State(state), Json(body)).await;
+
+        // 【結果検証】: VALIDATION_ERROR・400であることを確認
+        let err = result.unwrap_err();
+        assert_eq!(err.error.code, "VALIDATION_ERROR"); // 【確認内容】: external_id欠落でVALIDATION_ERRORが返ることを確認 🔵
+        assert_eq!(err.status, StatusCode::BAD_REQUEST); // 【確認内容】: HTTPステータスが400であることを確認 🔵
+    }
+
+    /// TC-0025-B04: POST /items/importがリテラルパスとして優先され/items/:idに誤マッチしない
+    /// （ルーター経由・実DB必要）
+    /// 【テスト目的】: "import"が/items/:idの:idとしてUUIDパースされず400にならないことを確認する
+    /// 【テスト内容】: build_router経由でPOST /items/importへ有効ボディを送信する
+    /// 【期待される動作】: UUIDパースエラー由来の400にはならない（500でもない）
+    /// 🔵 信頼性レベル: note.md L46-49・L190-192、既存get_items_search_does_not_fall_through_to_item_id_route
+    /// より
+    #[tokio::test]
+    #[ignore]
+    async fn post_items_import_does_not_fall_through_to_item_id_route() {
+        use crate::routes::build_router;
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let state = test_app_state().await;
+        let app = build_router(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/items/import")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        r#"{"media_type":"anime","external_id":"12345","title":"鬼滅の刃"}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // 【結果検証】: ルーティング誤マッチによるpanic/500が発生しないことを確認
+        assert_ne!(response.status(), StatusCode::INTERNAL_SERVER_ERROR); // 【確認内容】: /items/importが/items/:idのUUIDパースに吸われず、500にならないことを確認 🔵
+    }
+
     /// 【テスト用ヘルパー】: ハンドラ統合テスト用にitemsへ1件投入しidを返す
     async fn insert_test_item_for_handler(state: &AppState) -> Uuid {
         sqlx::query_scalar::<_, Uuid>(
@@ -551,5 +766,112 @@ mod tests {
         .fetch_one(&state.db)
         .await
         .expect("テスト用itemの投入に失敗しました")
+    }
+
+    /// 【テスト用ヘルパー】: 指定file_type/calibre_book_idのitem_files行を投入しfile_idを返す（TASK-0028）
+    async fn insert_test_item_file_for_handler(
+        state: &AppState,
+        item_id: Uuid,
+        file_type: &str,
+        calibre_book_id: Option<&str>,
+    ) -> Uuid {
+        sqlx::query_scalar::<_, Uuid>(
+            "INSERT INTO item_files (item_id, path, label, file_type, calibre_book_id)
+             VALUES ($1, '/srv/files/pdf/example.pdf', '本編PDF', $2::file_type, $3)
+             RETURNING id",
+        )
+        .bind(item_id)
+        .bind(file_type)
+        .bind(calibre_book_id)
+        .fetch_one(&state.db)
+        .await
+        .expect("テスト用item_fileの投入に失敗しました")
+    }
+
+    /// TC-020-02: GET /items/:id がcalibre_book_id設定済みPDFのCalibre-Web遷移情報を含む（ハンドラ統合）
+    /// 【テスト目的】: calibre_book_id設定済みPDFを持つアイテムの詳細取得で、レスポンスに
+    /// calibre_book_id（Calibre-Web遷移情報）が含まれることを確認する
+    /// 【テスト内容】: itemを作成→pdf item_fileを作成→calibre_book_id="calibre-12345"を事前設定→
+    /// get_item_handlerを呼び出す
+    /// 【期待される動作】: 200、レスポンスのcalibre_linksに"calibre-12345"を含む要素が1件存在する
+    /// 🟡 信頼性レベル: タスク定義書 単体テスト要件テストケース4（TC-020-02）に対応。
+    /// URL構築方式未確定のため遷移情報の具体形は実装時確定（要件定義書第3章L97）
+    /// 【Red期待】: ItemDetailにcalibre_linksフィールド・get_item_calibre_links関数が
+    /// 未実装のためコンパイルエラーとなる想定
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_handler_includes_calibre_web_link_info_for_linked_pdf() {
+        let state = test_app_state().await;
+        let item_id = insert_test_item_for_handler(&state).await;
+        let file_id = insert_test_item_file_for_handler(
+            &state,
+            item_id,
+            "pdf",
+            Some("calibre-12345"),
+        )
+        .await;
+
+        // 【実際の処理実行】: get_item_handlerを直接呼び出す
+        let result = get_item_handler(State(state), Path(item_id.to_string())).await;
+
+        // 【結果検証】: 200・calibre_linksにcalibre-12345が含まれることを確認する
+        let response = result.expect("詳細取得は成功するはず");
+        assert!(
+            response
+                .data
+                .calibre_links
+                .iter()
+                .any(|link| link.file_id == file_id && link.calibre_book_id == "calibre-12345")
+        ); // 【確認内容】: calibre_book_id設定済みPDFの遷移情報が詳細レスポンスに含まれることを確認 🟡
+    }
+
+    /// TC-020-N03: calibre_book_id=NULLのPDFは詳細APIで遷移情報を付加されない（ハンドラ統合）
+    /// 【テスト目的】: 付加条件calibre_book_id IS NOT NULLの境界（負側）を確認する
+    /// 【テスト内容】: itemを作成→pdf item_fileを作成（calibre_book_id未設定のまま）→get_item_handlerを呼ぶ
+    /// 【期待される動作】: 200、calibre_linksが空（該当ファイルの遷移情報が付加されない）
+    /// 🟡 信頼性レベル: 要件定義書2.3 L77（calibre_book_id IS NOT NULL条件）からの妥当な推測
+    /// 【Red期待】: ItemDetailにcalibre_linksフィールド・get_item_calibre_links関数が
+    /// 未実装のためコンパイルエラーとなる想定
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_handler_does_not_include_calibre_link_for_unlinked_pdf() {
+        let state = test_app_state().await;
+        let item_id = insert_test_item_for_handler(&state).await;
+        insert_test_item_file_for_handler(&state, item_id, "pdf", None).await;
+
+        let result = get_item_handler(State(state), Path(item_id.to_string())).await;
+
+        let response = result.expect("詳細取得は成功するはず");
+        assert!(response.data.calibre_links.is_empty()); // 【確認内容】: calibre_book_id未設定のPDFには遷移情報が付加されないことを確認 🟡
+    }
+
+    /// TC-020-B05: 複数ファイル混在時、calibre_book_id設定済みPDFのみ遷移情報が付く（ハンドラ統合）
+    /// 【テスト目的】: 付加条件file_type=pdf AND calibre_book_id IS NOT NULLが行単位で
+    /// 正しく適用されることを確認する
+    /// 【テスト内容】: 1つのitemに (a)calibre設定済みpdf, (b)未設定pdf, (c)image を作成→get_item_handlerを呼ぶ
+    /// 【期待される動作】: 200、calibre_linksに(a)のみが含まれ、件数は1件
+    /// 🟡 信頼性レベル: 要件定義書2.3 L77・TC-020-02からの妥当な推測（行単位適用の検証）
+    /// 【Red期待】: ItemDetailにcalibre_linksフィールド・get_item_calibre_links関数が
+    /// 未実装のためコンパイルエラーとなる想定
+    #[tokio::test]
+    #[ignore]
+    async fn get_item_handler_applies_calibre_link_condition_per_row_with_mixed_files() {
+        let state = test_app_state().await;
+        let item_id = insert_test_item_for_handler(&state).await;
+        let linked_pdf_id = insert_test_item_file_for_handler(
+            &state,
+            item_id,
+            "pdf",
+            Some("calibre-99999"),
+        )
+        .await;
+        insert_test_item_file_for_handler(&state, item_id, "pdf", None).await;
+        insert_test_item_file_for_handler(&state, item_id, "image", None).await;
+
+        let result = get_item_handler(State(state), Path(item_id.to_string())).await;
+
+        let response = result.expect("詳細取得は成功するはず");
+        assert_eq!(response.data.calibre_links.len(), 1); // 【確認内容】: 混在ケースでも遷移情報が付くのは1件のみであることを確認 🟡
+        assert_eq!(response.data.calibre_links[0].file_id, linked_pdf_id); // 【確認内容】: 付加された遷移情報がcalibre設定済みpdfの行であることを確認 🟡
     }
 }

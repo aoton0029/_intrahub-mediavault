@@ -2,6 +2,7 @@ pub mod api_credential_repository;
 pub mod category_repository;
 pub mod db_error_utils;
 pub mod item_episode_repository;
+pub mod item_file_repository;
 pub mod item_group_repository;
 pub mod item_link_repository;
 pub mod item_relation_repository;

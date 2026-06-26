@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — 全体一覧</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+
+    <div class="nav-section">
+      <div class="nav-item active">📚 全体一覧<span class="count">128</span></div>
+      <div class="nav-item">🎬 一般メディア<span class="count">96</span></div>
+      <div class="nav-item indent">　アニメ<span class="count">34</span></div>
+      <div class="nav-item indent">　映画<span class="count">28</span></div>
+      <div class="nav-item indent">　ドラマ<span class="count">9</span></div>
+      <div class="nav-item indent">　漫画<span class="count">15</span></div>
+      <div class="nav-item indent">　小説<span class="count">7</span></div>
+      <div class="nav-item indent">　ゲーム<span class="count">3</span></div>
+      <div class="nav-item">🎓 学術書・専門書<span class="count">21</span></div>
+      <div class="nav-item">📄 論文・文献<span class="count">11</span></div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">ライブラリ</div>
+      <div class="nav-item">⭐ マイリスト</div>
+      <div class="nav-item">🏷️ タグ・カテゴリ</div>
+      <div class="nav-item">👤 スタッフ</div>
+    </div>
+
+    <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-item">⚙️ 設定</div>
+    </div>
+  </aside>
+
+  <!-- メイン -->
+  <main class="main">
+    <div class="titlebar">
+      <h1>全体一覧</h1>
+      <a href="03_search_add.html" class="btn btn-accent">＋ 作品を追加</a>
+    </div>
+
+    <div class="content">
+      <div class="filter-bar">
+        <div class="chip active">すべて</div>
+        <div class="chip">⭐ お気に入り</div>
+        <div class="chip">視聴中</div>
+        <div class="chip">読了/視聴済</div>
+        <div class="chip">未着手</div>
+        <div class="chip">#SF</div>
+        <div class="chip">#泣ける</div>
+        <div class="search-box">🔍 <input type="text" placeholder="タイトルで検索…"></div>
+      </div>
+
+      <div class="card-grid">
+
+        <a class="media-card" href="02_item_detail.html" style="display:block;color:inherit;">
+          <div class="cover">
+            <span class="badge">ANIME</span>
+            <span class="fav">★</span>
+          </div>
+          <div class="body">
+            <p class="title">星屑のシンフォニア</p>
+            <div class="meta"><span class="status-dot progress"></span>視聴中 · S2</div>
+          </div>
+        </a>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">MOVIE</span></div>
+          <div class="body">
+            <p class="title">夜明けの境界線</p>
+            <div class="meta"><span class="status-dot done"></span>視聴済</div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">MANGA</span><span class="fav">★</span></div>
+          <div class="body">
+            <p class="title">紙の上の庭園 第4巻</p>
+            <div class="meta"><span class="status-dot progress"></span>読書中</div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">NOVEL</span></div>
+          <div class="body">
+            <p class="title">塩の記憶</p>
+            <div class="meta"><span class="status-dot none"></span>未着手</div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">GAME</span></div>
+          <div class="body">
+            <p class="title">アズールホライズン</p>
+            <div class="meta"><span class="status-dot progress"></span>プレイ中</div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">DRAMA</span></div>
+          <div class="body">
+            <p class="title">第七区の灯</p>
+            <div class="meta"><span class="status-dot done"></span>視聴済</div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">ACADEMIC</span></div>
+          <div class="body">
+            <p class="title">分散システム設計の原理</p>
+            <div class="meta"><span class="status-dot none"></span>未着手</div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">PAPER</span></div>
+          <div class="body">
+            <p class="title">埋め込み空間における意味距離の再評価</p>
+            <div class="meta"><span class="status-dot done"></span>読了</div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">ANIME</span></div>
+          <div class="body">
+            <p class="title">緋色の境界、青の余白</p>
+            <div class="meta"><span class="status-dot none"></span>未着手</div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">MOVIE</span><span class="fav">★</span></div>
+          <div class="body">
+            <p class="title">最後のフィルム</p>
+            <div class="meta"><span class="status-dot done"></span>視聴済</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

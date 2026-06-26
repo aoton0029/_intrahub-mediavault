@@ -97,6 +97,11 @@ pub struct ListItemsQuery {
     pub category_id: Option<Uuid>,
     pub is_favorite: Option<bool>,
     pub status: Option<ItemStatus>,
+    /// 【TASK-0029】: titleの部分一致（ILIKE）検索条件。`/internal/items/search`で
+    /// タイトル検索を行うために追加。GET /itemsからも利用可能（後方互換、未指定時は影響なし）
+    /// 🔵 信頼性レベル: TASK-0029要件定義2.2表#3「title部分一致」に直接対応
+    #[serde(default)]
+    pub title: Option<String>,
     pub page: Option<u32>,
     pub limit: Option<u32>,
 }
@@ -248,6 +253,10 @@ pub struct ItemDetail {
     pub detail: Option<serde_json::Value>,
     pub tags: Vec<TagRef>,
     pub categories: Vec<CategoryRef>,
+    /// Calibre-Web遷移情報（calibre_book_id設定済みのPDF item_filesのみ付加）
+    /// 🟡 信頼性レベル: TASK-0028 calibre-link-requirements.md 2.3 L77・タスク定義書 L58-64より新規追加
+    #[serde(default)]
+    pub calibre_links: Vec<crate::models::item_file::CalibreWebLinkInfo>,
 }
 
 impl ItemDetail {
@@ -257,6 +266,18 @@ impl ItemDetail {
         detail: Option<serde_json::Value>,
         tags: Vec<TagRef>,
         categories: Vec<CategoryRef>,
+    ) -> Self {
+        Self::from_parts_with_calibre_links(item, detail, tags, categories, Vec::new())
+    }
+
+    /// itemの基本情報 + 詳細/タグ/カテゴリ + Calibre-Web遷移情報を合成してItemDetailを構築する
+    /// 🟡 信頼性レベル: TASK-0028 calibre-link-testcases.md TC-020-02/N03/B05より新規追加
+    pub fn from_parts_with_calibre_links(
+        item: Item,
+        detail: Option<serde_json::Value>,
+        tags: Vec<TagRef>,
+        categories: Vec<CategoryRef>,
+        calibre_links: Vec<crate::models::item_file::CalibreWebLinkInfo>,
     ) -> Self {
         Self {
             id: item.id,
@@ -278,6 +299,7 @@ impl ItemDetail {
             detail,
             tags,
             categories,
+            calibre_links,
         }
     }
 }

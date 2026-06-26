@@ -1,6 +1,7 @@
 pub mod categories;
 pub mod health;
 pub mod item_episodes;
+pub mod item_files;
 pub mod item_groups;
 pub mod item_links;
 pub mod item_relations;
