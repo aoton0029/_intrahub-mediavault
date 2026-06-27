@@ -56,6 +56,8 @@ impl From<ImportItemRequest> for CreateItemRequest {
             rating: None,
             is_favorite: None,
             details: request.details,
+            // 【TASK-0030拡張】: 外部APIインポート経路ではconsumed_date入力対象外のためNone固定 🟡
+            consumed_date: None,
         }
     }
 }

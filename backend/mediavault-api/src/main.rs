@@ -4,6 +4,7 @@
 
 mod db;
 mod handlers;
+mod import;
 mod middleware;
 mod models;
 mod repositories;
@@ -44,7 +45,7 @@ async fn main() {
         internal_api_key,
     };
 
-    let app = routes::build_router(state);
+    let app = routes::build_router(state.clone()).merge(routes::internal::build_internal_router(state));
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)

@@ -2,17 +2,49 @@
 //!
 //! TASK-0029: 内部REST APIルート群実装（/internal/items等）
 //!
-//! 【現状】: Redフェーズの時点では未実装。`build_internal_router` はまだ存在しないため、
-//! 本ファイルおよびこれを参照するテストはコンパイルが通らない想定（意図的な失敗）。
-//! Greenフェーズで以下を実装すること:
-//!   - `pub fn build_internal_router(state: AppState) -> Router` の実装
-//!   - `/internal/items` (POST/PATCH), `/internal/items/search` (GET),
-//!     `/internal/items/:id/groups` (POST), `/internal/groups/:group_id/episodes` (POST),
-//!     `/internal/items/:id/files` (POST) のマウント
-//!   - `axum::middleware::from_fn(api_key_auth)` (環境変数照合) を `.layer()` で適用
+//! 巡回バッチ・ファイルサーバー監視プロセス向けの`/internal/*`ルート群。
+//! 利用者向けルーター（`build_router`、`/api/v1/*`想定）とは別のRouterとし、
+//! バージョンプレフィックスを持たず、`api_key_auth`ミドルウェアのみを適用する。
+//! Phase2/Phase4で実装済みのitems/groups/episodes/filesハンドラ・サービス層を
+//! 再利用し、内部API固有のロジック（groups/episodesのupsert）のみ薄いラッパーで追加する。
 
-// 【Greenフェーズで実装予定】: build_internal_router がまだ定義されていないため、
-// このモジュールを使うテストはコンパイルエラーとなる（Redフェーズの意図的な失敗）。
+use axum::routing::{get, patch, post};
+use axum::Router;
+
+use crate::handlers::internal_episodes::upsert_item_episode_handler;
+use crate::handlers::internal_groups::upsert_item_group_handler;
+use crate::handlers::item_files::create_item_file_handler;
+use crate::handlers::items::{create_item_handler, list_items_handler, update_item_handler};
+use crate::middleware::api_key_auth::api_key_auth;
+use crate::AppState;
+
+/// `/internal` 専用Routerを構築する。
+///
+/// 【実装方針】: items本体のPOST/PATCH・GET検索（ListItemsQueryのtitle絞り込みを再利用）・
+/// groups/episodesのupsert・filesのパス指定登録を、Phase2/Phase4実装済みハンドラの再利用または
+/// 薄いupsertラッパーとしてマウントする。`/internal/items/search`はリテラルパスのため、
+/// 動的パス`/internal/items/:id`より前に登録し誤マッチを防ぐ。
+/// 🔵 信頼性レベル: TASK-0029.md「実装詳細1」api-endpoints.md「内部REST API」セクションに直接対応
+pub fn build_internal_router(state: AppState) -> Router {
+    Router::new()
+        .route("/internal/items", post(create_item_handler))
+        .route("/internal/items/search", get(list_items_handler))
+        .route("/internal/items/:id", patch(update_item_handler))
+        .route(
+            "/internal/items/:id/groups",
+            post(upsert_item_group_handler),
+        )
+        .route(
+            "/internal/groups/:group_id/episodes",
+            post(upsert_item_episode_handler),
+        )
+        .route(
+            "/internal/items/:id/files",
+            post(create_item_file_handler),
+        )
+        .layer(axum::middleware::from_fn(api_key_auth))
+        .with_state(state)
+}
 
 #[cfg(test)]
 mod tests {

@@ -81,6 +81,16 @@ pub struct CreateItemRequest {
     /// メディア別詳細（anime_details等）。ハンドラ側でmedia_typeに応じて振り分ける。
     #[serde(default)]
     pub details: Option<serde_json::Value>,
+    /// 消費（読了・視聴）日。TASK-0030 設計判断#1により追加。
+    ///
+    /// 【機能概要】: ブクログCSVインポートの「読了日」を`items.consumed_date`へ永続化するための
+    /// フィールド追加。`#[serde(default)]`により既存の手動作成（TASK-0009）リクエストJSONに
+    /// このキーが含まれない場合は`None`となり、後方互換を維持する
+    /// 【実装方針】: `Option<NaiveDate>`とし、JSON未指定時はNone（デフォルト）にする
+    /// 【テスト対応】: TC-N-04（デシリアライズ＋後方互換）、TC-N-05（DB永続化）、TC-REG-01（既存回帰）
+    /// 🔵 信頼性レベル: テストケース定義書0章 設計判断#1（ユーザー確定）に基づく
+    #[serde(default)]
+    pub consumed_date: Option<NaiveDate>,
 }
 
 /// `GET /items` クエリパラメータDTO
@@ -534,6 +544,55 @@ mod tests {
         let request: UpdateStatusRequest = deserialize_request(value).unwrap();
         assert_eq!(request.status, ItemStatus::InProgress);
         assert_eq!(request.consumed_date, None);
+    }
+
+    /// TC-N-04 (a): consumed_dateを含むJSONがCreateItemRequestへ正しくデシリアライズされる
+    /// 【テスト目的】: ブクログCSVインポート（TASK-0030）の「読了日」をDB永続化するために追加した
+    /// `consumed_date: Option<chrono::NaiveDate>`フィールドが、JSONに値が含まれる場合に正しく
+    /// パースされることを確認する
+    /// 【テスト内容】: {"media_type":"novel","title":"x","consumed_date":"2024-01-15"}を
+    /// parse_create_item_requestへ渡す
+    /// 【期待される動作】: consumed_date == Some(NaiveDate(2024,1,15))
+    /// 🔵 信頼性レベル: テストケース定義書TC-N-04・設計判断#1（ユーザー確定）に基づく
+    #[test]
+    fn create_item_request_deserializes_consumed_date_when_present() {
+        // 【テストデータ準備】: 読了日2024-01-15を含む正常なリクエストボディを用意する
+        // 【初期条件設定】: ブクログCSVの「読了日」列がCreateItemRequestへ変換される想定の最小ケース
+        let value = serde_json::json!({
+            "media_type": "novel",
+            "title": "ノルウェイの森",
+            "consumed_date": "2024-01-15"
+        });
+
+        // 【実際の処理実行】: parse_create_item_requestを呼び出す
+        // 【処理内容】: consumed_dateフィールドを含むJSONのデシリアライズ＋バリデーションを行う
+        let request = parse_create_item_request(value).unwrap();
+
+        // 【結果検証】: consumed_dateがCSV値どおりにパースされていることを確認
+        assert_eq!(
+            request.consumed_date,
+            Some(NaiveDate::from_ymd_opt(2024, 1, 15).unwrap())
+        ); // 【確認内容】: consumed_dateが"2024-01-15"から正しくNaiveDateへ変換されることを確認 🔵
+    }
+
+    /// TC-N-04 (b) / TC-REG-01: consumed_dateを省略したJSON（既存の手動作成形）はNoneになる
+    /// 【テスト目的】: `#[serde(default)]`付与により、consumed_dateキー省略時に既存の手動作成
+    /// （TASK-0009）リクエストの後方互換が保たれることを確認する
+    /// 【テスト内容】: consumed_dateキーを含まないJSON（既存形）をparse_create_item_requestへ渡す
+    /// 【期待される動作】: デシリアライズ成功、consumed_date == None
+    /// 🔵 信頼性レベル: テストケース定義書TC-N-04・TC-REG-01、設計判断#1の回帰確認に基づく
+    #[test]
+    fn create_item_request_consumed_date_defaults_to_none_when_omitted() {
+        // 【テストデータ準備】: consumed_dateを含まない既存の手動作成相当のリクエストボディ
+        // 【初期条件設定】: TASK-0009時点の既存呼び出し（フィールド追加前）と同形のJSONを再現する
+        let value = serde_json::json!({ "media_type": "anime", "title": "作品A" });
+
+        // 【実際の処理実行】: parse_create_item_requestを呼び出す
+        // 【処理内容】: consumed_date省略時のデフォルト値解決を確認する
+        let request = parse_create_item_request(value).unwrap();
+
+        // 【結果検証】: consumed_dateがNone（既存後方互換）であることを確認
+        assert_eq!(request.consumed_date, None); // 【確認内容】: consumed_date省略時に#[serde(default)]でNoneになることを確認 🔵
     }
 
     /// テストケース2: status不正値はVALIDATION_ERROR(400)になる

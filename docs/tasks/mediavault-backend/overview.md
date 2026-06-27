@@ -88,8 +88,8 @@ TASK-0001, TASK-0003 → TASK-0007 → Phase2全タスク
 - [x] [TASK-0009: POST /items（手動作成）実装](TASK-0009.md) - 4h (TDD) 🔵 ✅完了 (2026-06-23)
 - [x] [TASK-0010: GET /items一覧・絞り込み実装](TASK-0010.md) - 6h (TDD) 🔵 ✅完了 (2026-06-23)
 - [x] [TASK-0011: GET /items/:id 詳細取得実装](TASK-0011.md) - 4h (TDD) 🟡 ✅完了 (2026-06-23)
-- [ ] [TASK-0012: PATCH /items/:id 部分更新実装](TASK-0012.md) - 4h (TDD) 🔵
-- [ ] [TASK-0013: DELETE /items/:id 実装（カスケード削除）](TASK-0013.md) - 4h (TDD) 🔵
+- [x] [TASK-0012: PATCH /items/:id 部分更新実装](TASK-0012.md) - 4h (TDD) 🔵 ✅完了 (2026-06-27)
+- [x] [TASK-0013: DELETE /items/:id 実装（カスケード削除）](TASK-0013.md) - 4h (TDD) 🔵 ✅完了 (2026-06-27)
 - [x] [TASK-0014: PATCH /items/:id/status 実装](TASK-0014.md) - 3h (TDD) 🔵 ✅完了 (2026-06-24)
 - [x] [TASK-0015: タグ・カテゴリCRUD実装](TASK-0015.md) - 6h (TDD) 🔵 ✅完了 (2026-06-24)
 - [x] [TASK-0016: マイリストCRUD実装](TASK-0016.md) - 6h (TDD) 🔵 ✅完了 (2026-06-24)
@@ -161,9 +161,9 @@ TASK-0026 → TASK-0028
 
 ### タスク一覧
 
-- [ ] [TASK-0029: 内部REST APIルート群実装（/internal/items等）](TASK-0029.md) - 6h (TDD) 🔵
+- [x] [TASK-0029: 内部REST APIルート群実装（/internal/items等）](TASK-0029.md) - 6h (TDD) 🔵 ✅完了 (2026-06-27)
 - [ ] [TASK-0030: ブクログCSVインポート実装](TASK-0030.md) - 6h (TDD) 🟡
-- [ ] [TASK-0031: Steamライブラリインポート実装](TASK-0031.md) - 6h (TDD) 🔵
+- [x] [TASK-0031: Steamライブラリインポート実装](TASK-0031.md) - 6h (TDD) 🔵 ✅完了 (2026-06-27)
 
 ### 依存関係
 

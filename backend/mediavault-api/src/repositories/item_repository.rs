@@ -72,12 +72,14 @@ pub async fn create_item_with_source(
     // 【トランザクション開始】: items・詳細テーブルへのINSERTを原子的に行う 🔵
     let mut tx = pool.begin().await.map_err(db_error)?;
 
-    // 【items本体INSERT】: source/external_idを$10/$11としてbindし、ハードコードを撤廃する 🔵
+    // 【items本体INSERT】: source/external_idを$10/$11としてbindし、ハードコードを撤廃する。
+    // 【TASK-0030拡張】: consumed_dateを$12としてbindし、ブクログCSVの「読了日」をDB永続化可能にする
+    // （設計判断#1：作成パスを拡張する。TC-N-05・TC-DB-01対応） 🔵
     let item: Item = sqlx::query_as(
         "INSERT INTO items (
             media_type, title, original_title, description, cover_image_url,
-            release_date, homepage_url, rating, is_favorite, source, external_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            release_date, homepage_url, rating, is_favorite, source, external_id, consumed_date
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id, media_type, title, original_title, description, cover_image_url,
             release_date, homepage_url, status, consumed_date, rating, is_favorite,
             source, external_id, created_at, updated_at",
@@ -93,6 +95,7 @@ pub async fn create_item_with_source(
     .bind(request.is_favorite.unwrap_or(false))
     .bind(source)
     .bind(&external_id)
+    .bind(request.consumed_date)
     .fetch_one(&mut *tx)
     .await
     .map_err(db_error)?;
@@ -1824,6 +1827,8 @@ mod tests {
             rating: None,
             is_favorite: None,
             details: None,
+            // 【TASK-0030拡張】: consumed_date追加に伴いテストヘルパーを更新（TC-REG-01の前提） 🔵
+            consumed_date: None,
         }
     }
 
@@ -1955,6 +1960,72 @@ mod tests {
             assert_eq!(item.media_type, *media_type); // 【確認内容】: media_typeが指定通りであることを確認 🟡
             assert_eq!(item.source, ItemSource::Api); // 【確認内容】: 8種すべてでsource=Apiが反映されることを確認 🟡
         }
+    }
+
+    /// TC-DB-01: create_item_with_sourceがconsumed_dateをbindし、RETURNINGで反映する（実DB必要）
+    /// 【テスト目的】: TASK-0030設計判断#1で拡張したINSERT文が、request.consumed_dateを正しく
+    /// bindし、返却されたItemのconsumed_dateにCSV由来の値が反映されることを確認する
+    /// 【テスト内容】: consumed_date=Some(2024-03-10)・source=Manual・external_id=Some("isbn")の
+    /// CreateItemRequestでcreate_item_with_sourceを呼び出す
+    /// 【期待される動作】: 返却itemのconsumed_date==Some(2024-03-10)、source==Manual、
+    /// external_id==Some("isbn")
+    /// 🔵 信頼性レベル: テストケース定義書TC-DB-01・item_repository.rs既存INSERT構造（拡張後）に基づく
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn create_item_with_source_binds_and_returns_consumed_date() {
+        // 【テスト前準備】: 実DBプールを取得する
+        let pool = test_pool().await;
+
+        // 【テストデータ準備】: 読了日2024-03-10を持つCreateItemRequestを構築する
+        // 【初期条件設定】: ブクログCSVの「読了日」をパースした結果を模したリクエスト
+        let mut request = create_item_request(MediaType::Novel, "斜陽");
+        request.consumed_date = Some(chrono::NaiveDate::from_ymd_opt(2024, 3, 10).unwrap());
+
+        // 【実際の処理実行】: source=Manual・external_id=Some("isbn")でcreate_item_with_sourceを呼び出す
+        // 【処理内容】: items本体INSERT（consumed_date含む）+ novel_details INSERTを同一トランザクションで実行する
+        let item = create_item_with_source(
+            &pool,
+            request,
+            ItemSource::Manual,
+            Some("isbn".to_string()),
+        )
+        .await
+        .unwrap();
+
+        // 【結果検証】: consumed_date/source/external_idがすべて引数・入力通りに反映されることを確認
+        assert_eq!(
+            item.consumed_date,
+            Some(chrono::NaiveDate::from_ymd_opt(2024, 3, 10).unwrap())
+        ); // 【確認内容】: consumed_dateがCSV値どおりにDBへ保存・RETURNINGされることを確認 🔵
+        assert_eq!(item.source, ItemSource::Manual); // 【確認内容】: sourceが引数通りManualであることを確認 🔵
+        assert_eq!(item.external_id, Some("isbn".to_string())); // 【確認内容】: external_idが引数通り保持されることを確認 🔵
+    }
+
+    /// TC-REG-01: create_item（manualラッパー）はconsumed_date拡張後もconsumed_date=Noneで
+    /// 従来通り動作する（実DB・回帰確認必要）
+    /// 【テスト目的】: CreateItemRequestへのconsumed_date追加（Option + #[serde(default)]）が、
+    /// 既存の手動作成パス（create_item薄いラッパー、TASK-0009）を破壊しないことを確認する
+    /// 【テスト内容】: consumed_date省略（=None）のCreateItemRequestでcreate_itemを呼び出す
+    /// 【期待される動作】: 登録成功、item.consumed_date==None、source==Manual・external_id==None
+    /// （既存挙動を維持）
+    /// 🟡 信頼性レベル: item_repository.rs既存create_itemラッパー構造＋設計判断#1からの妥当な推測
+    #[tokio::test]
+    #[ignore]
+    async fn create_item_wrapper_keeps_consumed_date_none_after_extension() {
+        // 【テスト前準備】: 実DBプールを取得する
+        let pool = test_pool().await;
+        // 【テストデータ準備】: consumed_date省略（既存ヘルパー）のリクエストを用意する
+        // 【初期条件設定】: TASK-0009時点の既存手動作成シナリオを再現する
+        let request = create_item_request(MediaType::Anime, "回帰確認用作品");
+
+        // 【実際の処理実行】: 薄いラッパー化されたcreate_itemを呼び出す
+        // 【処理内容】: consumed_date拡張後もmanual/external_id=None固定の挙動が保たれるかを確認する
+        let item = create_item(&pool, request).await.unwrap();
+
+        // 【結果検証】: 既存の挙動（manual/NULL/consumed_date None）が維持されることを確認
+        assert_eq!(item.consumed_date, None); // 【確認内容】: consumed_date省略時にDB側もNone（NULL）であることを確認 🟡
+        assert_eq!(item.source, ItemSource::Manual); // 【確認内容】: 拡張後もsource=Manualが維持されることを確認 🟡
+        assert_eq!(item.external_id, None); // 【確認内容】: 拡張後もexternal_id=NULLが維持されることを確認 🟡
     }
 
     /// TC-0025-E06: 同一media_type+external_idのitemが既存の状態で再インポートすると

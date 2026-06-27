@@ -105,6 +105,9 @@ pub enum ApiErrorCode {
     /// 指定されたitem_files行が見つからない（不存在・item_id/file_id紐付け不一致）（TASK-0028のPATCH calibre-link時404）
     /// 🟡 信頼性レベル: TASK-0028 calibre-link-requirements.md 2.2 L67-71・第6章「response.rsに未定義・新規追加必要」に対応
     FileNotFound,
+    /// Steam APIキー未設定・無効（TASK-0031のPOST /import/steam時401、TC-017-E01）
+    /// 🔵 信頼性レベル: TASK-0031.md「テストケース2（TC-017-E01）」・steam-import-requirements.md 3章「STEAM_API_KEY_INVALID（401）」に直接対応
+    SteamApiKeyInvalid,
 }
 
 impl ApiErrorCode {
@@ -150,6 +153,9 @@ impl ApiErrorCode {
                 StatusCode::INTERNAL_SERVER_ERROR,
             ),
             ApiErrorCode::FileNotFound => ("FILE_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::SteamApiKeyInvalid => {
+                ("STEAM_API_KEY_INVALID", StatusCode::UNAUTHORIZED)
+            }
         }
     }
 
@@ -584,5 +590,29 @@ mod tests {
 
         // 【結果検証】: ワイヤーコード文字列が仕様通りであることを確認
         assert_eq!(err.error.code, "ITEM_ALREADY_IMPORTED"); // 【確認内容】: ワイヤーコードがITEM_ALREADY_IMPORTEDであることを確認 🔵
+    }
+
+    /// TC-017-E01-CODE: ApiErrorCode::SteamApiKeyInvalidが401・STEAM_API_KEY_INVALIDへマッピングされる
+    /// 【テスト目的】: TASK-0031新規追加のSteamApiKeyInvalidバリアントが、HTTP 401・
+    /// ワイヤーコードSTEAM_API_KEY_INVALIDに正しくマッピングされることを確認する
+    /// 【テスト内容】: ApiError::new(ApiErrorCode::SteamApiKeyInvalid, ...)を構築し、
+    /// into_response()のステータスとerror.code文字列を検証する
+    /// 【期待される動作】: status==401 UNAUTHORIZED、error.code=="STEAM_API_KEY_INVALID"
+    /// 🔵 信頼性レベル: TASK-0031.md「テストケース2（TC-017-E01）」・steam-import-requirements.md 3章より新規追加
+    /// 【Red期待】: ApiErrorCode::SteamApiKeyInvalidバリアント未追加の場合はコンパイルエラーとなる想定
+    #[test]
+    fn steam_api_key_invalid_returns_401_with_expected_wire_code() {
+        // 【テストデータ準備】: Steam APIキー無効時のエラー応答生成を想定したApiError構築
+        // 【初期条件設定】: 特になし
+        let err = ApiError::new(ApiErrorCode::SteamApiKeyInvalid, "Steam APIキーが無効です");
+
+        // 【実際の処理実行】: into_response()でAxumレスポンスへ変換する
+        // 【処理内容】: IntoResponse実装によるHTTPレスポンス構築
+        let response = err.clone().into_response();
+
+        // 【結果検証】: ステータスコードが401、ワイヤーコードがSTEAM_API_KEY_INVALIDであることを確認する
+        // 【期待値確認】: 既存Unauthorized（"UNAUTHORIZED"）とは異なる専用コード文字列であることを保証
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED); // 【確認内容】: SteamApiKeyInvalidが401 UNAUTHORIZEDにマッピングされることを確認 🔵
+        assert_eq!(err.error.code, "STEAM_API_KEY_INVALID"); // 【確認内容】: ワイヤーコードがSTEAM_API_KEY_INVALID（既存UNAUTHORIZEDとは異なる文字列）であることを確認 🔵
     }
 }

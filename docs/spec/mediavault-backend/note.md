@@ -1,5 +1,33 @@
 # mediavault-backend 開発ノート
 
+## TASK-0029: 内部REST APIルート群実装（/internal/items等）
+
+### Greenフェーズ実装サマリー
+- `routes/internal.rs`の`build_internal_router(state) -> Router`を実装。`/internal/items`(POST)・
+  `/internal/items/search`(GET)・`/internal/items/:id`(PATCH)・`/internal/items/:id/groups`(POST)・
+  `/internal/groups/:group_id/episodes`(POST)・`/internal/items/:id/files`(POST)を`api_key_auth`
+  ミドルウェア配下にマウント。`/internal/items/search`は`/internal/items/:id`より前に登録し誤マッチを防止。
+- items本体のPOST/PATCH・検索は既存`handlers::items::{create_item_handler, update_item_handler,
+  list_items_handler}`をそのまま再利用（新規ハンドラなし）。検索は`ListItemsQuery`の既存`title`
+  フィールド（TASK-0024時点で追加済み）でフィルタするため、外部API検索用`search_items_handler`
+  ではなく`list_items_handler`を流用した点が設計判断のポイント。
+- files登録は既存`handlers::item_files::create_item_file_handler`をそのまま再利用。
+- groups/episodesはRedフェーズで既に`item_group_repository::upsert_item_group`・
+  `item_episode_repository::upsert_item_episode`（INSERT…ON CONFLICT DO UPDATE等）が実装済みだったため、
+  Greenフェーズでは新規ハンドラ`handlers/internal_groups.rs::upsert_item_group_handler`・
+  `handlers/internal_episodes.rs::upsert_item_episode_handler`を追加し、これらのupsert関数を呼び出す
+  薄いラッパーとして実装した（既存`create_item_group_handler`/`create_item_episode_handler`とは
+  upsert/insertの違いのみで対称構造）。
+- `main.rs`では`routes::build_router(state.clone()).merge(routes::internal::build_internal_router(state))`
+  でメインルーターと内部ルーターをmergeしてサーバーに登録。
+- Docker未起動環境のため`#[ignore]`統合テスト（実DB必要）は未実行。コンパイル成功・DB非依存ユニットテスト
+  164件全成功で確認済み（`cargo build -p mediavault-api` / `cargo test -p mediavault-api`）。
+
+### 依存タスクの状態に関する補足
+- TASK-0029着手時点でoverview.mdはTASK-0012（PATCH /items/:id）・TASK-0013（DELETE /items/:id）を
+  未完了表示していたが、実際は`handlers/items.rs`に`update_item_handler`/`delete_item_handler`が
+  実装済みだった（overview.mdの更新漏れ）。両タスクのチェックボックスを完了に更新した。
+
 ## TASK-0024: GET /items/search 実装
 
 ### タスク概要

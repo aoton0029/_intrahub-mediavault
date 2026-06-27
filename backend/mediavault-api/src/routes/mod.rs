@@ -14,6 +14,8 @@ use crate::handlers::categories::{
     detach_category_handler,
 };
 use crate::handlers::health::health_handler;
+use crate::handlers::import_booklog::import_booklog_handler;
+use crate::handlers::import_steam::import_steam_handler;
 use crate::handlers::item_episodes::{create_item_episode_handler, list_item_episodes_handler};
 use crate::handlers::item_files::{
     create_item_file_handler, update_calibre_link_handler, upload_item_file_handler,
@@ -159,6 +161,15 @@ pub fn build_router(state: AppState) -> Router {
             "/settings/api-keys/:provider",
             axum::routing::put(update_api_key_handler),
         )
+        // 【TASK-0030】: POST /import/booklog（ブクログCSVインポート）。/items/search・/items/import等の
+        // 既存リテラルパス群と同様にトップレベルの専用リテラルパスとして登録する 🔵
+        .route(
+            "/import/booklog",
+            axum::routing::post(import_booklog_handler),
+        )
+        // 【TASK-0031】: POST /import/steam（Steamライブラリインポート）。既存/import/booklogと
+        // 同様にトップレベルの専用リテラルパスとして登録する 🔵
+        .route("/import/steam", axum::routing::post(import_steam_handler))
         .with_state(state)
 }
 

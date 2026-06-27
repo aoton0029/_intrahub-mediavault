@@ -1,5 +1,9 @@
 pub mod categories;
 pub mod health;
+pub mod import_booklog;
+pub mod import_steam;
+pub mod internal_episodes;
+pub mod internal_groups;
 pub mod item_episodes;
 pub mod item_files;
 pub mod item_groups;
