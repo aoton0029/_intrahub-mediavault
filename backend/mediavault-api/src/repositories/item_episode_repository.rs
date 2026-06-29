@@ -14,10 +14,7 @@ use crate::repositories::db_error_utils::{is_foreign_key_violation, is_unique_vi
 /// 🟡 信頼性レベル: item_group_repository::db_errorと対称
 fn db_error(err: sqlx::Error) -> ApiError {
     tracing::error!("item_episodes repository db error: {err}");
-    ApiError::new(
-        ApiErrorCode::InternalError,
-        "話数の登録処理に失敗しました",
-    )
+    ApiError::new(ApiErrorCode::InternalError, "話数の登録処理に失敗しました")
 }
 
 /// 【機能概要】: 指定したgroup_idのgroup_typeをitem_groupsテーブルから取得する

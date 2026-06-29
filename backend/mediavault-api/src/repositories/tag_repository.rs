@@ -68,7 +68,11 @@ pub async fn delete_tag(pool: &PgPool, id: Uuid) -> Result<bool, ApiError> {
 /// attach_tag_to_nonexistent_item_returns_not_found,
 /// attach_already_attached_tag_returns_conflict_or_noop を通すための実装
 /// 🟡 信頼性レベル: タスク仕様「item_tagsへの複合キーINSERT」とDBスキーマFK/PK制約からの妥当な推測
-pub async fn attach_tag_to_item(pool: &PgPool, item_id: Uuid, tag_id: Uuid) -> Result<(), ApiError> {
+pub async fn attach_tag_to_item(
+    pool: &PgPool,
+    item_id: Uuid,
+    tag_id: Uuid,
+) -> Result<(), ApiError> {
     // 【複合キーINSERT】: item_tags(item_id, tag_id)へ付与レコードを作成する 🟡
     sqlx::query("INSERT INTO item_tags (item_id, tag_id) VALUES ($1, $2)")
         .bind(item_id)

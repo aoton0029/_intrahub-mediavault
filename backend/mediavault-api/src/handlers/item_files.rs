@@ -2,20 +2,20 @@
 //!
 //! TASK-0026: POST /items/:id/files CRUD実装（handlers/item_links.rsと対称な構造）
 
+use axum::Json;
 use axum::extract::{Multipart, Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::item_file::{
-    parse_create_item_file_request, parse_file_id, parse_update_calibre_link_request,
     CreateItemFileRequest, FileType, ItemFile, UpdateCalibreLinkRequest,
+    parse_create_item_file_request, parse_file_id, parse_update_calibre_link_request,
 };
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::item_file_repository;
 use crate::services::file_storage::{self, TokioFileWriter};
-use crate::AppState;
 
 /// 【機能概要】: `POST /items/:id/files` ハンドラ。path(必須)/label(任意)/file_type(必須)を受け取り
 /// ファイルサーバー上の既存パスをitem_filesレコードとして登録する（パス指定方式）
@@ -131,14 +131,12 @@ pub async fn upload_item_file_handler(
     }
 
     // 【必須フィールド検証】: fileパート欠落はVALIDATION_ERROR（TC-019-E04） 🟡
-    let file_bytes = file_bytes.ok_or_else(|| {
-        ApiError::new(ApiErrorCode::ValidationError, "fileは必須です")
-    })?;
+    let file_bytes =
+        file_bytes.ok_or_else(|| ApiError::new(ApiErrorCode::ValidationError, "fileは必須です"))?;
 
     // 【必須フィールド検証】: file_type欠落・不正値はVALIDATION_ERROR（TC-019-E03） 🟡
-    let file_type_raw = file_type_raw.ok_or_else(|| {
-        ApiError::new(ApiErrorCode::ValidationError, "file_typeは必須です")
-    })?;
+    let file_type_raw = file_type_raw
+        .ok_or_else(|| ApiError::new(ApiErrorCode::ValidationError, "file_typeは必須です"))?;
     let file_type = parse_file_type_field(&file_type_raw)?;
 
     // 【item存在確認】: 書込前にitemの存在を確認し、無駄なI/Oと孤立ファイルを防ぐ（TC-019-03） 🔵
@@ -170,9 +168,7 @@ pub async fn upload_item_file_handler(
         Err(db_err) => {
             // 【ロールバック】: DB登録失敗時は書込済みファイルを削除し、孤立ファイルを残さない 🟡
             if let Err(cleanup_err) = file_storage::cleanup_file(&writer, &stored) {
-                tracing::error!(
-                    "file_storage cleanup failed after db insert error: {cleanup_err}"
-                );
+                tracing::error!("file_storage cleanup failed after db insert error: {cleanup_err}");
             }
             Err(db_err)
         }
@@ -334,10 +330,8 @@ mod tests {
         // file パート（必須。Noneの場合はTC-019-E04用にパート自体を省略する）
         body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
         body.extend_from_slice(
-            format!(
-                "Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n"
-            )
-            .as_bytes(),
+            format!("Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n")
+                .as_bytes(),
         );
         body.extend_from_slice(b"Content-Type: application/octet-stream\r\n\r\n");
         body.extend_from_slice(file_bytes);
@@ -345,9 +339,7 @@ mod tests {
 
         if let Some(ft) = file_type {
             body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-            body.extend_from_slice(
-                b"Content-Disposition: form-data; name=\"file_type\"\r\n\r\n",
-            );
+            body.extend_from_slice(b"Content-Disposition: form-data; name=\"file_type\"\r\n\r\n");
             body.extend_from_slice(ft.as_bytes());
             body.extend_from_slice(b"\r\n");
         }
@@ -361,10 +353,7 @@ mod tests {
 
         body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
 
-        (
-            format!("multipart/form-data; boundary={boundary}"),
-            body,
-        )
+        (format!("multipart/form-data; boundary={boundary}"), body)
     }
 
     /// 【テスト用ヘルパー】: file パートを含まないmultipartボディを組み立てる（TC-019-E04専用）
@@ -377,10 +366,7 @@ mod tests {
         body.extend_from_slice(file_type.as_bytes());
         body.extend_from_slice(b"\r\n");
         body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
-        (
-            format!("multipart/form-data; boundary={boundary}"),
-            body,
-        )
+        (format!("multipart/form-data; boundary={boundary}"), body)
     }
 
     /// 【テスト用ヘルパー】: テスト用itemをDBへ作成しitem_idを返す
@@ -406,13 +392,19 @@ mod tests {
         // 【期待される動作】: 201・data.file_type=="pdf"・data.pathが相対パスかつ拡張子.pdf・ファイル実在
         // 🔵 信頼性レベル: TASK-0027.md テストケース1（L65-68）・完了条件L24-26に直接対応
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
-        unsafe { std::env::set_var("PDF_STORAGE_PATH", temp_root.path()); }
+        unsafe {
+            std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+        }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
         let item_id = insert_test_item(&state.db).await;
 
-        let (content_type, body) =
-            multipart_body(b"%PDF-1.4 dummy bytes", "example.pdf", Some("pdf"), Some("本編PDF"));
+        let (content_type, body) = multipart_body(
+            b"%PDF-1.4 dummy bytes",
+            "example.pdf",
+            Some("pdf"),
+            Some("本編PDF"),
+        );
 
         let response = app
             .oneshot(
@@ -440,13 +432,19 @@ mod tests {
         // 【期待される動作】: 201・data.file_type=="image"
         // 🔵 信頼性レベル: TASK-0027.md テストケース2（L70-73）・設計決定1に対応
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
-        unsafe { std::env::set_var("MEDIA_STORAGE_PATH", temp_root.path()); }
+        unsafe {
+            std::env::set_var("MEDIA_STORAGE_PATH", temp_root.path());
+        }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
         let item_id = insert_test_item(&state.db).await;
 
-        let (content_type, body) =
-            multipart_body(b"\xFF\xD8\xFF dummy jpeg", "cover.jpg", Some("image"), Some("表紙"));
+        let (content_type, body) = multipart_body(
+            b"\xFF\xD8\xFF dummy jpeg",
+            "cover.jpg",
+            Some("image"),
+            Some("表紙"),
+        );
 
         let response = app
             .oneshot(
@@ -473,7 +471,9 @@ mod tests {
         // 【期待される動作】: 201（必須はfileとfile_typeのみ）
         // 🔵 信頼性レベル: TC-019-N03・item_file.rsのlabel: Option<String>より
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
-        unsafe { std::env::set_var("PDF_STORAGE_PATH", temp_root.path()); }
+        unsafe {
+            std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+        }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
         let item_id = insert_test_item(&state.db).await;
@@ -506,7 +506,9 @@ mod tests {
         // 【期待される動作】: 404・ストレージroot配下に新規ファイルが作られない
         // 🔵 信頼性レベル: TC-019-03・要件定義書第4章（書込前item確認）に対応
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
-        unsafe { std::env::set_var("PDF_STORAGE_PATH", temp_root.path()); }
+        unsafe {
+            std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+        }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state);
         let item_id = Uuid::new_v4();
@@ -550,13 +552,13 @@ mod tests {
         let item_id = insert_test_item(&state.db).await;
 
         // 書込不可パスとして、存在しないファイルをディレクトリのように指定する（書込時に必ず失敗する）
-        let unwritable_root = std::env::temp_dir().join(format!(
-            "mediavault-task0027-unwritable-{}",
-            Uuid::new_v4()
-        ));
+        let unwritable_root =
+            std::env::temp_dir().join(format!("mediavault-task0027-unwritable-{}", Uuid::new_v4()));
         std::fs::write(&unwritable_root, b"this is a file, not a directory")
             .expect("書込不可パス用ダミーファイルの作成に失敗しました");
-        unsafe { std::env::set_var("PDF_STORAGE_PATH", &unwritable_root); }
+        unsafe {
+            std::env::set_var("PDF_STORAGE_PATH", &unwritable_root);
+        }
         let (content_type, body) =
             multipart_body(b"%PDF-1.4 dummy", "example.pdf", Some("pdf"), None);
 
@@ -658,8 +660,7 @@ mod tests {
         let state = test_app_state().await;
         let app = crate::routes::build_router(state);
 
-        let (content_type, body) =
-            multipart_body(b"dummy bytes", "example.pdf", Some("pdf"), None);
+        let (content_type, body) = multipart_body(b"dummy bytes", "example.pdf", Some("pdf"), None);
 
         let response = app
             .oneshot(
@@ -686,7 +687,9 @@ mod tests {
         // 【期待される動作】: 201（設計決定6: 空ファイル許容方針を採用）
         // 🟡 信頼性レベル: テストケース定義書TC-019-B01・本タスクでの設計決定6（空ファイル許容）に基づく
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
-        unsafe { std::env::set_var("PDF_STORAGE_PATH", temp_root.path()); }
+        unsafe {
+            std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+        }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
         let item_id = insert_test_item(&state.db).await;
@@ -805,9 +808,8 @@ mod tests {
         let item_id = insert_test_item(&state.db).await;
         let file_id = insert_test_item_file(&state.db, item_id, "pdf").await;
 
-        let body = || {
-            Body::from(serde_json::json!({ "calibre_book_id": "calibre-12345" }).to_string())
-        };
+        let body =
+            || Body::from(serde_json::json!({ "calibre_book_id": "calibre-12345" }).to_string());
 
         let first = app
             .clone()
@@ -923,7 +925,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/items/{item_id}/files/{random_file_id}/calibre-link"))
+                    .uri(format!(
+                        "/items/{item_id}/files/{random_file_id}/calibre-link"
+                    ))
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({ "calibre_book_id": "calibre-12345" }).to_string(),
@@ -967,13 +971,12 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND); // 【確認内容】: item_id/file_id紐付け不一致で404 FILE_NOT_FOUNDが返ることを確認 🔵
 
-        let persisted: Option<String> = sqlx::query_scalar(
-            "SELECT calibre_book_id FROM item_files WHERE id = $1",
-        )
-        .bind(file_id_a)
-        .fetch_one(&state.db)
-        .await
-        .expect("再取得に失敗しました");
+        let persisted: Option<String> =
+            sqlx::query_scalar("SELECT calibre_book_id FROM item_files WHERE id = $1")
+                .bind(file_id_a)
+                .fetch_one(&state.db)
+                .await
+                .expect("再取得に失敗しました");
         assert_eq!(persisted, None); // 【確認内容】: 他itemのファイルが変更されていないことを確認 🔵
     }
 
@@ -1054,7 +1057,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/items/not-a-uuid/files/{valid_file_id}/calibre-link"))
+                    .uri(format!(
+                        "/items/not-a-uuid/files/{valid_file_id}/calibre-link"
+                    ))
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({ "calibre_book_id": "calibre-12345" }).to_string(),
@@ -1084,7 +1089,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/items/{valid_item_id}/files/not-a-uuid/calibre-link"))
+                    .uri(format!(
+                        "/items/{valid_item_id}/files/not-a-uuid/calibre-link"
+                    ))
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({ "calibre_book_id": "calibre-12345" }).to_string(),

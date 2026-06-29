@@ -5,8 +5,8 @@
 use axum::extract::State;
 use axum::response::IntoResponse;
 
-use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::AppState;
+use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 
 /// `GET /health` ハンドラ。DB接続確認を行い、成功時は200で `{"status": "ok"}` を返す。
 pub async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {

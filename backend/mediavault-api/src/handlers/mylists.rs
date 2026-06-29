@@ -2,16 +2,18 @@
 //!
 //! TASK-0016: マイリストCRUD実装（handlers/categories.rsと対称な構造）
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
-use crate::models::mylist::{validate_mylist_name, AddMylistItemRequest, CreateMylistRequest, Mylist};
+use crate::models::mylist::{
+    AddMylistItemRequest, CreateMylistRequest, Mylist, validate_mylist_name,
+};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::mylist_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /mylists` ハンドラ。マイリスト名を受け取りマイリストを作成する
 /// 🔵 信頼性レベル: handlers::categories::create_category_handlerと対称
@@ -58,8 +60,7 @@ pub async fn remove_mylist_item_handler(
     let mylist_id = parse_item_id(&id)?;
     let item_id = parse_item_id(&item_id)?;
 
-    let removed =
-        mylist_repository::remove_item_from_mylist(&state.db, mylist_id, item_id).await?;
+    let removed = mylist_repository::remove_item_from_mylist(&state.db, mylist_id, item_id).await?;
     if !removed {
         return Err(ApiError::new(
             ApiErrorCode::ItemNotFound,

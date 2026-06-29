@@ -2,9 +2,9 @@
 //!
 //! TASK-0005: 共通エラー型・統一APIレスポンス実装
 
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::Serialize;
 
 use crate::models::external_search::ExternalSearchError;
@@ -142,20 +142,14 @@ impl ApiErrorCode {
             ApiErrorCode::ApiKeyNotConfigured => {
                 ("API_KEY_NOT_CONFIGURED", StatusCode::UNPROCESSABLE_ENTITY)
             }
-            ApiErrorCode::ExternalApiTimeout => {
-                ("EXTERNAL_API_TIMEOUT", StatusCode::BAD_GATEWAY)
-            }
-            ApiErrorCode::ItemAlreadyImported => {
-                ("ITEM_ALREADY_IMPORTED", StatusCode::CONFLICT)
-            }
+            ApiErrorCode::ExternalApiTimeout => ("EXTERNAL_API_TIMEOUT", StatusCode::BAD_GATEWAY),
+            ApiErrorCode::ItemAlreadyImported => ("ITEM_ALREADY_IMPORTED", StatusCode::CONFLICT),
             ApiErrorCode::FileStorageWriteFailed => (
                 "FILE_STORAGE_WRITE_FAILED",
                 StatusCode::INTERNAL_SERVER_ERROR,
             ),
             ApiErrorCode::FileNotFound => ("FILE_NOT_FOUND", StatusCode::NOT_FOUND),
-            ApiErrorCode::SteamApiKeyInvalid => {
-                ("STEAM_API_KEY_INVALID", StatusCode::UNAUTHORIZED)
-            }
+            ApiErrorCode::SteamApiKeyInvalid => ("STEAM_API_KEY_INVALID", StatusCode::UNAUTHORIZED),
         }
     }
 
@@ -203,10 +197,9 @@ impl IntoResponse for ApiError {
 impl From<ExternalSearchError> for ApiError {
     fn from(err: ExternalSearchError) -> Self {
         match err {
-            ExternalSearchError::ApiKeyNotConfigured(_provider) => ApiError::new(
-                ApiErrorCode::ApiKeyNotConfigured,
-                "APIキーが未設定です",
-            ),
+            ExternalSearchError::ApiKeyNotConfigured(_provider) => {
+                ApiError::new(ApiErrorCode::ApiKeyNotConfigured, "APIキーが未設定です")
+            }
             ExternalSearchError::ExternalApiError(_inner) => ApiError::new(
                 ApiErrorCode::ExternalApiTimeout,
                 "外部APIへの接続に失敗しました",

@@ -6,8 +6,8 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;
 
 use crate::models::item::{
-    has_any_update_field, CategoryRef, CreateItemRequest, Item, ItemSource, ListItemsQuery,
-    MediaType, TagRef, UpdateItemRequest, UpdateStatusRequest,
+    CategoryRef, CreateItemRequest, Item, ItemSource, ListItemsQuery, MediaType, TagRef,
+    UpdateItemRequest, UpdateStatusRequest, has_any_update_field,
 };
 use crate::models::item_import::ImportItemRequest;
 use crate::models::response::{ApiError, ApiErrorCode};
@@ -40,7 +40,10 @@ fn db_error(err: sqlx::Error) -> ApiError {
     // 【詳細ログ出力】: 内部調査用に詳細をサーバーログへ記録する（クライアントへは返さない） 🟡
     tracing::error!("items repository db error: {err}");
     // 【汎用エラー返却】: クライアントにはDB内部情報を含まない固定メッセージを返す 🟡
-    ApiError::new(ApiErrorCode::InternalError, "アイテムの登録処理に失敗しました")
+    ApiError::new(
+        ApiErrorCode::InternalError,
+        "アイテムの登録処理に失敗しました",
+    )
 }
 
 /// 【機能概要】: 手動作成アイテムをitemsテーブルとメディア別詳細テーブルへ
@@ -221,7 +224,9 @@ fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItems
     // 【tag_idフィルタ】: item_tags中間テーブルへのEXISTSサブクエリ（重複排除のためJOIN+DISTINCTではなくEXISTSを採用） 🟡
     if let Some(tag_id) = query.tag_id {
         push_clause_prefix!();
-        builder.push("EXISTS (SELECT 1 FROM item_tags it WHERE it.item_id = items.id AND it.tag_id = ");
+        builder.push(
+            "EXISTS (SELECT 1 FROM item_tags it WHERE it.item_id = items.id AND it.tag_id = ",
+        );
         builder.push_bind(tag_id);
         builder.push(")");
     }
@@ -1039,9 +1044,11 @@ mod tests {
         let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 2); // 【確認内容】: AND結合で両条件を満たす2件のみ取得されることを確認 🟡
-        assert!(items
-            .iter()
-            .all(|i| i.media_type == MediaType::Anime && i.is_favorite)); // 【確認内容】: 全要素が両条件を満たすことを確認 🟡
+        assert!(
+            items
+                .iter()
+                .all(|i| i.media_type == MediaType::Anime && i.is_favorite)
+        ); // 【確認内容】: 全要素が両条件を満たすことを確認 🟡
         assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🟡
     }
 
@@ -1400,7 +1407,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(movie_detail["director"], serde_json::json!("Test Director")); // 【確認内容】: movie_detailsから正しくdirectorが取得されることを確認 🔵
-        assert_eq!(game_detail["developer"], serde_json::json!("Test Developer")); // 【確認内容】: game_detailsから正しくdeveloperが取得されることを確認 🔵
+        assert_eq!(
+            game_detail["developer"],
+            serde_json::json!("Test Developer")
+        ); // 【確認内容】: game_detailsから正しくdeveloperが取得されることを確認 🔵
     }
 
     /// TC-001-02-B: update_itemがrating・is_favoriteのみを更新し他フィールドを変化させない（実DB必要）
@@ -1579,7 +1589,15 @@ mod tests {
 
     async fn seed_items(pool: &PgPool, count: u32) {
         for _ in 0..count {
-            insert_test_item(pool, MediaType::Anime, ItemStatus::NotStarted, false, None, None).await;
+            insert_test_item(
+                pool,
+                MediaType::Anime,
+                ItemStatus::NotStarted,
+                false,
+                None,
+                None,
+            )
+            .await;
         }
     }
 
@@ -1596,7 +1614,15 @@ mod tests {
         count: u32,
     ) {
         for _ in 0..count {
-            insert_test_item(pool, media_type, ItemStatus::NotStarted, is_favorite, None, None).await;
+            insert_test_item(
+                pool,
+                media_type,
+                ItemStatus::NotStarted,
+                is_favorite,
+                None,
+                None,
+            )
+            .await;
         }
     }
 
@@ -1608,8 +1634,15 @@ mod tests {
 
     async fn seed_items_with_tag(pool: &PgPool, tag_id: Uuid, count: u32) {
         for _ in 0..count {
-            insert_test_item(pool, MediaType::Anime, ItemStatus::NotStarted, false, Some(tag_id), None)
-                .await;
+            insert_test_item(
+                pool,
+                MediaType::Anime,
+                ItemStatus::NotStarted,
+                false,
+                Some(tag_id),
+                None,
+            )
+            .await;
         }
     }
 
@@ -1628,7 +1661,15 @@ mod tests {
     }
 
     async fn seed_item_with_media_type_and_tag(pool: &PgPool, media_type: MediaType, tag_id: Uuid) {
-        insert_test_item(pool, media_type, ItemStatus::NotStarted, false, Some(tag_id), None).await;
+        insert_test_item(
+            pool,
+            media_type,
+            ItemStatus::NotStarted,
+            false,
+            Some(tag_id),
+            None,
+        )
+        .await;
     }
 
     /// TC-001-03: 正常削除でtrueが返り、itemsテーブルからレコードが消える（実DB必要）
@@ -1637,9 +1678,15 @@ mod tests {
     #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
     async fn delete_item_removes_existing_item() {
         let pool = test_pool().await;
-        let item_id =
-            insert_test_item(&pool, MediaType::Anime, ItemStatus::NotStarted, false, None, None)
-                .await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
 
         let deleted = delete_item(&pool, item_id).await.unwrap();
 
@@ -1682,20 +1729,18 @@ mod tests {
         let deleted = delete_item(&pool, item_id).await.unwrap();
         assert!(deleted); // 【確認内容】: itemの削除が成功することを確認 🔵
 
-        let remaining_tags: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM item_tags WHERE item_id = $1",
-        )
-        .bind(item_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        let remaining_categories: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM item_categories WHERE item_id = $1",
-        )
-        .bind(item_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let remaining_tags: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM item_tags WHERE item_id = $1")
+                .bind(item_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let remaining_categories: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM item_categories WHERE item_id = $1")
+                .bind(item_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         assert_eq!(remaining_tags, 0); // 【確認内容】: item_tagsがカスケード削除されることを確認 🔵
         assert_eq!(remaining_categories, 0); // 【確認内容】: item_categoriesがカスケード削除されることを確認 🔵
@@ -1707,9 +1752,15 @@ mod tests {
     #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
     async fn update_item_status_updates_status_and_consumed_date() {
         let pool = test_pool().await;
-        let item_id =
-            insert_test_item(&pool, MediaType::Anime, ItemStatus::NotStarted, false, None, None)
-                .await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
 
         let request = crate::models::item::UpdateStatusRequest {
             status: ItemStatus::Completed,
@@ -1733,9 +1784,15 @@ mod tests {
     #[ignore]
     async fn update_item_status_keeps_existing_consumed_date_when_omitted() {
         let pool = test_pool().await;
-        let item_id =
-            insert_test_item(&pool, MediaType::Anime, ItemStatus::NotStarted, false, None, None)
-                .await;
+        let item_id = insert_test_item(
+            &pool,
+            MediaType::Anime,
+            ItemStatus::NotStarted,
+            false,
+            None,
+            None,
+        )
+        .await;
         let existing_date = chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
         sqlx::query("UPDATE items SET consumed_date = $1 WHERE id = $2")
             .bind(existing_date)
@@ -1768,7 +1825,9 @@ mod tests {
             consumed_date: None,
         };
 
-        let result = update_item_status(&pool, Uuid::new_v4(), request).await.unwrap();
+        let result = update_item_status(&pool, Uuid::new_v4(), request)
+            .await
+            .unwrap();
 
         assert!(result.is_none()); // 【確認内容】: 存在しないIDではOk(None)が返り、ハンドラ側で404に変換できることを確認 🟡
     }
@@ -1833,7 +1892,11 @@ mod tests {
     }
 
     /// テスト用ヘルパー: 最小構成のImportItemRequestを構築する
-    fn import_item_request(media_type: MediaType, external_id: &str, title: &str) -> ImportItemRequest {
+    fn import_item_request(
+        media_type: MediaType,
+        external_id: &str,
+        title: &str,
+    ) -> ImportItemRequest {
         ImportItemRequest {
             media_type,
             external_id: external_id.to_string(),
@@ -1863,9 +1926,10 @@ mod tests {
         let request = create_item_request(MediaType::Anime, "鬼滅の刃");
 
         // 【実際の処理実行】: まだsource/external_idを反映しないcreate_item_with_sourceを呼び出す
-        let item = create_item_with_source(&pool, request, ItemSource::Api, Some("12345".to_string()))
-            .await
-            .unwrap();
+        let item =
+            create_item_with_source(&pool, request, ItemSource::Api, Some("12345".to_string()))
+                .await
+                .unwrap();
 
         // 【結果検証】: source/external_idが引数通りに反映されることを確認
         assert_eq!(item.source, ItemSource::Api); // 【確認内容】: sourceがApiとして作成されることを確認 🔵
@@ -1902,7 +1966,8 @@ mod tests {
     /// 🔵 信頼性レベル: 要件4.1「TASK-0009一貫性」、TASK-0025.mdテストケース4に直接対応
     #[tokio::test]
     #[ignore]
-    async fn create_item_and_create_item_with_source_share_same_fields_except_source_and_external_id() {
+    async fn create_item_and_create_item_with_source_share_same_fields_except_source_and_external_id()
+     {
         let pool = test_pool().await;
         let manual_request = create_item_request(MediaType::Anime, "作品X");
         let import_request = create_item_request(MediaType::Anime, "作品X");
@@ -1952,9 +2017,10 @@ mod tests {
             let external_id = format!("ext-{idx}");
 
             // 【実際の処理実行】: 各media_typeでインポート経路の作成処理を呼び出す
-            let item = create_item_with_source(&pool, request, ItemSource::Api, Some(external_id.clone()))
-                .await
-                .unwrap();
+            let item =
+                create_item_with_source(&pool, request, ItemSource::Api, Some(external_id.clone()))
+                    .await
+                    .unwrap();
 
             // 【結果検証】: 各media_typeで例外なく成功し、source=Apiが反映されることを確認
             assert_eq!(item.media_type, *media_type); // 【確認内容】: media_typeが指定通りであることを確認 🟡
@@ -1983,14 +2049,10 @@ mod tests {
 
         // 【実際の処理実行】: source=Manual・external_id=Some("isbn")でcreate_item_with_sourceを呼び出す
         // 【処理内容】: items本体INSERT（consumed_date含む）+ novel_details INSERTを同一トランザクションで実行する
-        let item = create_item_with_source(
-            &pool,
-            request,
-            ItemSource::Manual,
-            Some("isbn".to_string()),
-        )
-        .await
-        .unwrap();
+        let item =
+            create_item_with_source(&pool, request, ItemSource::Manual, Some("isbn".to_string()))
+                .await
+                .unwrap();
 
         // 【結果検証】: consumed_date/source/external_idがすべて引数・入力通りに反映されることを確認
         assert_eq!(
@@ -2069,11 +2131,12 @@ mod tests {
         let first_request = import_item_request(MediaType::Anime, "12345", "鬼滅の刃");
         import_item(&pool, first_request).await.unwrap();
 
-        let count_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE external_id = $1")
-            .bind("12345")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let count_before: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE external_id = $1")
+                .bind("12345")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         // 【実際の処理実行】: 同一media_type+external_idで再度import_itemを呼び出す
         let second_request = import_item_request(MediaType::Anime, "12345", "鬼滅の刃");
@@ -2083,11 +2146,12 @@ mod tests {
         assert_eq!(err.error.code, "ITEM_ALREADY_IMPORTED"); // 【確認内容】: 重複時にITEM_ALREADY_IMPORTEDが返ることを確認 🟡
         assert_eq!(err.status, axum::http::StatusCode::CONFLICT); // 【確認内容】: HTTPステータスが409であることを確認 🟡
 
-        let count_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE external_id = $1")
-            .bind("12345")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let count_after: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE external_id = $1")
+                .bind("12345")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count_before, count_after); // 【確認内容】: 重複検知時にitems行数が増えないことを確認（最重要） 🟡
     }
 
@@ -2105,7 +2169,8 @@ mod tests {
         let request = create_item_request(MediaType::Anime, "鬼滅の刃");
 
         // 【実際の処理実行】: create_item_with_sourceを呼び、DB接続不能エラーの変換を確認する
-        let result = create_item_with_source(&pool, request, ItemSource::Api, Some("1".to_string())).await;
+        let result =
+            create_item_with_source(&pool, request, ItemSource::Api, Some("1".to_string())).await;
 
         // 【結果検証】: DB内部情報が漏洩せず汎用INTERNAL_ERRORに変換されることを確認
         let err = result.unwrap_err();

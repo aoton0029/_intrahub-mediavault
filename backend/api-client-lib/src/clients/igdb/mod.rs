@@ -178,7 +178,12 @@ impl IgdbClient {
             .text()
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
-        tracing::trace!(status, latency_ms, response_len = text.len(), "IGDB response received");
+        tracing::trace!(
+            status,
+            latency_ms,
+            response_len = text.len(),
+            "IGDB response received"
+        );
         let model: T = serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
 
         Ok((status, text, latency_ms, model))
@@ -192,7 +197,10 @@ impl IgdbClient {
         match self.try_apicalypse(endpoint, query).await {
             // 401: トークン期限切れの可能性 → リフレッシュして 1 回再試行
             Err(ApiError::Http { status: 401, .. }) => {
-                tracing::warn!(endpoint, "IGDB 401 received, invalidating token and retrying");
+                tracing::warn!(
+                    endpoint,
+                    "IGDB 401 received, invalidating token and retrying"
+                );
                 self.invalidate_token().await;
                 self.try_apicalypse(endpoint, query).await
             }

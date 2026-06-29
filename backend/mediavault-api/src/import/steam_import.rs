@@ -19,8 +19,8 @@
 use std::sync::Arc;
 
 use api_client_lib::auth::AuthStrategy;
-use api_client_lib::clients::steam::requests::GetOwnedGamesRequest;
 use api_client_lib::clients::steam::SteamClient;
+use api_client_lib::clients::steam::requests::GetOwnedGamesRequest;
 use sqlx::PgPool;
 
 use crate::models::api_credential::{ApiCredential, ApiProvider};
@@ -162,9 +162,12 @@ async fn register_single_game(
     let external_id = game.appid.to_string();
 
     // 【重複チェック】: 既存(media_type=Game, source=Api, external_id=appid)があればスキップ（集計外、確定方針#1） 🟡
-    let duplicate =
-        crate::repositories::item_repository::find_existing_import(pool, MediaType::Game, &external_id)
-            .await?;
+    let duplicate = crate::repositories::item_repository::find_existing_import(
+        pool,
+        MediaType::Game,
+        &external_id,
+    )
+    .await?;
     if duplicate {
         return Ok(());
     }
@@ -206,7 +209,9 @@ async fn register_single_game(
 ///      （APIキー未設定は401 STEAM_API_KEY_INVALID、TC-017-E01-A）
 ///   3. 取得した各`SteamGameEntry`を`register_single_game`で1件ずつ処理する
 ///      （重複はスキップ＝集計外、登録成功/失敗は`ImportSummary`へ反映、EDGE-002）
+///
 /// 【保守性】: 各責務が独立した関数になったことで、それぞれを単体で読み・テストしやすくなった。
+///
 /// 🔵 信頼性レベル: 要件定義書2章データフロー・TASK-0031.md実装詳細に直接対応（責務分割自体は🟡 妥当な推測）
 pub async fn import_steam_library(
     pool: &PgPool,
@@ -239,15 +244,11 @@ pub async fn import_steam_library(
 fn map_steam_api_error(err: api_client_lib::ApiError) -> ApiError {
     match err {
         api_client_lib::ApiError::Http { status, .. } if status == 401 || status == 403 => {
-            ApiError::new(
-                ApiErrorCode::SteamApiKeyInvalid,
-                "Steam APIキーが無効です",
-            )
+            ApiError::new(ApiErrorCode::SteamApiKeyInvalid, "Steam APIキーが無効です")
         }
-        api_client_lib::ApiError::Auth(_) => ApiError::new(
-            ApiErrorCode::SteamApiKeyInvalid,
-            "Steam APIキーが無効です",
-        ),
+        api_client_lib::ApiError::Auth(_) => {
+            ApiError::new(ApiErrorCode::SteamApiKeyInvalid, "Steam APIキーが無効です")
+        }
         _ => ApiError::new(
             ApiErrorCode::ExternalApiTimeout,
             "Steam APIへの接続に失敗しました",

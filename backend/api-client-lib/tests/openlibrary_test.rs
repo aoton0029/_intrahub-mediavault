@@ -1,4 +1,6 @@
-use api_client_lib::clients::openlibrary::requests::{OlIsbnRequest, OlSearchRequest, OlWorksRequest};
+use api_client_lib::clients::openlibrary::requests::{
+    OlIsbnRequest, OlSearchRequest, OlWorksRequest,
+};
 use api_client_lib::clients::openlibrary::OpenLibraryClient;
 
 #[tokio::test]

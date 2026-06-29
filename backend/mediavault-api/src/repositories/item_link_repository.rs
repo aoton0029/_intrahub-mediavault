@@ -12,7 +12,10 @@ use crate::models::response::{ApiError, ApiErrorCode};
 /// 🟡 信頼性レベル: item_relation_repository::db_errorと対称
 fn db_error(err: sqlx::Error) -> ApiError {
     tracing::error!("item_links repository db error: {err}");
-    ApiError::new(ApiErrorCode::InternalError, "リンクの登録処理に失敗しました")
+    ApiError::new(
+        ApiErrorCode::InternalError,
+        "リンクの登録処理に失敗しました",
+    )
 }
 
 /// 【機能概要】: 指定したitem_idがitemsテーブルに存在するか確認する
@@ -57,7 +60,11 @@ pub async fn create_item_link(
 
 /// 【機能概要】: item_linksから指定idのレコードをDELETEする（item_idとの整合性チェック含む）
 /// 🟡 信頼性レベル: staff_repository::unlink_staffと対称
-pub async fn delete_item_link(pool: &PgPool, item_id: Uuid, link_id: Uuid) -> Result<bool, ApiError> {
+pub async fn delete_item_link(
+    pool: &PgPool,
+    item_id: Uuid,
+    link_id: Uuid,
+) -> Result<bool, ApiError> {
     let result = sqlx::query("DELETE FROM item_links WHERE id = $1 AND item_id = $2")
         .bind(link_id)
         .bind(item_id)

@@ -12,23 +12,23 @@
 use std::sync::Arc;
 
 use api_client_lib::auth::AuthStrategy;
+use api_client_lib::clients::igdb::IgdbClient;
 use api_client_lib::clients::igdb::models::IgdbModel;
 use api_client_lib::clients::igdb::requests::{IgdbRequest, IgdbSearchRequest};
-use api_client_lib::clients::igdb::IgdbClient;
+use api_client_lib::clients::jikan::JikanClient;
 use api_client_lib::clients::jikan::models::JikanModel;
 use api_client_lib::clients::jikan::requests::{
     JikanAnimeSearchRequest, JikanMangaSearchRequest, JikanRequest,
 };
-use api_client_lib::clients::jikan::JikanClient;
+use api_client_lib::clients::ndl::NdlClient;
 use api_client_lib::clients::ndl::models::NdlModel;
 use api_client_lib::clients::ndl::requests::{NdlRequest, NdlSearchRequest};
-use api_client_lib::clients::ndl::NdlClient;
+use api_client_lib::clients::openlibrary::OpenLibraryClient;
 use api_client_lib::clients::openlibrary::models::OlModel;
 use api_client_lib::clients::openlibrary::requests::{OlRequest, OlSearchRequest};
-use api_client_lib::clients::openlibrary::OpenLibraryClient;
+use api_client_lib::clients::tmdb::TmdbClient;
 use api_client_lib::clients::tmdb::models::TmdbModel;
 use api_client_lib::clients::tmdb::requests::{SearchMovieRequest, SearchTvRequest, TmdbRequest};
-use api_client_lib::clients::tmdb::TmdbClient;
 use api_client_lib::traits::ApiClient;
 use sqlx::PgPool;
 
@@ -230,7 +230,8 @@ impl ExternalSearchService {
             return TmdbClient::new_with_base_url(AuthStrategy::ApiKey(api_key), base_url.clone())
                 .map_err(ExternalSearchError::ExternalApiError);
         }
-        TmdbClient::new(AuthStrategy::ApiKey(api_key)).map_err(ExternalSearchError::ExternalApiError)
+        TmdbClient::new(AuthStrategy::ApiKey(api_key))
+            .map_err(ExternalSearchError::ExternalApiError)
     }
 
     /// OpenLibraryクライアントを構築する（テスト時はベースURL差し替え可能） 🔵
@@ -363,15 +364,18 @@ impl ExternalSearchService {
             return Ok(Vec::new());
         };
         // 【アダプタ変換】: TmdbMovieModelをExternalSearchResultへ変換する 🔵
-        Ok(collect_results(&raw_data, "results", models, |m, raw_data| {
-            ExternalSearchResult {
+        Ok(collect_results(
+            &raw_data,
+            "results",
+            models,
+            |m, raw_data| ExternalSearchResult {
                 media_type: MediaType::Movie,
                 provider: Some(ApiProvider::Tmdb),
                 external_id: m.id.to_string(),
                 title: m.title.clone().unwrap_or_default(),
                 raw_data,
-            }
-        }))
+            },
+        ))
     }
 
     /// TMDb（drama）へディスパッチする。movieと同一provider。TVエンドポイント（SearchTv）を使う。
@@ -396,15 +400,18 @@ impl ExternalSearchService {
             return Ok(Vec::new());
         };
         // 【アダプタ変換】: TmdbTvModelをExternalSearchResultへ変換する（フィールド名はnameでmovieのtitleと異なる） 🔵
-        Ok(collect_results(&raw_data, "results", models, |m, raw_data| {
-            ExternalSearchResult {
+        Ok(collect_results(
+            &raw_data,
+            "results",
+            models,
+            |m, raw_data| ExternalSearchResult {
                 media_type: MediaType::Drama,
                 provider: Some(ApiProvider::Tmdb),
                 external_id: m.id.to_string(),
                 title: m.name.clone().unwrap_or_default(),
                 raw_data,
-            }
-        }))
+            },
+        ))
     }
 
     /// OpenLibrary（novel）へディスパッチする。
@@ -474,10 +481,7 @@ impl ExternalSearchService {
         Ok(values
             .into_iter()
             .map(|v| {
-                let external_id = v
-                    .get("id")
-                    .map(|id| id.to_string())
-                    .unwrap_or_default();
+                let external_id = v.get("id").map(|id| id.to_string()).unwrap_or_default();
                 let title = v
                     .get("name")
                     .and_then(|n| n.as_str())
@@ -579,7 +583,10 @@ mod tests {
     /// `ExternalSearchService::with_fixed_credentials`経由のDB非依存に置き換える。
     /// 本ヘルパーは指定した1つのproviderにのみ固定キーを返し、他は`None`（未設定）を返す。
     /// 🟡 信頼性レベル: tdd-red指摘事項（DB依存ユニットテストのpanic回避）からの設計判断
-    fn service_with_single_key(provider: ApiProvider, api_key: &'static str) -> ExternalSearchService {
+    fn service_with_single_key(
+        provider: ApiProvider,
+        api_key: &'static str,
+    ) -> ExternalSearchService {
         ExternalSearchService::with_fixed_credentials(move |p| {
             if p == provider {
                 Some(ApiCredential {
@@ -619,8 +626,8 @@ mod tests {
             .mount(&jikan_mock)
             .await;
 
-        let service = service_with_no_keys()
-            .with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
 
         // 【実際の処理実行】: Animeでsearchを呼び出す
         let result = service.search(MediaType::Anime, "鬼滅の刃").await;
@@ -642,7 +649,9 @@ mod tests {
 
         let tmdb_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"results": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"results": []})),
+            )
             .mount(&tmdb_mock)
             .await;
 
@@ -672,7 +681,9 @@ mod tests {
 
         let tmdb_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"results": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"results": []})),
+            )
             .mount(&tmdb_mock)
             .await;
 
@@ -705,8 +716,8 @@ mod tests {
 
         // 【初期条件設定】: キー不要provider経路でDBアクセスが発生しないことを示すため、
         // 全プロバイダにキー未設定（None）を返す固定resolverを使う
-        let service = service_with_no_keys()
-            .with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
 
         let result = service.search(MediaType::Manga, "ワンピース").await;
 
@@ -786,9 +797,9 @@ mod tests {
 
         let ndl_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(
-                "<rss><channel></channel></rss>",
-            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string("<rss><channel></channel></rss>"),
+            )
             .mount(&ndl_mock)
             .await;
 
@@ -812,9 +823,9 @@ mod tests {
 
         let ndl_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(
-                "<rss><channel></channel></rss>",
-            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string("<rss><channel></channel></rss>"),
+            )
             .mount(&ndl_mock)
             .await;
 
@@ -880,12 +891,14 @@ mod tests {
 
         let tmdb_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"results": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"results": []})),
+            )
             .mount(&tmdb_mock)
             .await;
 
-        let service = service_with_no_keys()
-            .with_test_base_urls(|u| u.tmdb = Some(tmdb_mock.uri()));
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.tmdb = Some(tmdb_mock.uri()));
 
         let result = service.search(MediaType::Movie, "タイトル").await;
 
@@ -1005,8 +1018,8 @@ mod tests {
             .mount(&jikan_mock)
             .await;
 
-        let service = service_with_no_keys()
-            .with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
 
         let result = service.search(MediaType::Anime, "").await;
 
@@ -1035,8 +1048,8 @@ mod tests {
             .mount(&jikan_mock)
             .await;
 
-        let service = service_with_no_keys()
-            .with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
         let long_query = "あ".repeat(10_000);
 
         let result = service.search(MediaType::Anime, &long_query).await;
@@ -1069,8 +1082,8 @@ mod tests {
             .mount(&jikan_mock)
             .await;
 
-        let service = service_with_no_keys()
-            .with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
 
         for media_type in [MediaType::Anime, MediaType::Manga] {
             let result = service.search(media_type, "クエリ").await;
@@ -1128,8 +1141,8 @@ mod tests {
         // 【初期条件設定】: find_by_providerが呼ばれた場合はNone resolverに到達しないことを確認するため、
         // 全プロバイダにキー未設定（None）を返す固定resolverを使う。Okが返ること自体が
         // 「キー取得経路（find_by_provider相当）に入らなかった」ことの間接証明になる
-        let service = service_with_no_keys()
-            .with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
 
         let anime_result = service.search(MediaType::Anime, "クエリ").await;
         let manga_result = service.search(MediaType::Manga, "クエリ").await;

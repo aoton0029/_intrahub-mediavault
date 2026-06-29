@@ -102,7 +102,12 @@ impl OpenLibraryClient {
         let parsed: OlSearchResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
 
-        tracing::debug!(status, latency_ms, result_count = parsed.docs.len(), "Open Library search OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = parsed.docs.len(),
+            "Open Library search OK"
+        );
 
         Ok(ApiResponse {
             request: RequestResult {

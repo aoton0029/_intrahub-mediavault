@@ -4,16 +4,16 @@
 //!
 //! 🔵 信頼性レベル: 要件定義書REQ-0022-01〜06・データフロー（第2章）より
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
-use crate::models::api_credential::{parse_api_provider, ApiCredential, UpdateApiKeyRequest};
+use crate::AppState;
+use crate::models::api_credential::{ApiCredential, UpdateApiKeyRequest, parse_api_provider};
 use crate::models::item::deserialize_request;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::api_credential_repository;
-use crate::AppState;
 
 /// `PUT /settings/api-keys/:provider` ハンドラ
 ///

@@ -150,7 +150,12 @@ impl AniListClient {
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
 
-        tracing::trace!(status, latency_ms, response_len = text.len(), "AniList response received");
+        tracing::trace!(
+            status,
+            latency_ms,
+            response_len = text.len(),
+            "AniList response received"
+        );
 
         Ok((status, text, latency_ms))
     }
@@ -204,7 +209,12 @@ impl AniListClient {
             .map(|d| d.page.media.into_iter().map(MediaModel::from).collect())
             .unwrap_or_default();
 
-        tracing::debug!(status, latency_ms, result_count = media.len(), "AniList search_media OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = media.len(),
+            "AniList search_media OK"
+        );
 
         Ok(ApiResponse {
             request: RequestResult {
@@ -222,7 +232,11 @@ impl AniListClient {
         &self,
         req: MediaDetailsRequest,
     ) -> Result<ApiResponse<MediaModel>, ApiError> {
-        tracing::debug!(operation = "get_media_details", id = req.id, "AniList request start");
+        tracing::debug!(
+            operation = "get_media_details",
+            id = req.id,
+            "AniList request start"
+        );
         {
             let mut rl = self.rate_limit.lock().await;
             rl.check_and_increment()?;
@@ -295,7 +309,12 @@ impl AniListClient {
             })
             .unwrap_or_default();
 
-        tracing::debug!(status, latency_ms, result_count = entries.len(), "AniList export_media_list OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = entries.len(),
+            "AniList export_media_list OK"
+        );
 
         Ok(ApiResponse {
             request: RequestResult {

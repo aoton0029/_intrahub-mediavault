@@ -56,10 +56,7 @@ pub fn generate_object_name(original_filename: &str) -> String {
     match extension {
         Some(ext) => {
             // 【無害化】: パストラバーサル成分（".."・"/"・"\\"）を拡張子文字列から除去する 🟡
-            let sanitized_ext: String = ext
-                .chars()
-                .filter(|c| *c != '/' && *c != '\\')
-                .collect();
+            let sanitized_ext: String = ext.chars().filter(|c| *c != '/' && *c != '\\').collect();
             let sanitized_ext = sanitized_ext.replace("..", "");
 
             if sanitized_ext.is_empty() {
@@ -281,7 +278,9 @@ mod tests {
         // 【テストデータ準備】: 一時ベースディレクトリと環境変数を設定する
         // 【初期条件設定】: PDF_STORAGE_PATHを一時ディレクトリに切り替える
         let root = temp_storage_root();
-        unsafe { std::env::set_var("PDF_STORAGE_PATH", root.path()); }
+        unsafe {
+            std::env::set_var("PDF_STORAGE_PATH", root.path());
+        }
         let writer = TokioFileWriter;
 
         // 【実際の処理実行】: store_file()でpdfバイト列を書き込む
@@ -328,7 +327,9 @@ mod tests {
         // 🔵 信頼性レベル: 要件定義書第1章・TC-019-02・設計決定1（photo→Image・画像ディレクトリ）に対応
 
         // 【テストデータ準備】: 環境変数MEDIA_STORAGE_PATHを一時値に設定する
-        unsafe { std::env::set_var("MEDIA_STORAGE_PATH", "/tmp/mediavault-test-media"); }
+        unsafe {
+            std::env::set_var("MEDIA_STORAGE_PATH", "/tmp/mediavault-test-media");
+        }
         // 【実際の処理実行】: resolve_base_dir(FileType::Image)を呼び出す
         let base = resolve_base_dir(FileType::Image);
 
@@ -346,7 +347,9 @@ mod tests {
         // 🟡 信頼性レベル: 設計決定2（本タスクで確定：otherもphotos集約）に基づく
 
         // 【テストデータ準備】: 環境変数MEDIA_STORAGE_PATHを一時値に設定する
-        unsafe { std::env::set_var("MEDIA_STORAGE_PATH", "/tmp/mediavault-test-media-other"); }
+        unsafe {
+            std::env::set_var("MEDIA_STORAGE_PATH", "/tmp/mediavault-test-media-other");
+        }
         // 【実際の処理実行】: resolve_base_dir(FileType::Other)を呼び出す
         let base = resolve_base_dir(FileType::Other);
 
@@ -364,7 +367,9 @@ mod tests {
         // 🔵 信頼性レベル: 要件定義書第1章「pdf→/srv/files/pdf」・TC-019-01に直接対応
 
         // 【テストデータ準備】: 環境変数PDF_STORAGE_PATHを一時値に設定する
-        unsafe { std::env::set_var("PDF_STORAGE_PATH", "/tmp/mediavault-test-pdf"); }
+        unsafe {
+            std::env::set_var("PDF_STORAGE_PATH", "/tmp/mediavault-test-pdf");
+        }
         // 【実際の処理実行】: resolve_base_dir(FileType::Pdf)を呼び出す
         let base = resolve_base_dir(FileType::Pdf);
 
@@ -383,8 +388,12 @@ mod tests {
         // 🟡 信頼性レベル: note.md L296-297・要件定義書REQ-402からの妥当な推測
 
         // 【テストデータ準備】: 環境変数を確実に未設定の状態にする
-        unsafe { std::env::remove_var("PDF_STORAGE_PATH"); }
-        unsafe { std::env::remove_var("MEDIA_STORAGE_PATH"); }
+        unsafe {
+            std::env::remove_var("PDF_STORAGE_PATH");
+        }
+        unsafe {
+            std::env::remove_var("MEDIA_STORAGE_PATH");
+        }
         // 【実際の処理実行】: デフォルト値でresolve_base_dir()を呼び出す
         let pdf_base = resolve_base_dir(FileType::Pdf);
         let media_base = resolve_base_dir(FileType::Image);
@@ -406,7 +415,9 @@ mod tests {
 
         // 【テストデータ準備】: 一時ディレクトリへ実際に書込んでおく
         let root = temp_storage_root();
-        unsafe { std::env::set_var("PDF_STORAGE_PATH", root.path()); }
+        unsafe {
+            std::env::set_var("PDF_STORAGE_PATH", root.path());
+        }
         let writer = TokioFileWriter;
         let stored = store_file(&writer, FileType::Pdf, "example.pdf", b"dummy")
             .expect("前提となる書込が成功するはず");

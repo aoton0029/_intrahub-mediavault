@@ -36,7 +36,12 @@ impl RateLimitState {
         if elapsed >= self.window_secs {
             self.count = 1;
             self.window_start = Instant::now();
-            tracing::debug!(count = 1, limit = self.limit, window_secs = self.window_secs, "rate limit window reset");
+            tracing::debug!(
+                count = 1,
+                limit = self.limit,
+                window_secs = self.window_secs,
+                "rate limit window reset"
+            );
             return Ok(());
         }
         if self.count >= self.limit {

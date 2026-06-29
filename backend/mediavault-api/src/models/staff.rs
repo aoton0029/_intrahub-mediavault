@@ -65,7 +65,9 @@ pub const CHARACTER_NAME_MAX_LEN: usize = 255;
 /// trim後に空文字ならVALIDATION_ERRORとし、INSERT前に早期リターンする。
 /// 【テスト対応】: TC-N-06（正常パース）, TC-E-01（空文字拒否）を通すための実装
 /// 🔵 信頼性レベル: staff-requirements.md 2.1 / TC-N-06, TC-E-01 に対応
-pub fn parse_create_staff_request(request: CreateStaffRequest) -> Result<CreateStaffRequest, ApiError> {
+pub fn parse_create_staff_request(
+    request: CreateStaffRequest,
+) -> Result<CreateStaffRequest, ApiError> {
     // 【入力値検証】: nameが空文字（trim後）の場合はDB不変のまま早期リターンする 🔵
     if request.name.trim().is_empty() {
         // 【エラー処理】: nameはNOT NULL・空文字不可（staff-requirements.md 2.1） 🔵
@@ -111,13 +113,13 @@ pub fn parse_create_item_staff_request(
     }
 
     // 【入力値検証】: character_nameの長さ制限（VARCHAR(255)、上限255文字、optional） 🔵
-    if let Some(character_name) = &request.character_name {
-        if character_name.chars().count() > CHARACTER_NAME_MAX_LEN {
-            return Err(ApiError::new(
-                ApiErrorCode::ValidationError,
-                format!("character_nameは{CHARACTER_NAME_MAX_LEN}文字以内で指定してください"),
-            ));
-        }
+    if let Some(character_name) = &request.character_name
+        && character_name.chars().count() > CHARACTER_NAME_MAX_LEN
+    {
+        return Err(ApiError::new(
+            ApiErrorCode::ValidationError,
+            format!("character_nameは{CHARACTER_NAME_MAX_LEN}文字以内で指定してください"),
+        ));
     }
 
     // 【結果返却】: 検証済みのリクエストをそのまま返す 🔵
@@ -180,7 +182,10 @@ mod tests {
         // 【結果検証】: Errであり、エラーコードがVALIDATION_ERRORであること
         // 【期待値確認】: 不正データのDB混入を防ぐための早期リターンが機能していること
         assert!(result.is_err()); // 【検証項目】: 空nameは拒否される 🔵
-        assert_eq!(result.unwrap_err().error.code, ApiErrorCode::ValidationError.as_code_str()); // 【確認内容】: 正しいエラーコードが返ることを確認 🔵
+        assert_eq!(
+            result.unwrap_err().error.code,
+            ApiErrorCode::ValidationError.as_code_str()
+        ); // 【確認内容】: 正しいエラーコードが返ることを確認 🔵
     }
 
     /// TC-E-06: 空のroleはバリデーションエラーになる
@@ -207,7 +212,10 @@ mod tests {
         // 【結果検証】: Errであり、エラーコードがVALIDATION_ERRORであること
         // 【期待値確認】: 役割なし紐付けの混入を防ぐための早期リターンが機能していること
         assert!(result.is_err()); // 【検証項目】: 空roleは拒否される 🔵
-        assert_eq!(result.unwrap_err().error.code, ApiErrorCode::ValidationError.as_code_str()); // 【確認内容】: 正しいエラーコードが返ることを確認 🔵
+        assert_eq!(
+            result.unwrap_err().error.code,
+            ApiErrorCode::ValidationError.as_code_str()
+        ); // 【確認内容】: 正しいエラーコードが返ることを確認 🔵
     }
 
     /// TC-B-02(a): role 100文字ちょうどで成功する
@@ -263,7 +271,10 @@ mod tests {
         // 【結果検証】: Errであり、エラーコードがVALIDATION_ERRORであること
         // 【期待値確認】: 境界の内外で判定が反転する仕様の「外側」を確認
         assert!(result.is_err()); // 【確認内容】: 上限超過（101文字）は拒否されることを確認 🔵
-        assert_eq!(result.unwrap_err().error.code, ApiErrorCode::ValidationError.as_code_str()); // 【確認内容】: 正しいエラーコードが返ることを確認 🔵
+        assert_eq!(
+            result.unwrap_err().error.code,
+            ApiErrorCode::ValidationError.as_code_str()
+        ); // 【確認内容】: 正しいエラーコードが返ることを確認 🔵
     }
 
     /// TC-B-03(a): character_name 255文字ちょうどで成功する
@@ -319,7 +330,10 @@ mod tests {
 
         // 【結果検証】: Errであり、エラーコードがVALIDATION_ERRORであること
         assert!(result.is_err()); // 【確認内容】: 上限超過（256文字）は拒否されることを確認 🔵
-        assert_eq!(result.unwrap_err().error.code, ApiErrorCode::ValidationError.as_code_str()); // 【確認内容】: 正しいエラーコードが返ることを確認 🔵
+        assert_eq!(
+            result.unwrap_err().error.code,
+            ApiErrorCode::ValidationError.as_code_str()
+        ); // 【確認内容】: 正しいエラーコードが返ることを確認 🔵
     }
 
     /// TC-N-02関連: CreateStaffRequestがexternal_id/image_url込みで正しくデシリアライズされる

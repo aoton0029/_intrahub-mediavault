@@ -2,16 +2,16 @@
 //!
 //! TASK-0015: タグ・カテゴリCRUD実装（handlers/tags.rsと完全に対称な構造）
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
-use crate::models::category::{validate_category_name, Category, CreateCategoryRequest};
+use crate::AppState;
+use crate::models::category::{Category, CreateCategoryRequest, validate_category_name};
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::category_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /categories` ハンドラ。カテゴリ名を受け取りカテゴリを作成する
 /// 🔵 信頼性レベル: handlers::tags::create_tag_handlerと完全に対称

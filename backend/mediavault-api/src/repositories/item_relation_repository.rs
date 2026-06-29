@@ -88,13 +88,8 @@ mod tests {
     async fn create_item_relation_with_nonexistent_item_returns_item_not_found() {
         let pool = test_pool().await;
 
-        let result = create_item_relation(
-            &pool,
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-            RelationType::Dlc,
-        )
-        .await;
+        let result =
+            create_item_relation(&pool, Uuid::new_v4(), Uuid::new_v4(), RelationType::Dlc).await;
 
         let err = result.unwrap_err();
         assert_eq!(err.error.code, "ITEM_NOT_FOUND");

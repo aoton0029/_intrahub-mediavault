@@ -12,14 +12,14 @@
 //!
 //! 【Red フェーズ注記】: `import_steam_handler`は未実装（`todo!()`）。Greenフェーズで実装する。
 
+use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::Deserialize;
 
-use crate::import::steam_import::{import_steam_library, SteamCredentialLookup};
-use crate::models::response::{ApiError, ApiOk};
 use crate::AppState;
+use crate::import::steam_import::{SteamCredentialLookup, import_steam_library};
+use crate::models::response::{ApiError, ApiOk};
 
 /// `POST /import/steam` リクエストボディDTO
 ///
@@ -34,8 +34,8 @@ pub struct SteamImportRequest {
 ///   1. リクエストボディを`SteamImportRequest`としてデシリアライズする
 ///   2. `import::steam_import::import_steam_library`へ`steam_id`を渡して委譲する
 ///   3. 戻り値の`ImportSummary`を200で返す（エラーは`?`演算子で`ApiError`へ自動変換）
-/// 🔵 信頼性レベル: api-endpoints.md「POST /import/steam」・要件定義書2章データフローに直接対応
 ///
+/// 🔵 信頼性レベル: api-endpoints.md「POST /import/steam」・要件定義書2章データフローに直接対応
 pub async fn import_steam_handler(
     State(state): State<AppState>,
     Json(request): Json<SteamImportRequest>,

@@ -13,10 +13,9 @@ use crate::traits::ApiClient;
 use self::models::{
     JikanAnimeModel, JikanCharacterListResponse, JikanEpisodeDetailModel,
     JikanEpisodeDetailResponse, JikanEpisodeListResponse, JikanEpisodeModel, JikanListResponse,
-    JikanMangaListResponse, JikanMangaModel, JikanMangaSingleResponse,
-    JikanModel, JikanPictureListResponse, JikanPictureModel, JikanProducerListResponse,
-    JikanSingleResponse, JikanStaffListResponse, JikanStaffModel,
-    JikanVideosModel, JikanVideosResponse,
+    JikanMangaListResponse, JikanMangaModel, JikanMangaSingleResponse, JikanModel,
+    JikanPictureListResponse, JikanPictureModel, JikanProducerListResponse, JikanSingleResponse,
+    JikanStaffListResponse, JikanStaffModel, JikanVideosModel, JikanVideosResponse,
 };
 use self::requests::{
     JikanAnimeDetailsRequest, JikanAnimeEpisodeRequest, JikanAnimeEpisodesRequest,
@@ -133,11 +132,21 @@ impl JikanClient {
 
         let parsed: JikanListResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let model: Vec<JikanAnimeModel> = parsed.data.into_iter().map(JikanAnimeModel::from).collect();
+        let model: Vec<JikanAnimeModel> =
+            parsed.data.into_iter().map(JikanAnimeModel::from).collect();
 
-        tracing::debug!(status, latency_ms, result_count = model.len(), "Jikan search_anime OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = model.len(),
+            "Jikan search_anime OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url: url_str, latency_ms },
+            request: RequestResult {
+                status,
+                url: url_str,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -151,16 +160,29 @@ impl JikanClient {
         self.check_rate_limit().await?;
 
         let url = format!("{}/anime/{}/full", self.base_url, req.id);
-        tracing::debug!(operation = "get_anime_details", id = req.id, "Jikan request start");
+        tracing::debug!(
+            operation = "get_anime_details",
+            id = req.id,
+            "Jikan request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url).await?;
 
         let parsed: JikanSingleResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
         let model = JikanAnimeModel::from(parsed.data);
 
-        tracing::debug!(status, latency_ms, id = req.id, "Jikan get_anime_details OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            id = req.id,
+            "Jikan get_anime_details OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url, latency_ms },
+            request: RequestResult {
+                status,
+                url,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -180,16 +202,33 @@ impl JikanClient {
         }
 
         let url_str = url.to_string();
-        tracing::debug!(operation = "get_anime_episodes", id = req.id, "Jikan request start");
+        tracing::debug!(
+            operation = "get_anime_episodes",
+            id = req.id,
+            "Jikan request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url_str).await?;
 
         let parsed: JikanEpisodeListResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let model: Vec<JikanEpisodeModel> = parsed.data.into_iter().map(JikanEpisodeModel::from).collect();
+        let model: Vec<JikanEpisodeModel> = parsed
+            .data
+            .into_iter()
+            .map(JikanEpisodeModel::from)
+            .collect();
 
-        tracing::debug!(status, latency_ms, result_count = model.len(), "Jikan get_anime_episodes OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = model.len(),
+            "Jikan get_anime_episodes OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url: url_str, latency_ms },
+            request: RequestResult {
+                status,
+                url: url_str,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -202,8 +241,16 @@ impl JikanClient {
     ) -> Result<ApiResponse<JikanEpisodeDetailModel>, ApiError> {
         self.check_rate_limit().await?;
 
-        let url = format!("{}/anime/{}/episodes/{}", self.base_url, req.id, req.episode);
-        tracing::debug!(operation = "get_anime_episode", id = req.id, episode = req.episode, "Jikan request start");
+        let url = format!(
+            "{}/anime/{}/episodes/{}",
+            self.base_url, req.id, req.episode
+        );
+        tracing::debug!(
+            operation = "get_anime_episode",
+            id = req.id,
+            episode = req.episode,
+            "Jikan request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url).await?;
 
         let parsed: JikanEpisodeDetailResponse =
@@ -212,7 +259,11 @@ impl JikanClient {
 
         tracing::debug!(status, latency_ms, "Jikan get_anime_episode OK");
         Ok(ApiResponse {
-            request: RequestResult { status, url, latency_ms },
+            request: RequestResult {
+                status,
+                url,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -226,16 +277,30 @@ impl JikanClient {
         self.check_rate_limit().await?;
 
         let url = format!("{}/anime/{}/staff", self.base_url, req.id);
-        tracing::debug!(operation = "get_anime_staff", id = req.id, "Jikan request start");
+        tracing::debug!(
+            operation = "get_anime_staff",
+            id = req.id,
+            "Jikan request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url).await?;
 
         let parsed: JikanStaffListResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let model: Vec<JikanStaffModel> = parsed.data.into_iter().map(JikanStaffModel::from).collect();
+        let model: Vec<JikanStaffModel> =
+            parsed.data.into_iter().map(JikanStaffModel::from).collect();
 
-        tracing::debug!(status, latency_ms, result_count = model.len(), "Jikan get_anime_staff OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = model.len(),
+            "Jikan get_anime_staff OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url, latency_ms },
+            request: RequestResult {
+                status,
+                url,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -249,16 +314,33 @@ impl JikanClient {
         self.check_rate_limit().await?;
 
         let url = format!("{}/anime/{}/pictures", self.base_url, req.id);
-        tracing::debug!(operation = "get_anime_pictures", id = req.id, "Jikan request start");
+        tracing::debug!(
+            operation = "get_anime_pictures",
+            id = req.id,
+            "Jikan request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url).await?;
 
         let parsed: JikanPictureListResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let model: Vec<JikanPictureModel> = parsed.data.into_iter().map(JikanPictureModel::from).collect();
+        let model: Vec<JikanPictureModel> = parsed
+            .data
+            .into_iter()
+            .map(JikanPictureModel::from)
+            .collect();
 
-        tracing::debug!(status, latency_ms, result_count = model.len(), "Jikan get_anime_pictures OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = model.len(),
+            "Jikan get_anime_pictures OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url, latency_ms },
+            request: RequestResult {
+                status,
+                url,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -272,7 +354,11 @@ impl JikanClient {
         self.check_rate_limit().await?;
 
         let url = format!("{}/anime/{}/videos", self.base_url, req.id);
-        tracing::debug!(operation = "get_anime_videos", id = req.id, "Jikan request start");
+        tracing::debug!(
+            operation = "get_anime_videos",
+            id = req.id,
+            "Jikan request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url).await?;
 
         let parsed: JikanVideosResponse =
@@ -281,7 +367,11 @@ impl JikanClient {
 
         tracing::debug!(status, latency_ms, "Jikan get_anime_videos OK");
         Ok(ApiResponse {
-            request: RequestResult { status, url, latency_ms },
+            request: RequestResult {
+                status,
+                url,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -318,11 +408,21 @@ impl JikanClient {
 
         let parsed: JikanMangaListResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let model: Vec<JikanMangaModel> = parsed.data.into_iter().map(JikanMangaModel::from).collect();
+        let model: Vec<JikanMangaModel> =
+            parsed.data.into_iter().map(JikanMangaModel::from).collect();
 
-        tracing::debug!(status, latency_ms, result_count = model.len(), "Jikan search_manga OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = model.len(),
+            "Jikan search_manga OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url: url_str, latency_ms },
+            request: RequestResult {
+                status,
+                url: url_str,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -336,16 +436,29 @@ impl JikanClient {
         self.check_rate_limit().await?;
 
         let url = format!("{}/manga/{}/full", self.base_url, req.id);
-        tracing::debug!(operation = "get_manga_details", id = req.id, "Jikan request start");
+        tracing::debug!(
+            operation = "get_manga_details",
+            id = req.id,
+            "Jikan request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url).await?;
 
         let parsed: JikanMangaSingleResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
         let model = JikanMangaModel::from(parsed.data);
 
-        tracing::debug!(status, latency_ms, id = req.id, "Jikan get_manga_details OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            id = req.id,
+            "Jikan get_manga_details OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url, latency_ms },
+            request: RequestResult {
+                status,
+                url,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -376,11 +489,24 @@ impl JikanClient {
 
         let parsed: JikanCharacterListResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let model: Vec<models::JikanCharacterModel> = parsed.data.into_iter().map(models::JikanCharacterModel::from).collect();
+        let model: Vec<models::JikanCharacterModel> = parsed
+            .data
+            .into_iter()
+            .map(models::JikanCharacterModel::from)
+            .collect();
 
-        tracing::debug!(status, latency_ms, result_count = model.len(), "Jikan search_characters OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = model.len(),
+            "Jikan search_characters OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url: url_str, latency_ms },
+            request: RequestResult {
+                status,
+                url: url_str,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -411,11 +537,24 @@ impl JikanClient {
 
         let parsed: JikanProducerListResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let model: Vec<models::JikanProducerModel> = parsed.data.into_iter().map(models::JikanProducerModel::from).collect();
+        let model: Vec<models::JikanProducerModel> = parsed
+            .data
+            .into_iter()
+            .map(models::JikanProducerModel::from)
+            .collect();
 
-        tracing::debug!(status, latency_ms, result_count = model.len(), "Jikan search_producers OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = model.len(),
+            "Jikan search_producers OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url: url_str, latency_ms },
+            request: RequestResult {
+                status,
+                url: url_str,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -443,11 +582,21 @@ impl JikanClient {
 
         let parsed: JikanListResponse =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let model: Vec<JikanAnimeModel> = parsed.data.into_iter().map(JikanAnimeModel::from).collect();
+        let model: Vec<JikanAnimeModel> =
+            parsed.data.into_iter().map(JikanAnimeModel::from).collect();
 
-        tracing::debug!(status, latency_ms, result_count = model.len(), "Jikan get_season_anime OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = model.len(),
+            "Jikan get_season_anime OK"
+        );
         Ok(ApiResponse {
-            request: RequestResult { status, url: url_str, latency_ms },
+            request: RequestResult {
+                status,
+                url: url_str,
+                latency_ms,
+            },
             raw: RawData::Json(text),
             model,
         })
@@ -464,51 +613,99 @@ impl ApiClient for JikanClient {
         match request {
             JikanRequest::SearchAnime(req) => {
                 let resp = self.search_anime(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::SearchResults(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::SearchResults(resp.model),
+                })
             }
             JikanRequest::GetAnimeDetails(req) => {
                 let resp = self.get_anime_details(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::AnimeDetails(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::AnimeDetails(resp.model),
+                })
             }
             JikanRequest::GetAnimeEpisodes(req) => {
                 let resp = self.get_anime_episodes(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::EpisodeList(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::EpisodeList(resp.model),
+                })
             }
             JikanRequest::GetAnimeEpisode(req) => {
                 let resp = self.get_anime_episode(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::EpisodeDetail(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::EpisodeDetail(resp.model),
+                })
             }
             JikanRequest::GetAnimeStaff(req) => {
                 let resp = self.get_anime_staff(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::StaffList(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::StaffList(resp.model),
+                })
             }
             JikanRequest::GetAnimePictures(req) => {
                 let resp = self.get_anime_pictures(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::PictureList(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::PictureList(resp.model),
+                })
             }
             JikanRequest::GetAnimeVideos(req) => {
                 let resp = self.get_anime_videos(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::Videos(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::Videos(resp.model),
+                })
             }
             JikanRequest::SearchManga(req) => {
                 let resp = self.search_manga(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::MangaSearchResults(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::MangaSearchResults(resp.model),
+                })
             }
             JikanRequest::GetMangaDetails(req) => {
                 let resp = self.get_manga_details(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::MangaDetails(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::MangaDetails(resp.model),
+                })
             }
             JikanRequest::SearchCharacters(req) => {
                 let resp = self.search_characters(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::CharacterSearchResults(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::CharacterSearchResults(resp.model),
+                })
             }
             JikanRequest::SearchProducers(req) => {
                 let resp = self.search_producers(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::ProducerSearchResults(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::ProducerSearchResults(resp.model),
+                })
             }
             JikanRequest::GetSeasonAnime(req) => {
                 let resp = self.get_season_anime(req).await?;
-                Ok(ApiResponse { request: resp.request, raw: resp.raw, model: JikanModel::SeasonAnime(resp.model) })
+                Ok(ApiResponse {
+                    request: resp.request,
+                    raw: resp.raw,
+                    model: JikanModel::SeasonAnime(resp.model),
+                })
             }
         }
     }

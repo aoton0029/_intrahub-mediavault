@@ -2,15 +2,16 @@
 //!
 //! TASK-0009: POST /items（手動作成）実装
 
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::external_search::ExternalSearchResult;
 use crate::models::item::{
-    deserialize_request, parse_create_item_request, parse_item_id, validate_update_title, Item,
-    ItemDetail, ListItemsQuery, UpdateItemRequest, UpdateStatusRequest,
+    Item, ItemDetail, ListItemsQuery, UpdateItemRequest, UpdateStatusRequest, deserialize_request,
+    parse_create_item_request, parse_item_id, validate_update_title,
 };
 use crate::models::item_import::parse_import_item_request;
 use crate::models::item_search::ItemSearchQuery;
@@ -18,7 +19,6 @@ use crate::models::response::{ApiError, ApiErrorCode, ApiOk, PaginatedOk, Pagina
 use crate::repositories::item_file_repository;
 use crate::repositories::item_repository;
 use crate::services::external_search::ExternalSearchService;
-use crate::AppState;
 
 /// 【機能概要】: `POST /items` ハンドラ。フォーム入力によるアイテム手動作成を行う
 /// 【実装方針】: TASK-0008の`parse_create_item_request`でバリデーションし、
@@ -176,7 +176,10 @@ pub async fn delete_item_handler(
 
     let deleted = item_repository::delete_item(&state.db, id).await?;
     if !deleted {
-        return Err(ApiError::new(ApiErrorCode::ItemNotFound, "アイテムが見つかりません"));
+        return Err(ApiError::new(
+            ApiErrorCode::ItemNotFound,
+            "アイテムが見つかりません",
+        ));
     }
 
     Ok(StatusCode::NO_CONTENT.into_response())
@@ -458,8 +461,8 @@ mod tests {
             .unwrap();
         let body = serde_json::json!({ "title": "" });
 
-        let result = update_item_handler(State(state.clone()), Path(item_id.to_string()), Json(body))
-            .await;
+        let result =
+            update_item_handler(State(state.clone()), Path(item_id.to_string()), Json(body)).await;
 
         let err = result.unwrap_err();
         assert_eq!(err.error.code, "VALIDATION_ERROR"); // 【確認内容】: title空文字でVALIDATION_ERRORが返ることを確認 🔵
@@ -558,7 +561,8 @@ mod tests {
         let id = Uuid::new_v4();
         let body = serde_json::json!({ "status": "completed" });
 
-        let result = update_item_status_handler(State(state), Path(id.to_string()), Json(body)).await;
+        let result =
+            update_item_status_handler(State(state), Path(id.to_string()), Json(body)).await;
 
         let err = result.unwrap_err();
         assert_eq!(err.error.code, "ITEM_NOT_FOUND"); // 【確認内容】: 存在しないIDでITEM_NOT_FOUNDが返ることを確認 🟡
@@ -803,13 +807,8 @@ mod tests {
     async fn get_item_handler_includes_calibre_web_link_info_for_linked_pdf() {
         let state = test_app_state().await;
         let item_id = insert_test_item_for_handler(&state).await;
-        let file_id = insert_test_item_file_for_handler(
-            &state,
-            item_id,
-            "pdf",
-            Some("calibre-12345"),
-        )
-        .await;
+        let file_id =
+            insert_test_item_file_for_handler(&state, item_id, "pdf", Some("calibre-12345")).await;
 
         // 【実際の処理実行】: get_item_handlerを直接呼び出す
         let result = get_item_handler(State(state), Path(item_id.to_string())).await;
@@ -858,13 +857,8 @@ mod tests {
     async fn get_item_handler_applies_calibre_link_condition_per_row_with_mixed_files() {
         let state = test_app_state().await;
         let item_id = insert_test_item_for_handler(&state).await;
-        let linked_pdf_id = insert_test_item_file_for_handler(
-            &state,
-            item_id,
-            "pdf",
-            Some("calibre-99999"),
-        )
-        .await;
+        let linked_pdf_id =
+            insert_test_item_file_for_handler(&state, item_id, "pdf", Some("calibre-99999")).await;
         insert_test_item_file_for_handler(&state, item_id, "pdf", None).await;
         insert_test_item_file_for_handler(&state, item_id, "image", None).await;
 

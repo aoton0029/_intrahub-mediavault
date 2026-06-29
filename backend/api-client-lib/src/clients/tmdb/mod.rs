@@ -138,7 +138,12 @@ impl TmdbClient {
         let parsed: TmdbPagedResults<MovieModel> =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
 
-        tracing::debug!(status, latency_ms, result_count = parsed.results.len(), "TMDb search_movie OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = parsed.results.len(),
+            "TMDb search_movie OK"
+        );
 
         Ok(ApiResponse {
             request: RequestResult {
@@ -162,7 +167,11 @@ impl TmdbClient {
         }
 
         let url_str = url.to_string();
-        tracing::debug!(operation = "get_movie_details", movie_id = req.movie_id, "TMDb request start");
+        tracing::debug!(
+            operation = "get_movie_details",
+            movie_id = req.movie_id,
+            "TMDb request start"
+        );
         let (status, text, latency_ms) = self.get_json(url).await?;
 
         let model: MovieModel =
@@ -205,7 +214,12 @@ impl TmdbClient {
         let parsed: TmdbPagedResults<TvModel> =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
 
-        tracing::debug!(status, latency_ms, result_count = parsed.results.len(), "TMDb search_tv OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = parsed.results.len(),
+            "TMDb search_tv OK"
+        );
 
         Ok(ApiResponse {
             request: RequestResult {
@@ -229,7 +243,11 @@ impl TmdbClient {
         }
 
         let url_str = url.to_string();
-        tracing::debug!(operation = "get_tv_series", series_id = req.series_id, "TMDb request start");
+        tracing::debug!(
+            operation = "get_tv_series",
+            series_id = req.series_id,
+            "TMDb request start"
+        );
         let (status, text, latency_ms) = self.get_json(url).await?;
 
         let model: TvModel =
@@ -262,7 +280,12 @@ impl TmdbClient {
         }
 
         let url_str = url.to_string();
-        tracing::debug!(operation = "get_tv_season", series_id = req.series_id, season_number = req.season_number, "TMDb request start");
+        tracing::debug!(
+            operation = "get_tv_season",
+            series_id = req.series_id,
+            season_number = req.season_number,
+            "TMDb request start"
+        );
         let (status, text, latency_ms) = self.get_json(url).await?;
 
         let model: TvSeasonModel =

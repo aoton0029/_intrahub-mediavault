@@ -2,18 +2,18 @@
 //!
 //! TASK-0017: item_relations CRUD実装（handlers/mylists.rsと対称な構造）
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::item_relation::{
-    validate_not_self_reference, CreateItemRelationRequest, ItemRelation,
+    CreateItemRelationRequest, ItemRelation, validate_not_self_reference,
 };
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::item_relation_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /item-relations` ハンドラ。item_id, related_item_id, relation_typeを受け取り関連付けを作成する
 /// 🔵 信頼性レベル: api-endpoints.md POST /item-relations リクエスト例より

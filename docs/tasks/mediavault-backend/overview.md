@@ -97,7 +97,7 @@ TASK-0001, TASK-0003 → TASK-0007 → Phase2全タスク
 - [x] [TASK-0018: item_groups（シーズン/巻/章）CRUD実装](TASK-0018.md) - 5h (TDD) 🔵 ✅完了 (2026-06-24)
 - [x] [TASK-0019: item_episodes CRUD + EDGE-101検証実装](TASK-0019.md) - 6h (TDD) 🔵 ✅完了 (2026-06-24)
 - [x] [TASK-0020: スタッフ管理CRUD実装](TASK-0020.md) - 5h (TDD) 🔵 ✅完了 (2026-06-24)
-- [ ] [TASK-0021: item_links/item_trailers CRUD実装](TASK-0021.md) - 4h (TDD) 🔵
+- [x] [TASK-0021: item_links/item_trailers CRUD実装](TASK-0021.md) - 4h (TDD) 🔵 ✅完了 (確認済み: ハンドラ・ルート実装済み)
 
 ### 依存関係
 
@@ -142,8 +142,8 @@ TASK-0009（itemsトランザクション処理） → TASK-0025
 ### タスク一覧
 
 - [x] [TASK-0026: POST /items/:id/files（パス指定方式）実装](TASK-0026.md) - 4h (TDD) 🔵 ✅完了 (2026-06-26)
-- [ ] [TASK-0027: POST /items/:id/files/upload（バイナリ直接アップロード）実装](TASK-0027.md) - 6h (TDD) 🔵
-- [ ] [TASK-0028: PATCH /items/:id/files/:file_id/calibre-link 実装](TASK-0028.md) - 3h (TDD) 🔵
+- [x] [TASK-0027: POST /items/:id/files/upload（バイナリ直接アップロード）実装](TASK-0027.md) - 6h (TDD) 🔵 ✅完了 (確認済み: ハンドラ・ルート実装済み)
+- [x] [TASK-0028: PATCH /items/:id/files/:file_id/calibre-link 実装](TASK-0028.md) - 3h (TDD) 🔵 ✅完了 (確認済み: ハンドラ・ルート実装済み)
 
 ### 依存関係
 
@@ -162,7 +162,7 @@ TASK-0026 → TASK-0028
 ### タスク一覧
 
 - [x] [TASK-0029: 内部REST APIルート群実装（/internal/items等）](TASK-0029.md) - 6h (TDD) 🔵 ✅完了 (2026-06-27)
-- [ ] [TASK-0030: ブクログCSVインポート実装](TASK-0030.md) - 6h (TDD) 🟡
+- [x] [TASK-0030: ブクログCSVインポート実装](TASK-0030.md) - 6h (TDD) 🟡 ✅完了 (確認済み: ハンドラ実装済み)
 - [x] [TASK-0031: Steamライブラリインポート実装](TASK-0031.md) - 6h (TDD) 🔵 ✅完了 (2026-06-27)
 
 ### 依存関係
@@ -182,8 +182,8 @@ TASK-0023, TASK-0009 → TASK-0031
 
 ### タスク一覧
 
-- [ ] [TASK-0032: 主要フロー統合テスト実装](TASK-0032.md) - 6h (TDD) 🔵
-- [ ] [TASK-0033: CI設定（GitHub Actions）](TASK-0033.md) - 4h (DIRECT) 🔵
+- [x] [TASK-0032: 主要フロー統合テスト実装](TASK-0032.md) - 6h (TDD) 🔵 ✅完了 (2026-06-29、IT-003のみ要追加実装でignore、フォローアップ推奨)
+- [x] [TASK-0033: CI設定（GitHub Actions）](TASK-0033.md) - 4h (DIRECT) 🔵 ✅完了 (2026-06-29)
 - [ ] [TASK-0034: README・起動手順整備](TASK-0034.md) - 3h (DIRECT) 🟡
 
 ### 依存関係

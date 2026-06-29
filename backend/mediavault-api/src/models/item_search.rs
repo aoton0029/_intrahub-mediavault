@@ -42,7 +42,8 @@ mod tests {
 
         // 【実際の処理実行】: ItemSearchQueryへのデシリアライズを実行する
         // 【処理内容】: serde::Deserialize実装によるJSON→構造体変換
-        let query: ItemSearchQuery = serde_json::from_value(value).expect("デシリアライズは成功するはず");
+        let query: ItemSearchQuery =
+            serde_json::from_value(value).expect("デシリアライズは成功するはず");
 
         // 【結果検証】: media_type/qが期待値どおりであることを確認
         // 【期待値確認】: snake_caseの"anime"文字列がMediaType::Animeへ正しく変換されることを確認
@@ -76,8 +77,8 @@ mod tests {
         for (raw, expected) in cases {
             // 【実際の処理実行】: 各media_type文字列でItemSearchQueryへデシリアライズする
             let value = serde_json::json!({ "media_type": raw, "q": "x" });
-            let query: ItemSearchQuery =
-                serde_json::from_value(value).unwrap_or_else(|e| panic!("{raw}のデシリアライズに失敗: {e}"));
+            let query: ItemSearchQuery = serde_json::from_value(value)
+                .unwrap_or_else(|e| panic!("{raw}のデシリアライズに失敗: {e}"));
 
             // 【結果検証】: 各variantが正しい対応enum値になることを確認
             assert_eq!(query.media_type, expected); // 【確認内容】: snake_case文字列と enum の1対1対応を確認 🔵

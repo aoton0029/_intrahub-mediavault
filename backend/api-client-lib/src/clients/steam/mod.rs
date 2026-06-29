@@ -135,7 +135,11 @@ impl SteamClient {
         }
 
         let url_str = url.to_string();
-        tracing::debug!(operation = "get_owned_games", steam_id = req.steam_id, "Steam request start");
+        tracing::debug!(
+            operation = "get_owned_games",
+            steam_id = req.steam_id,
+            "Steam request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url_str).await?;
 
         let parsed: GetOwnedGamesWrapper =
@@ -168,7 +172,11 @@ impl SteamClient {
             "{}/api/appdetails?appids={}",
             self.store_base_url, req.app_id
         );
-        tracing::debug!(operation = "get_app_details", app_id = req.app_id, "Steam request start");
+        tracing::debug!(
+            operation = "get_app_details",
+            app_id = req.app_id,
+            "Steam request start"
+        );
         let (status, text, latency_ms) = self.get_json(&url).await?;
 
         // レスポンスは `{"<appid>": {"success": bool, "data": {...}}}` 形式
@@ -233,7 +241,12 @@ impl SteamClient {
         let parsed: StoreSearchWrapper =
             serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
 
-        tracing::debug!(status, latency_ms, result_count = parsed.results.len(), "Steam store_search OK");
+        tracing::debug!(
+            status,
+            latency_ms,
+            result_count = parsed.results.len(),
+            "Steam store_search OK"
+        );
 
         Ok(ApiResponse {
             request: RequestResult {

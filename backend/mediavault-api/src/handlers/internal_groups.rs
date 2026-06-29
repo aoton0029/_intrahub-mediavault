@@ -2,16 +2,16 @@
 //!
 //! TASK-0029: 内部REST APIルート群実装（/internal/items等）
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::item_group::{CreateItemGroupRequest, ItemGroup};
 use crate::models::response::ApiError;
 use crate::repositories::item_group_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /internal/items/:id/groups` ハンドラ。巡回バッチからの話数同期用に、
 /// 同一(item_id, group_type, number)のグループが既に存在する場合は更新、なければ新規作成する
@@ -31,5 +31,9 @@ pub async fn upsert_item_group_handler(
 }
 
 fn created_response(group: ItemGroup) -> axum::response::Response {
-    (StatusCode::CREATED, Json(crate::models::response::ApiOk::new(group))).into_response()
+    (
+        StatusCode::CREATED,
+        Json(crate::models::response::ApiOk::new(group)),
+    )
+        .into_response()
 }

@@ -124,8 +124,8 @@ mod tests {
 
         // 【実際の処理実行】: upsert_api_credentialを新規状態に対して呼び出す
         // 【処理内容】: INSERT ... ON CONFLICT ... の実行
-        let result = upsert_api_credential(&pool, ApiProvider::Tmdb, "valid-tmdb-key".to_string())
-            .await;
+        let result =
+            upsert_api_credential(&pool, ApiProvider::Tmdb, "valid-tmdb-key".to_string()).await;
 
         // 【結果検証】: 戻り値の内容とDB再取得結果を確認する
         // 【期待値確認】: 行が重複生成されず1件のみであることが重要
@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(credential.api_key, "valid-tmdb-key"); // 【確認内容】: api_keyが指定値で保存されることを確認 🔵
     }
 
-    /// TC-015-01-C相当: ハンドラ統合はroutes/mod.rsの統合テストで実施（本ファイルはリポジトリ層のみ）
+    // TC-015-01-C相当: ハンドラ統合はroutes/mod.rsの統合テストで実施（本ファイルはリポジトリ層のみ）
 
     /// TC-015-03-A: キー更新が`find_by_provider`に反映される（upsert+取得、実DB統合）
     /// 🔵 信頼性レベル: 要件定義書シナリオ3・REQ-0022-03・REQ-0022-06より

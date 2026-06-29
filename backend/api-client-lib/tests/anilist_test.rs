@@ -1,7 +1,7 @@
-use api_client_lib::clients::anilist::requests::{MediaDetailsRequest, MediaSearchRequest};
-use api_client_lib::clients::anilist::AniListClient;
 use api_client_lib::auth::AuthStrategy;
 use api_client_lib::clients::anilist::requests::MediaType;
+use api_client_lib::clients::anilist::requests::{MediaDetailsRequest, MediaSearchRequest};
+use api_client_lib::clients::anilist::AniListClient;
 
 #[tokio::test]
 async fn search_media_returns_results() {

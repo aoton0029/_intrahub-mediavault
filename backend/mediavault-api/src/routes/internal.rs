@@ -8,15 +8,15 @@
 //! Phase2/Phase4で実装済みのitems/groups/episodes/filesハンドラ・サービス層を
 //! 再利用し、内部API固有のロジック（groups/episodesのupsert）のみ薄いラッパーで追加する。
 
-use axum::routing::{get, patch, post};
 use axum::Router;
+use axum::routing::{get, patch, post};
 
+use crate::AppState;
 use crate::handlers::internal_episodes::upsert_item_episode_handler;
 use crate::handlers::internal_groups::upsert_item_group_handler;
 use crate::handlers::item_files::create_item_file_handler;
 use crate::handlers::items::{create_item_handler, list_items_handler, update_item_handler};
 use crate::middleware::api_key_auth::api_key_auth;
-use crate::AppState;
 
 /// `/internal` 専用Routerを構築する。
 ///
@@ -38,23 +38,20 @@ pub fn build_internal_router(state: AppState) -> Router {
             "/internal/groups/:group_id/episodes",
             post(upsert_item_episode_handler),
         )
-        .route(
-            "/internal/items/:id/files",
-            post(create_item_file_handler),
-        )
+        .route("/internal/items/:id/files", post(create_item_file_handler))
         .layer(axum::middleware::from_fn(api_key_auth))
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
+    use axum::Router;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use axum::Router;
     use tower::ServiceExt;
 
-    use crate::routes::internal::build_internal_router;
     use crate::AppState;
+    use crate::routes::internal::build_internal_router;
 
     /// 【テスト用ヘルパー】: `/internal` ルーティング統合テスト用にAppStateを構築する。
     /// DATABASE_URL環境変数（テスト用Postgres）への接続が必要なため、本ヘルパーを使う
@@ -389,9 +386,7 @@ mod tests {
             .unwrap();
 
         // 【結果検証】: 2回目もエラーにならず（201または200）、更新後タイトルが反映されることを確認する
-        assert!(
-            second.status() == StatusCode::CREATED || second.status() == StatusCode::OK
-        ); // 【確認内容】: 同一グループの再送がエラーにならずupsertとして処理されることを確認 🔵
+        assert!(second.status() == StatusCode::CREATED || second.status() == StatusCode::OK); // 【確認内容】: 同一グループの再送がエラーにならずupsertとして処理されることを確認 🔵
         let body_bytes = axum::body::to_bytes(second.into_body(), usize::MAX)
             .await
             .unwrap();
@@ -714,9 +709,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!(
-                        "/internal/groups/{nonexistent_group_id}/episodes"
-                    ))
+                    .uri(format!("/internal/groups/{nonexistent_group_id}/episodes"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"episode_number":1,"title":"第1話"}"#))

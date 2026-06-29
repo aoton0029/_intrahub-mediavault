@@ -60,7 +60,9 @@ pub const BOOKLOG_CSV_HEADER: &str = "作品名,感想/レビュー,読了日,�
 ///   3. rating_rawが空文字でなければ`f32`としてパース（失敗時は"invalid rating"、TC-E-03）
 ///   4. media_typeは固定でNovel（設計判断#2、TC-N-06）
 ///   5. external_idは空文字をNoneへ正規化（TC-N-03・TC-N-07）
+///
 /// 【テスト対応】: TC-N-02, TC-N-03, TC-N-06, TC-N-07, TC-E-01, TC-E-02, TC-E-03, TC-B-06
+///
 /// 🔵 信頼性レベル: 要件定義書3章・4章（型変換失敗時のスキップ＋reason記録）に直接対応
 pub fn parse_booklog_csv_row(
     row: BooklogCsvRow,
@@ -166,7 +168,9 @@ pub fn parse_booklog_csv(bytes: &[u8]) -> (Vec<ParsedBooklogRow>, Vec<ImportFail
     let mut successes = Vec::new();
     let mut failures = Vec::new();
 
-    let mut reader = csv::ReaderBuilder::new().has_headers(true).from_reader(bytes);
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .from_reader(bytes);
 
     // 【行単位処理】: csv crateのレコードイテレータで1行ずつデシリアライズ・バリデーションする 🔵
     for (idx, result) in reader.deserialize::<BooklogCsvRow>().enumerate() {
@@ -229,7 +233,9 @@ mod tests {
 
         // 【実際の処理実行】: csv crateで1行デシリアライズする
         // 【処理内容】: BooklogCsvRowへのヘッダーベースマッピングを確認する
-        let mut reader = csv::ReaderBuilder::new().has_headers(true).from_reader(bytes.as_slice());
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(true)
+            .from_reader(bytes.as_slice());
         let row: BooklogCsvRow = reader.deserialize().next().unwrap().unwrap();
 
         // 【結果検証】: 各フィールドが期待値どおりであることを確認
@@ -325,10 +331,7 @@ mod tests {
         let external_id_without_isbn = extract_external_id(&row_without_isbn);
 
         // 【結果検証】: ISBN値の有無に応じてexternal_idが正しく設定されることを確認
-        assert_eq!(
-            external_id_with_isbn,
-            Some("9784101010014".to_string())
-        ); // 【確認内容】: ISBN値ありの場合external_idへ反映されることを確認 🔵
+        assert_eq!(external_id_with_isbn, Some("9784101010014".to_string())); // 【確認内容】: ISBN値ありの場合external_idへ反映されることを確認 🔵
         assert_eq!(external_id_without_isbn, None); // 【確認内容】: ISBN空文字の場合external_idがNoneになることを確認（TC-N-03と整合） 🔵
     }
 
@@ -500,11 +503,7 @@ mod tests {
     fn parse_booklog_csv_row_number_starts_at_one_and_excludes_header() {
         // 【テストデータ準備】: 先頭データ不正・中間正常・末尾データ不正の3行を用意する
         // 【初期条件設定】: オフバイワン（ヘッダーを誤って1行目として数える等）の防止確認
-        let bytes = csv_bytes(&[
-            ",,,,",
-            "吾輩は猫である,,,,",
-            ",,,,",
-        ]);
+        let bytes = csv_bytes(&[",,,,", "吾輩は猫である,,,,", ",,,,"]);
 
         // 【実際の処理実行】: parse_booklog_csvを呼び出す
         // 【処理内容】: 行番号採番ロジック（ヘッダー非カウント・1始まり）を確認する

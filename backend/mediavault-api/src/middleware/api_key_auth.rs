@@ -33,10 +33,10 @@ pub async fn api_key_auth(req: Request, next: Next) -> Result<Response, ApiError
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::Router;
     use axum::body::Body;
     use axum::http::{Request as HttpRequest, StatusCode};
     use axum::routing::get;
-    use axum::Router;
     use tower::ServiceExt;
 
     const TEST_KEY: &str = "secret-key";

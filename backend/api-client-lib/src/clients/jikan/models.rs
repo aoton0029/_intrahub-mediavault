@@ -312,7 +312,11 @@ impl From<JikanStaffRaw> for JikanStaffModel {
         JikanStaffModel {
             mal_id: r.person.mal_id,
             name: r.person.name,
-            image_url: r.person.images.and_then(|i| i.jpg).and_then(|j| j.image_url),
+            image_url: r
+                .person
+                .images
+                .and_then(|i| i.jpg)
+                .and_then(|j| j.image_url),
             positions: r.positions,
         }
     }
@@ -389,21 +393,45 @@ pub(super) struct JikanVideosResponse {
     pub data: JikanVideosDataRaw,
 }
 
-fn trailer_to_promo(title: Option<String>, trailer: Option<JikanTrailerRaw>) -> JikanVideoPromoModel {
+fn trailer_to_promo(
+    title: Option<String>,
+    trailer: Option<JikanTrailerRaw>,
+) -> JikanVideoPromoModel {
     let (youtube_id, url, embed_url, image_url) = trailer
-        .map(|t| (t.youtube_id, t.url, t.embed_url, t.images.and_then(|i| i.image_url)))
+        .map(|t| {
+            (
+                t.youtube_id,
+                t.url,
+                t.embed_url,
+                t.images.and_then(|i| i.image_url),
+            )
+        })
         .unwrap_or_default();
-    JikanVideoPromoModel { title, youtube_id, url, embed_url, image_url }
+    JikanVideoPromoModel {
+        title,
+        youtube_id,
+        url,
+        embed_url,
+        image_url,
+    }
 }
 
 impl From<JikanVideosDataRaw> for JikanVideosModel {
     fn from(r: JikanVideosDataRaw) -> Self {
         JikanVideosModel {
-            promo: r.promo.into_iter().map(|p| trailer_to_promo(p.title, p.trailer)).collect(),
-            music_videos: r.music_videos.into_iter().map(|mv| {
-                let title = mv.meta.and_then(|m| m.title).or(mv.title);
-                trailer_to_promo(title, mv.video)
-            }).collect(),
+            promo: r
+                .promo
+                .into_iter()
+                .map(|p| trailer_to_promo(p.title, p.trailer))
+                .collect(),
+            music_videos: r
+                .music_videos
+                .into_iter()
+                .map(|mv| {
+                    let title = mv.meta.and_then(|m| m.title).or(mv.title);
+                    trailer_to_promo(title, mv.video)
+                })
+                .collect(),
         }
     }
 }

@@ -21,7 +21,10 @@ use crate::models::staff::{ItemStaff, Staff};
 /// 🔵 信頼性レベル: item_relation_repository::db_errorと対称
 fn db_error(err: sqlx::Error) -> ApiError {
     tracing::error!("staff repository db error: {err}");
-    ApiError::new(ApiErrorCode::InternalError, "スタッフの登録処理に失敗しました")
+    ApiError::new(
+        ApiErrorCode::InternalError,
+        "スタッフの登録処理に失敗しました",
+    )
 }
 
 /// 【機能概要】: 指定したitem_idがitemsテーブルに存在するか確認する
@@ -205,7 +208,10 @@ mod tests {
         // 【結果検証】: 全フィールドが入力値と一致すること
         let staff = result.expect("create_staffは成功するはず"); // 【確認内容】: 作成が成功することを確認 🔵
         assert_eq!(staff.external_id, Some("anilist-12345".to_string())); // 【確認内容】: external_idが保持されることを確認 🔵
-        assert_eq!(staff.image_url, Some("https://example.com/b.png".to_string())); // 【確認内容】: image_urlが保持されることを確認 🔵
+        assert_eq!(
+            staff.image_url,
+            Some("https://example.com/b.png".to_string())
+        ); // 【確認内容】: image_urlが保持されることを確認 🔵
     }
 
     /// TC-N-03: 既存item・既存staffに対しrole指定で紐付けが成功する（character_nameなし）
@@ -278,7 +284,14 @@ mod tests {
         let nonexistent_staff_id = Uuid::new_v4();
 
         // 【実際の処理実行】: link_staff repository関数を直接呼び出す
-        let result = link_staff(&pool, item_id, nonexistent_staff_id, "監督".to_string(), None).await;
+        let result = link_staff(
+            &pool,
+            item_id,
+            nonexistent_staff_id,
+            "監督".to_string(),
+            None,
+        )
+        .await;
 
         // 【結果検証】: Errであり、エラーコードがSTAFF_NOT_FOUNDであること
         let err = result.expect_err("不存在staff_idはエラーになるはず"); // 【確認内容】: エラーが返ることを確認 🔵
@@ -301,7 +314,14 @@ mod tests {
         let staff_id = Uuid::new_v4();
 
         // 【実際の処理実行】: link_staff repository関数を直接呼び出す
-        let result = link_staff(&pool, nonexistent_item_id, staff_id, "監督".to_string(), None).await;
+        let result = link_staff(
+            &pool,
+            nonexistent_item_id,
+            staff_id,
+            "監督".to_string(),
+            None,
+        )
+        .await;
 
         // 【結果検証】: Errであり、エラーコードがITEM_NOT_FOUNDであること
         let err = result.expect_err("不存在item_idはエラーになるはず"); // 【確認内容】: エラーが返ることを確認 🟡
@@ -405,11 +425,12 @@ mod tests {
             .expect("staff削除に失敗");
 
         // 【結果検証】: item_staffに当該staff_idを参照する行が残っていないこと
-        let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM item_staff WHERE staff_id = $1")
-            .bind(staff.id)
-            .fetch_one(&pool)
-            .await
-            .expect("COUNT取得に失敗");
+        let remaining: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM item_staff WHERE staff_id = $1")
+                .bind(staff.id)
+                .fetch_one(&pool)
+                .await
+                .expect("COUNT取得に失敗");
         assert_eq!(remaining, 0); // 【確認内容】: CASCADE削除により孤立した参照行が残らないことを確認 🟡
     }
 }

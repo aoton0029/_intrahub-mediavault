@@ -10,16 +10,16 @@
 //! 【テスト対応】: TC-N-01, TC-N-05, TC-E-06, TC-E-07, TC-E-08, TC-B-01〜TC-B-03, TC-B-05
 //! 🔵🟡 信頼性レベル: api-endpoints.md「POST /import/booklog」・要件定義書2章・3章に基づく
 
+use axum::Json;
 use axum::extract::{Multipart, State};
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::import::booklog_csv::parse_booklog_csv;
 use crate::models::import::{ImportFailure, ImportSummary};
 use crate::models::item::ItemSource;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::item_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /import/booklog`ハンドラ本体
 /// 【実装方針】:
@@ -29,6 +29,7 @@ use crate::AppState;
 ///   4. 成功行を`create_item_with_source`（source=Manual, external_id=ISBN）で登録
 ///   5. DB登録自体が失敗した行はfailureとして記録し処理継続する（TC-E-08方針: スキップ扱い）
 ///   6. すべての処理結果を`ImportSummary`として200で返す（全行不正でも200、TC-016-E01）
+///
 /// 🔵 信頼性レベル: api-endpoints.md「POST /import/booklog」・要件定義書2章データフローに直接対応
 pub async fn import_booklog_handler(
     State(state): State<AppState>,
@@ -59,9 +60,8 @@ pub async fn import_booklog_handler(
     }
 
     // 【必須条件検証】: ファイル未添付はVALIDATION_ERROR（TC-E-06） 🔵
-    let file_bytes = file_bytes.ok_or_else(|| {
-        ApiError::new(ApiErrorCode::ValidationError, "fileは必須です")
-    })?;
+    let file_bytes =
+        file_bytes.ok_or_else(|| ApiError::new(ApiErrorCode::ValidationError, "fileは必須です"))?;
 
     // 【必須条件検証】: 0バイトはVALIDATION_ERROR（TC-E-07）。データ0行（ヘッダーのみ）とは区別する 🔵
     if file_bytes.is_empty() {

@@ -2,16 +2,16 @@
 //!
 //! TASK-0021: item_links CRUD実装（handlers/item_relations.rsと対称な構造）
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
-use crate::models::item_link::{parse_create_item_link_request, CreateItemLinkRequest, ItemLink};
+use crate::models::item_link::{CreateItemLinkRequest, ItemLink, parse_create_item_link_request};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::item_link_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /items/:id/links` ハンドラ。url(必須)/label(必須)を受け取りリンクを作成する
 /// 🔵 信頼性レベル: api-endpoints.md POST /items/:id/links・TASK-0021 完了条件1 に直接対応

@@ -2,16 +2,16 @@
 //!
 //! TASK-0018: item_groups CRUD実装（handlers/item_relations.rsと対称な構造）
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::item_group::{CreateItemGroupRequest, ItemGroup};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::item_group_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /items/:id/groups` ハンドラ。group_type, group_name等を受け取りグループを作成する
 /// 🔵 信頼性レベル: api-endpoints.md POST /items/:id/groups リクエスト例より

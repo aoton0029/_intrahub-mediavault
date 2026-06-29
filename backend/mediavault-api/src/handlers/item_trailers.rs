@@ -2,18 +2,18 @@
 //!
 //! TASK-0021: item_trailers CRUD実装（handlers/item_links.rsと対称な構造。labelはoptional）
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::item_trailer::{
-    parse_create_item_trailer_request, CreateItemTrailerRequest, ItemTrailer,
+    CreateItemTrailerRequest, ItemTrailer, parse_create_item_trailer_request,
 };
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::item_trailer_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /items/:id/trailers` ハンドラ。url(必須)/label(optional)を受け取りトレーラーを作成する
 /// 🔵 信頼性レベル: api-endpoints.md POST /items/:id/trailers・TASK-0021 完了条件3 に直接対応

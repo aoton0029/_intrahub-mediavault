@@ -2,16 +2,16 @@
 //!
 //! TASK-0015: タグ・カテゴリCRUD実装
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
-use crate::models::tag::{validate_tag_name, CreateTagRequest, Tag};
+use crate::models::tag::{CreateTagRequest, Tag, validate_tag_name};
 use crate::repositories::tag_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /tags` ハンドラ。タグ名を受け取りタグを作成する
 /// 【実装方針】: items系ハンドラと同様にデシリアライズ→バリデーション→DB登録→201レスポンスの順で処理する

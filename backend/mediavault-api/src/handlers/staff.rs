@@ -5,19 +5,19 @@
 //! 【実装状況】: Greenフェーズで全ハンドラを実装済み。ルーター経由の統合テストは
 //! 実DB接続（DATABASE_URL）が必要なため#[ignore]を付与している。
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 
+use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::models::staff::{
-    parse_create_item_staff_request, parse_create_staff_request, CreateItemStaffRequest,
-    CreateStaffRequest, ItemStaff, Staff,
+    CreateItemStaffRequest, CreateStaffRequest, ItemStaff, Staff, parse_create_item_staff_request,
+    parse_create_staff_request,
 };
 use crate::repositories::staff_repository;
-use crate::AppState;
 
 /// 【機能概要】: `POST /staff` ハンドラ。name(必須)/external_id(optional)/image_url(optional)を受け取りスタッフを作成する
 /// 【実装方針】: deserialize_request → parse_create_staff_request → repository::create_staff → 201応答
@@ -161,7 +161,9 @@ mod tests {
                     .method("POST")
                     .uri("/staff")
                     .header("content-type", "application/json")
-                    .body(Body::from(serde_json::json!({ "name": "監督A" }).to_string()))
+                    .body(Body::from(
+                        serde_json::json!({ "name": "監督A" }).to_string(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -260,7 +262,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("DELETE")
-                    .uri(format!("/items/{item_id}/staff/{nonexistent_item_staff_id}"))
+                    .uri(format!(
+                        "/items/{item_id}/staff/{nonexistent_item_staff_id}"
+                    ))
                     .body(Body::empty())
                     .unwrap(),
             )

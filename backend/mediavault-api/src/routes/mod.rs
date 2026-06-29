@@ -5,10 +5,11 @@
 
 pub mod internal;
 
+use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::get;
-use axum::Router;
 
+use crate::AppState;
 use crate::handlers::categories::{
     attach_category_handler, create_category_handler, delete_category_handler,
     detach_category_handler,
@@ -24,21 +25,20 @@ use crate::handlers::item_groups::{create_item_group_handler, list_item_groups_h
 use crate::handlers::item_links::{create_item_link_handler, delete_item_link_handler};
 use crate::handlers::item_relations::{create_item_relation_handler, delete_item_relation_handler};
 use crate::handlers::item_trailers::{create_item_trailer_handler, delete_item_trailer_handler};
-use crate::handlers::mylists::{
-    add_mylist_item_handler, create_mylist_handler, remove_mylist_item_handler,
-};
-use crate::handlers::settings::update_api_key_handler;
 use crate::handlers::items::{
     create_item_handler, delete_item_handler, get_item_handler, import_item_handler,
     list_items_handler, search_items_handler, update_item_handler, update_item_status_handler,
 };
+use crate::handlers::mylists::{
+    add_mylist_item_handler, create_mylist_handler, remove_mylist_item_handler,
+};
+use crate::handlers::settings::update_api_key_handler;
 use crate::handlers::staff::{
     create_item_staff_handler, create_staff_handler, delete_item_staff_handler,
 };
 use crate::handlers::tags::{
     attach_tag_handler, create_tag_handler, delete_tag_handler, detach_tag_handler,
 };
-use crate::AppState;
 
 /// アプリケーション全体のRouterを構築する。
 /// Phase 2以降のルートはこのRouterに `.merge()` や `.nest()` で追加していく。
@@ -62,7 +62,10 @@ pub fn build_router(state: AppState) -> Router {
                 .delete(delete_item_handler),
         )
         // 【TASK-0014】: PATCH /items/:id/status（視聴・読了状況更新専用エンドポイント） 🔵
-        .route("/items/:id/status", axum::routing::patch(update_item_status_handler))
+        .route(
+            "/items/:id/status",
+            axum::routing::patch(update_item_status_handler),
+        )
         // 【TASK-0015】: タグCRUD・アイテムへの付与・削除 🔵🟡
         .route("/tags", axum::routing::post(create_tag_handler))
         .route("/tags/:id", axum::routing::delete(delete_tag_handler))

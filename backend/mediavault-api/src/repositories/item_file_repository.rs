@@ -88,9 +88,8 @@ pub async fn update_calibre_link(
     .await
     .map_err(db_error)?;
 
-    let existing = existing.ok_or_else(|| {
-        ApiError::new(ApiErrorCode::FileNotFound, "ファイルが見つかりません")
-    })?;
+    let existing = existing
+        .ok_or_else(|| ApiError::new(ApiErrorCode::FileNotFound, "ファイルが見つかりません"))?;
 
     // 【file_type検証】: pdf以外への紐付けはVALIDATION_ERROR(400)で拒否する。
     // 不存在(404)と区別するため、取得済み行に対してここで判定する 🔵
@@ -224,25 +223,19 @@ mod tests {
         let item_id = insert_test_item(&pool).await;
         let file_id = insert_test_item_file(&pool, item_id, FileType::Pdf).await;
 
-        let result = update_calibre_link(
-            &pool,
-            item_id,
-            file_id,
-            "calibre-12345".to_string(),
-        )
-        .await;
+        let result =
+            update_calibre_link(&pool, item_id, file_id, "calibre-12345".to_string()).await;
 
         let file = result.expect("pdf行の更新は成功するはず");
         assert_eq!(file.calibre_book_id, Some("calibre-12345".to_string())); // 【確認内容】: RETURNINGの値がcalibre-12345に更新されていることを確認 🔵
         assert_eq!(file.file_type, FileType::Pdf); // 【確認内容】: file_typeがpdfのまま変更されていないことを確認 🔵
 
-        let persisted: Option<String> = sqlx::query_scalar(
-            "SELECT calibre_book_id FROM item_files WHERE id = $1",
-        )
-        .bind(file_id)
-        .fetch_one(&pool)
-        .await
-        .expect("再取得に失敗しました");
+        let persisted: Option<String> =
+            sqlx::query_scalar("SELECT calibre_book_id FROM item_files WHERE id = $1")
+                .bind(file_id)
+                .fetch_one(&pool)
+                .await
+                .expect("再取得に失敗しました");
         assert_eq!(persisted, Some("calibre-12345".to_string())); // 【確認内容】: DB上の値も永続的に更新されていることを確認 🔵
     }
 
@@ -284,24 +277,18 @@ mod tests {
         let item_id = insert_test_item(&pool).await;
         let file_id = insert_test_item_file(&pool, item_id, FileType::Image).await;
 
-        let result = update_calibre_link(
-            &pool,
-            item_id,
-            file_id,
-            "calibre-12345".to_string(),
-        )
-        .await;
+        let result =
+            update_calibre_link(&pool, item_id, file_id, "calibre-12345".to_string()).await;
 
         let err = result.unwrap_err();
         assert_eq!(err.error.code, "VALIDATION_ERROR"); // 【確認内容】: 存在するがpdfでない行はVALIDATION_ERROR(400)になることを確認 🔵
 
-        let persisted: Option<String> = sqlx::query_scalar(
-            "SELECT calibre_book_id FROM item_files WHERE id = $1",
-        )
-        .bind(file_id)
-        .fetch_one(&pool)
-        .await
-        .expect("再取得に失敗しました");
+        let persisted: Option<String> =
+            sqlx::query_scalar("SELECT calibre_book_id FROM item_files WHERE id = $1")
+                .bind(file_id)
+                .fetch_one(&pool)
+                .await
+                .expect("再取得に失敗しました");
         assert_eq!(persisted, None); // 【確認内容】: 拒否時にDBが変更されていない（calibre_book_idがNULLのまま）ことを確認 🔵
     }
 }

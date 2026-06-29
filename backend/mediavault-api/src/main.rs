@@ -1,24 +1,11 @@
 //! mediavault-api エントリポイント
 //!
 //! TASK-0007: Axumルーター骨格・DB接続プール設定・main.rs実装
+//! TASK-0032: `tests/`統合テストからクレート内部を参照可能にするため、モジュール宣言・
+//! `AppState`定義は`lib.rs`へ移動した。本ファイルは`mediavault_api::*`を利用する薄い
+//! エントリポイントとする（振る舞いの変更なし）。
 
-mod db;
-mod handlers;
-mod import;
-mod middleware;
-mod models;
-mod repositories;
-mod routes;
-mod services;
-
-use sqlx::PgPool;
-
-/// Axumハンドラ間で共有するアプリケーション状態
-#[derive(Clone)]
-pub struct AppState {
-    pub db: PgPool,
-    pub internal_api_key: String,
-}
+use mediavault_api::{AppState, db, routes};
 
 #[tokio::main]
 async fn main() {
@@ -45,7 +32,8 @@ async fn main() {
         internal_api_key,
     };
 
-    let app = routes::build_router(state.clone()).merge(routes::internal::build_internal_router(state));
+    let app =
+        routes::build_router(state.clone()).merge(routes::internal::build_internal_router(state));
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)
