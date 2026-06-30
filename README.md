@@ -32,6 +32,29 @@ yarn create vite . --template react-ts
 yarn install
 ```
 
+採用パッケージ: react-router-dom v7, @tanstack/react-query v5, react-hook-form, zod, sonner, Tailwind CSS v4 + shadcn/ui（`components.json`、`@/`エイリアス）, Vitest + Testing Library, Playwright。
+
+### 開発コマンド
+```bash
+cd frontend
+yarn dev        # 開発サーバー起動
+yarn build      # 型チェック+ビルド
+yarn lint       # ESLint
+yarn test       # Vitestユニットテスト
+yarn test:watch # Vitestウォッチモード
+yarn test:e2e   # Playwright E2Eテスト（初回は npx playwright install が必要）
+```
+
+### shadcn/uiコンポーネント追加
+```bash
+cd frontend
+npx shadcn@latest add <component-name>
+```
+
+### トラブルシューティング: shadcn CLIの「Could not load the workspace config」エラー
+
+`package.json`が`"type": "module"`のESM環境のため、`vite.config.ts`・`vitest.config.ts`で`__dirname`を直接使うとshadcn CLIのワークスペース設定読み込みに失敗する。`path.dirname(fileURLToPath(import.meta.url))`で算出すること。また`tsconfig.json`（ルート）にも`compilerOptions.paths`（`@/*` → `./src/*`）を設定する必要がある（`tsconfig.app.json`のみでは`tsconfig-paths`が解決できない）。
+
 ## 詳細
 - バックエンドの詳細草案（機能要件・内部REST API・データベース・api-client-lib）は[backend/docs/PRD.md](../backend/docs/PRD.md)を参照。
 - フロントエンドの詳細草案（UI機能要件・画面構成）は[frontend/docs/PRD.md](../frontend/docs/PRD.md)を参照。
