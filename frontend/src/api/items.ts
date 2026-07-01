@@ -158,6 +158,39 @@ export function useDeleteItemMutation() {
 }
 
 /**
+ * 【機能概要】: アイテム新規作成ミューテーションフック
+ * 🔵 TASK-0026.md 実装内容2より
+ */
+export function useCreateItemMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: import('@/types').CreateItemRequest) =>
+      apiClient<import('@/types').Item>('/items', { method: 'POST', body }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+    },
+  });
+}
+
+/**
+ * 【機能概要】: アイテム更新ミューテーションフック
+ * 🔵 TASK-0026.md 実装内容2より
+ */
+export function useUpdateItemMutation(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: import('@/types').UpdateItemRequest) =>
+      apiClient<import('@/types').Item>(`/items/${id}`, { method: 'PATCH', body }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['items', 'detail', id] });
+    },
+  });
+}
+
+/**
  * 【機能概要】: アイテムステータス更新ミューテーションフック
  * 【実装方針】: 成功時に一覧クエリと対象の詳細クエリを両方無効化
  * 【テスト対応】: TC-IQ-N-09, TC-IQ-N-10, TC-IQ-E-03

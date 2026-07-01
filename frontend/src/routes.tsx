@@ -11,6 +11,7 @@ import MyListsPage from './pages/MyListsPage';
 import TagsCategoriesPage from './pages/TagsCategoriesPage';
 import StaffPage from './pages/StaffPage';
 import SettingsPage from './pages/SettingsPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 export const router = createBrowserRouter([
   {
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       { path: 'tags-categories', element: <TagsCategoriesPage /> },
       { path: 'staff', element: <StaffPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ]);

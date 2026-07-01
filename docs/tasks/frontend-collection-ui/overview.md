@@ -113,7 +113,7 @@ TASK-0015, TASK-0006 → TASK-0016
 ### タスク一覧
 
 - [ ] [TASK-0017: ItemDetailPage基本実装](TASK-0017.md) - 8h (TDD) 🔵
-- [ ] [TASK-0018: groups/episodes APIフック・GroupSection実装](TASK-0018.md) - 8h (TDD) 🔵
+- [x] [TASK-0018: groups/episodes APIフック・GroupSection実装](TASK-0018.md) - 8h (TDD) 🔵 ✅ 完了 (2026-07-01)
 - [ ] [TASK-0019: 関連付け(relations)管理UI実装](TASK-0019.md) - 6h (TDD) 🔵
 - [ ] [TASK-0020: リンク・ファイル・トレーラー管理UI実装](TASK-0020.md) - 8h (TDD) 🔵
 - [ ] [TASK-0021: ファイルアップロード機能実装](TASK-0021.md) - 6h (TDD) 🟡
