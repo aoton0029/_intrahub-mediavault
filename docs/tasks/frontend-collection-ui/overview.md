@@ -62,7 +62,7 @@
 - [ ] [TASK-0005: apiClient実装](TASK-0005.md) - 6h (TDD) 🔵
 - [x] [TASK-0006: 共通UIコンポーネント実装](TASK-0006.md) - 8h (TDD) 🔵 ✅ 完了 (2026-06-30)
 - [x] [TASK-0007: グローバルナビゲーション実装](TASK-0007.md) - 4h (TDD) 🔵 ✅ 完了 (2026-06-30)
-- [ ] [TASK-0008: 汎用フック実装](TASK-0008.md) - 4h (TDD) 🟡
+- [x] [TASK-0008: 汎用フック実装](TASK-0008.md) - 4h (TDD) 🟡 ✅ 完了 (2026-07-01)
 
 ### 依存関係
 
@@ -84,8 +84,8 @@ TASK-0004, TASK-0005 → Phase 2以降の api/* フック実装
 
 ### タスク一覧
 
-- [ ] [TASK-0009: items APIフック実装](TASK-0009.md) - 6h (TDD) 🔵
-- [ ] [TASK-0010: FilterBarコンポーネント詳細実装](TASK-0010.md) - 6h (TDD) 🔵
+- [x] [TASK-0009: items APIフック実装](TASK-0009.md) - 6h (TDD) 🔵 ✅ 完了 (2026-07-01)
+- [x] [TASK-0010: FilterBarコンポーネント詳細実装](TASK-0010.md) - 6h (TDD) 🔵 ✅ 完了 (2026-07-01)
 - [ ] [TASK-0011: HomePage(全体一覧)実装](TASK-0011.md) - 6h (TDD) 🔵
 - [ ] [TASK-0012: GeneralListPage実装](TASK-0012.md) - 4h (TDD) 🔵
 - [ ] [TASK-0013: AcademicListPage実装](TASK-0013.md) - 4h (TDD) 🔵
