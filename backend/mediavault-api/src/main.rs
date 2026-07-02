@@ -32,8 +32,12 @@ async fn main() {
         internal_api_key,
     };
 
-    let app =
-        routes::build_router(state.clone()).merge(routes::internal::build_internal_router(state));
+    // REQ-007/REQ-009・architecture.md「API設計: /api/v1 配下」に対応するため、
+    // 公開APIのみ /api/v1 配下にnestする。/internal/* は内部プロセス直結用のため
+    // バージョンプレフィックスを付与しない（REQ-402の境界を維持）。
+    let app = axum::Router::new()
+        .nest("/api/v1", routes::build_router(state.clone()))
+        .merge(routes::internal::build_internal_router(state));
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)

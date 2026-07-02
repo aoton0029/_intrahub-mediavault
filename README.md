@@ -1,5 +1,32 @@
 # MediaVault
 
+## 統合環境（frontend + backend + db）の起動
+
+ローカルでbackend・frontend・dbをまとめて起動し結合確認するための、リポジトリルート専用の統合`docker-compose.yml`。`backend/docker-compose.yml`（backend単体起動用）とは別ファイルであり、既存のbackend単体起動手順に影響しない。
+
+```bash
+# 1. ルートの .env を準備する（.env.example からコピー）
+cp .env.example .env
+
+# 2. backend単体起動用の .env も必要（backend/docker-compose.yml がbuild時に参照）
+cp backend/.env.example backend/.env
+
+# 3. 統合環境を起動する
+docker compose up -d --build
+
+# 4. 起動状態を確認する（frontend/backend/dbの3サービスが Up になっていること。dbは healthy）
+docker compose ps
+```
+
+起動後、ブラウザで [http://localhost](http://localhost) にアクセスする。フロントエンドはnginx経由で配信され、`/api/`宛のリクエストはnginxが自動的にbackend（`http://backend:8080`）へリバースプロキシする。`backend`（8080番）・`db`（5432番）はホストに公開されず、`frontend`（80番）のみアクセス可能。
+
+初回起動時にDBスキーマが空の場合は、`backend/mediavault-api/migrations/`配下のSQLを適用する必要がある（`sqlx-cli`または`psql`を利用）。
+
+停止するには:
+```bash
+docker compose down
+```
+
 ## backend
 ```
 cd backend

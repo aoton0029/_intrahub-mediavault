@@ -65,7 +65,10 @@ pub(super) struct GetOwnedGamesInner {
 pub(super) struct StoreSearchWrapper {
     #[allow(dead_code)]
     pub total: Option<u64>,
-    #[serde(default)]
+    // 【修正】: Steam Store Search APIの実レスポンスはキー名が`items`であり`results`ではないため、
+    // `#[serde(default)]`によりデシリアライズが常に空配列にフォールバックしていた（TASK-0031で未検証のまま追加）。
+    // `rename`で実際のAPIキー名に合わせる 🔵 実APIレスポンス構造の実測に基づく修正
+    #[serde(default, rename = "items")]
     pub results: Vec<SteamStoreSearchResultModel>,
 }
 

@@ -29,7 +29,7 @@
 
 ## 全体進捗
 
-- [ ] Phase 1: バックエンド・フロントエンド結合基盤
+- [x] Phase 1: バックエンド・フロントエンド結合基盤 ✅ 完了 (2026-07-02)
 
 ## マイルストーン
 
@@ -47,13 +47,13 @@
 
 ### タスク一覧
 
-- [ ] [TASK-0001: frontend/Dockerfile 新規作成](TASK-0001.md) - 3h (DIRECT) 🔵
-- [ ] [TASK-0002: frontend/nginx.conf 新規作成](TASK-0002.md) - 3h (DIRECT) 🔵
-- [ ] [TASK-0003: apiClient のデフォルトBASE_URLを相対パス化](TASK-0003.md) - 2h (TDD) 🔵
-- [ ] [TASK-0004: ルート統合用 docker-compose.yml 新規作成](TASK-0004.md) - 4h (DIRECT) 🔵
-- [ ] [TASK-0005: ルート .env.example 整備](TASK-0005.md) - 1h (DIRECT) 🔵
-- [ ] [TASK-0006: 統合環境の起動・疎通・分離結合テスト](TASK-0006.md) - 4h (TDD) 🔵
-- [ ] [TASK-0007: README等への統合起動手順ドキュメント追記](TASK-0007.md) - 1h (DIRECT) 🟡
+- [x] [TASK-0001: frontend/Dockerfile 新規作成](TASK-0001.md) - 3h (DIRECT) 🔵
+- [x] [TASK-0002: frontend/nginx.conf 新規作成](TASK-0002.md) - 3h (DIRECT) 🔵
+- [x] [TASK-0003: apiClient のデフォルトBASE_URLを相対パス化](TASK-0003.md) - 2h (TDD) 🔵
+- [x] [TASK-0004: ルート統合用 docker-compose.yml 新規作成](TASK-0004.md) - 4h (DIRECT) 🔵
+- [x] [TASK-0005: ルート .env.example 整備](TASK-0005.md) - 1h (DIRECT) 🔵
+- [x] [TASK-0006: 統合環境の起動・疎通・分離結合テスト](TASK-0006.md) - 4h (TDD) 🔵
+- [x] [TASK-0007: README等への統合起動手順ドキュメント追記](TASK-0007.md) - 1h (DIRECT) 🟡
 
 ### 依存関係
 

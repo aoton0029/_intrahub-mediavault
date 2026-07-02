@@ -178,6 +178,13 @@ pub fn cleanup_file(writer: &dyn FileWriter, stored: &StoredFile) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// `PDF_STORAGE_PATH` / `MEDIA_STORAGE_PATH` はプロセス全体で共有される環境変数であり、
+    /// cargo testはデフォルトで各`#[test]`関数を別スレッドで並列実行するため、
+    /// 複数のテストが同時にこれらの環境変数をset_var/remove_varすると競合（flaky failure）が起きる。
+    /// このMutexで当該環境変数を触るテスト全体を直列化し、テスト間の独立性を保証する。
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     /// テスト用に一時ベースディレクトリを作成する（`tempfile`クレート使用）。
     /// 🔵 信頼性レベル: テストケース定義書「テストヘルパー」`temp_storage_root()`に対応
@@ -277,6 +284,8 @@ mod tests {
 
         // 【テストデータ準備】: 一時ベースディレクトリと環境変数を設定する
         // 【初期条件設定】: PDF_STORAGE_PATHを一時ディレクトリに切り替える
+        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
+        let _guard = ENV_MUTEX.lock().unwrap();
         let root = temp_storage_root();
         unsafe {
             std::env::set_var("PDF_STORAGE_PATH", root.path());
@@ -292,6 +301,11 @@ mod tests {
         let stored = result.expect("正常書込が成功するはず");
         assert!(!stored.relative_path.starts_with('/')); // 【確認内容】: 相対パスが先頭'/'を持たないことを確認 🔵
         assert!(root.path().join(&stored.relative_path).exists()); // 【確認内容】: base.join(相対パス)が実ファイルとして存在することを確認 🔵
+
+        // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
+        unsafe {
+            std::env::remove_var("PDF_STORAGE_PATH");
+        }
     }
 
     /// TC-019-E01-SERVICE: 書込失敗注入（FailingFileWriter）でApiError(FileStorageWriteFailed)が返る
@@ -327,6 +341,8 @@ mod tests {
         // 🔵 信頼性レベル: 要件定義書第1章・TC-019-02・設計決定1（photo→Image・画像ディレクトリ）に対応
 
         // 【テストデータ準備】: 環境変数MEDIA_STORAGE_PATHを一時値に設定する
+        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
+        let _guard = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("MEDIA_STORAGE_PATH", "/tmp/mediavault-test-media");
         }
@@ -335,6 +351,11 @@ mod tests {
 
         // 【結果検証】: 設定した環境変数の値と一致することを確認
         assert_eq!(base, PathBuf::from("/tmp/mediavault-test-media")); // 【確認内容】: Image種別が画像用ベースディレクトリに解決されることを確認 🔵
+
+        // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
+        unsafe {
+            std::env::remove_var("MEDIA_STORAGE_PATH");
+        }
     }
 
     /// TC-019-B05: file_type=OtherはMEDIA_STORAGE_PATH（画像ディレクトリ集約）へ解決される
@@ -347,6 +368,8 @@ mod tests {
         // 🟡 信頼性レベル: 設計決定2（本タスクで確定：otherもphotos集約）に基づく
 
         // 【テストデータ準備】: 環境変数MEDIA_STORAGE_PATHを一時値に設定する
+        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
+        let _guard = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("MEDIA_STORAGE_PATH", "/tmp/mediavault-test-media-other");
         }
@@ -355,6 +378,11 @@ mod tests {
 
         // 【結果検証】: Imageと同一のベースディレクトリへ解決されることを確認
         assert_eq!(base, PathBuf::from("/tmp/mediavault-test-media-other")); // 【確認内容】: Other種別がImageと同一ディレクトリへ集約されることを確認 🟡
+
+        // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
+        unsafe {
+            std::env::remove_var("MEDIA_STORAGE_PATH");
+        }
     }
 
     /// TC-019-01: file_type=PdfはPDF_STORAGE_PATH（PDFディレクトリ）へ解決される
@@ -367,6 +395,8 @@ mod tests {
         // 🔵 信頼性レベル: 要件定義書第1章「pdf→/srv/files/pdf」・TC-019-01に直接対応
 
         // 【テストデータ準備】: 環境変数PDF_STORAGE_PATHを一時値に設定する
+        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
+        let _guard = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("PDF_STORAGE_PATH", "/tmp/mediavault-test-pdf");
         }
@@ -375,6 +405,11 @@ mod tests {
 
         // 【結果検証】: 設定した環境変数の値と一致することを確認
         assert_eq!(base, PathBuf::from("/tmp/mediavault-test-pdf")); // 【確認内容】: Pdf種別が画像用ディレクトリとは異なるPDF専用ディレクトリへ解決されることを確認 🔵
+
+        // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
+        unsafe {
+            std::env::remove_var("PDF_STORAGE_PATH");
+        }
     }
 
     /// TC-019-E07: ベースディレクトリ未設定時もデフォルトが`/srv/*`配下でありカレントディレクトリにならない（REQ-402）
@@ -388,6 +423,8 @@ mod tests {
         // 🟡 信頼性レベル: note.md L296-297・要件定義書REQ-402からの妥当な推測
 
         // 【テストデータ準備】: 環境変数を確実に未設定の状態にする
+        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
+        let _guard = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::remove_var("PDF_STORAGE_PATH");
         }
@@ -401,6 +438,8 @@ mod tests {
         // 【結果検証】: いずれも/srv配下であり、カレントディレクトリ（"."）でないことを確認
         assert!(pdf_base.starts_with("/srv")); // 【確認内容】: PDFデフォルトパスがコンテナ内カレントでなく/srv配下であることを確認 🟡
         assert!(media_base.starts_with("/srv")); // 【確認内容】: 画像デフォルトパスがコンテナ内カレントでなく/srv配下であることを確認 🟡
+
+        // 【テスト後処理】: 環境変数は既に未設定のため追加のクリーンアップは不要
     }
 
     /// IT-019-02: DB登録失敗を模してcleanup_file()で書込済みファイルが削除される
@@ -414,6 +453,8 @@ mod tests {
         // 🟡 信頼性レベル: TC-019-E02・IT-019-02「書込成功後のDB失敗時ファイル削除」より
 
         // 【テストデータ準備】: 一時ディレクトリへ実際に書込んでおく
+        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
+        let _guard = ENV_MUTEX.lock().unwrap();
         let root = temp_storage_root();
         unsafe {
             std::env::set_var("PDF_STORAGE_PATH", root.path());
@@ -428,5 +469,10 @@ mod tests {
         // 【結果検証】: 削除が成功し、ファイルが実在しないことを確認
         assert!(result.is_ok()); // 【確認内容】: cleanup_file()がエラーなく完了することを確認 🟡
         assert!(!stored.absolute_path.exists()); // 【確認内容】: ロールバック後に書込済みファイルが存在しないことを確認 🟡
+
+        // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
+        unsafe {
+            std::env::remove_var("PDF_STORAGE_PATH");
+        }
     }
 }
