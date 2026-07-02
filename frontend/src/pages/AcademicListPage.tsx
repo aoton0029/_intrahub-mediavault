@@ -5,13 +5,13 @@ import { FilterBar } from '@/components/common/FilterBar'
 import { MediaCard } from '@/components/common/MediaCard'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
-import type { FilterState } from '@/types'
+import type { ItemListFilters } from '@/types'
 
 export default function AcademicListPage() {
   const navigate = useNavigate()
   const { filters, setFilters } = useSearchParamsFilter()
 
-  const fixedFilters: FilterState = { ...filters, mediaType: 'academic_book' }
+  const fixedFilters: ItemListFilters = { ...filters, mediaType: 'academic_book' }
   const { data, isLoading, isError, refetch } = useItemsQuery(fixedFilters)
 
   const items = data?.data ?? []
@@ -41,6 +41,12 @@ export default function AcademicListPage() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      <div className="flex items-center justify-end">
+        <Button type="button" size="sm" onClick={() => navigate('/search/academic')}>
+          + 追加する
+        </Button>
+      </div>
+
       <FilterBar
         filters={fixedFilters}
         onChange={next => setFilters({ ...next, mediaType: 'academic_book' })}

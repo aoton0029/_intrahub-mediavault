@@ -22,7 +22,7 @@ export const createItemRequestSchema = z.object({
   homepageUrl: optionalUrl,
   source: z.enum(ITEM_SOURCES),
   externalId: z.string().optional(),
-  details: z.record(z.unknown()).default({}),
+  details: z.record(z.string(), z.unknown()),
 })
 
 export const updateItemRequestSchema = z.object({

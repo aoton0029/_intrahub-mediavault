@@ -67,13 +67,6 @@ const mockGroup: ItemGroup = {
   updatedAt: '2026-07-01T00:00:00Z',
 };
 
-const mockVolumeGroup: ItemGroup = {
-  ...mockGroup,
-  id: 'group-002',
-  groupType: 'volume',
-  groupName: '第1巻',
-};
-
 const mockEpisode: ItemEpisode = {
   id: 'ep-001',
   groupId: 'group-001',

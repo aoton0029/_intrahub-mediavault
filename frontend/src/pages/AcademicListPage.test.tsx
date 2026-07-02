@@ -35,7 +35,7 @@ function makeItem(id: string): Item {
     source: 'manual',
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
-    details: { episodeCount: undefined, seasonCount: undefined, studio: undefined, genreList: [], sourceType: undefined, jikanId: undefined },
+    details: {},
   }
 }
 
@@ -58,7 +58,7 @@ beforeEach(() => {
     data: { data: [], pagination: undefined },
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useItemsQuery>)
+  } as unknown as ReturnType<typeof useItemsQuery>)
   mockNavigate.mockReset()
   mockSetFilters.mockReset()
 })
@@ -102,7 +102,7 @@ describe('AcademicListPage - 一覧表示', () => {
       data: { data: [makeItem('1'), makeItem('2'), makeItem('3')], pagination: undefined },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderPage()
 
@@ -120,7 +120,7 @@ describe('AcademicListPage - 一覧表示', () => {
       data: undefined,
       isLoading: true,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderPage()
 
@@ -133,7 +133,7 @@ describe('AcademicListPage - 一覧表示', () => {
       isLoading: false,
       isError: true,
       refetch: vi.fn(),
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderPage()
 

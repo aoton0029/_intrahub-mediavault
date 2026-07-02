@@ -86,12 +86,12 @@ TASK-0004, TASK-0005 → Phase 2以降の api/* フック実装
 
 - [x] [TASK-0009: items APIフック実装](TASK-0009.md) - 6h (TDD) 🔵 ✅ 完了 (2026-07-01)
 - [x] [TASK-0010: FilterBarコンポーネント詳細実装](TASK-0010.md) - 6h (TDD) 🔵 ✅ 完了 (2026-07-01)
-- [ ] [TASK-0011: HomePage(全体一覧)実装](TASK-0011.md) - 6h (TDD) 🔵
-- [ ] [TASK-0012: GeneralListPage実装](TASK-0012.md) - 4h (TDD) 🔵
-- [ ] [TASK-0013: AcademicListPage実装](TASK-0013.md) - 4h (TDD) 🔵
-- [ ] [TASK-0014: PaperListPage実装](TASK-0014.md) - 4h (TDD) 🔵
-- [ ] [TASK-0015: 外部API検索フック実装](TASK-0015.md) - 6h (TDD) 🔵
-- [ ] [TASK-0016: SearchAddPage実装](TASK-0016.md) - 8h (TDD) 🔵
+- [x] [TASK-0011: HomePage(全体一覧)実装](TASK-0011.md) - 6h (TDD) 🔵 ✅ 完了 (2026-07-02確認)
+- [x] [TASK-0012: GeneralListPage実装](TASK-0012.md) - 4h (TDD) 🔵 ✅ 完了 (2026-07-02確認)
+- [x] [TASK-0013: AcademicListPage実装](TASK-0013.md) - 4h (TDD) 🔵 ✅ 完了 (2026-07-02確認)
+- [x] [TASK-0014: PaperListPage実装](TASK-0014.md) - 4h (TDD) 🔵 ✅ 完了 (2026-07-02確認)
+- [x] [TASK-0015: 外部API検索フック実装](TASK-0015.md) - 6h (TDD) 🔵 ✅ 完了 (2026-07-02確認)
+- [x] [TASK-0016: SearchAddPage実装](TASK-0016.md) - 8h (TDD) 🔵 ✅ 完了 (2026-07-02確認)
 
 ### 依存関係
 
@@ -112,11 +112,11 @@ TASK-0015, TASK-0006 → TASK-0016
 
 ### タスク一覧
 
-- [ ] [TASK-0017: ItemDetailPage基本実装](TASK-0017.md) - 8h (TDD) 🔵
-- [x] [TASK-0018: groups/episodes APIフック・GroupSection実装](TASK-0018.md) - 8h (TDD) 🔵 ✅ 完了 (2026-07-01)
-- [ ] [TASK-0019: 関連付け(relations)管理UI実装](TASK-0019.md) - 6h (TDD) 🔵
-- [ ] [TASK-0020: リンク・ファイル・トレーラー管理UI実装](TASK-0020.md) - 8h (TDD) 🔵
-- [ ] [TASK-0021: ファイルアップロード機能実装](TASK-0021.md) - 6h (TDD) 🟡
+- [ ] [TASK-0017: ItemDetailPage基本実装](TASK-0017.md) - 8h (TDD) 🔵 ⚠️ 未完了 (2026-07-02確認: 基本表示のみで詳細表示・status更新・削除導線・GroupSection/RelationsSection/LinksFilesSectionの組み込みが未実装)
+- [x] [TASK-0018: groups/episodes APIフック・GroupSection実装](TASK-0018.md) - 8h (TDD) 🔵 ✅ 完了 (2026-07-01, コンポーネント単体は実装済みだがItemDetailPageへの組み込みはTASK-0017待ち)
+- [ ] [TASK-0019: 関連付け(relations)管理UI実装](TASK-0019.md) - 6h (TDD) 🔵 ⚠️ 未完了 (2026-07-02確認: コンポーネント単体は実装済みだがItemDetailPageへの組み込みが未実装)
+- [ ] [TASK-0020: リンク・ファイル・トレーラー管理UI実装](TASK-0020.md) - 8h (TDD) 🔵 ⚠️ 未完了 (2026-07-02確認: コンポーネント単体は実装済みだがItemDetailPageへの組み込みが未実装)
+- [ ] [TASK-0021: ファイルアップロード機能実装](TASK-0021.md) - 6h (TDD) 🟡 ⚠️ 未完了 (2026-07-02確認: コンポーネント単体は実装済みだがItemDetailPageへの組み込みが未実装)
 
 ### 依存関係
 
@@ -182,8 +182,8 @@ TASK-0030 → TASK-0031, TASK-0032
 ### タスク一覧
 
 - [ ] [TASK-0033: 画面遷移統合・ルーティング最終調整](TASK-0033.md) - 4h (DIRECT) 🔵
-- [ ] [TASK-0034: アクセシビリティ・レスポンシブ対応](TASK-0034.md) - 8h (TDD) 🔵
-- [ ] [TASK-0035: E2E主要フローテスト整備](TASK-0035.md) - 8h (TDD) 🔵
+- [ ] [TASK-0034: アクセシビリティ・レスポンシブ対応](TASK-0034.md) - 8h (TDD) 🔵 ⚠️ 部分完了 (2026-07-02: SettingsPageラベル修正のみ完了、モバイル対応・コントラスト比確認は未着手)
+- [x] [TASK-0035: E2E主要フローテスト整備](TASK-0035.md) - 8h (TDD) 🔵 ✅ 完了 (2026-07-02)
 
 ### 依存関係
 

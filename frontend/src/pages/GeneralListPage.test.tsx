@@ -58,7 +58,7 @@ beforeEach(() => {
     data: { data: [], pagination: undefined },
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useItemsQuery>)
+  } as unknown as ReturnType<typeof useItemsQuery>)
   mockNavigate.mockReset()
   mockSetFilters.mockReset()
 })
@@ -104,7 +104,7 @@ describe('GeneralListPage - 一覧表示', () => {
       data: { data: [makeItem('1'), makeItem('2'), makeItem('3')], pagination: undefined },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderPage()
 
@@ -122,7 +122,7 @@ describe('GeneralListPage - 一覧表示', () => {
       data: undefined,
       isLoading: true,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderPage()
 
@@ -135,7 +135,7 @@ describe('GeneralListPage - 一覧表示', () => {
       isLoading: false,
       isError: true,
       refetch: vi.fn(),
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderPage()
 

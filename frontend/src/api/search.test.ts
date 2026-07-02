@@ -2,7 +2,7 @@
  * TASK-0015: 外部API検索フック テストファイル (Redフェーズ)
  * 🔵 docs/tasks/frontend-collection-ui/TASK-0015.md 完了条件より
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { createElement } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -70,8 +70,7 @@ const mockItem: Item = {
   status: 'not_started',
   source: 'api',
   isFavorite: false,
-  tags: [],
-  categories: [],
+  details: { genreList: [] },
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };

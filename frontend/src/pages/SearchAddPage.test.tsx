@@ -71,7 +71,7 @@ beforeEach(() => {
     isError: false,
     error: null,
     refetch: vi.fn(),
-  } as ReturnType<typeof useExternalSearchQuery>)
+  } as unknown as ReturnType<typeof useExternalSearchQuery>)
 
   vi.mocked(useImportItemMutation).mockReturnValue({
     mutate: defaultMutate,
@@ -128,7 +128,7 @@ describe('テストケース2: 検索実行で結果一覧が表示される', (
       isError: false,
       error: null,
       refetch: vi.fn(),
-    } as ReturnType<typeof useExternalSearchQuery>)
+    } as unknown as ReturnType<typeof useExternalSearchQuery>)
 
     renderPage('general')
 
@@ -149,7 +149,7 @@ describe('テストケース2: 検索実行で結果一覧が表示される', (
       isError: false,
       error: null,
       refetch: vi.fn(),
-    } as ReturnType<typeof useExternalSearchQuery>)
+    } as unknown as ReturnType<typeof useExternalSearchQuery>)
 
     renderPage()
 
@@ -166,7 +166,7 @@ describe('テストケース3: 結果選択→インポートで詳細画面へ�
       isError: false,
       error: null,
       refetch: vi.fn(),
-    } as ReturnType<typeof useExternalSearchQuery>)
+    } as unknown as ReturnType<typeof useExternalSearchQuery>)
 
     vi.mocked(useImportItemMutation).mockReturnValue({
       mutate: vi.fn((_, opts) => opts?.onSuccess?.(mockItem, {} as any, {} as any)),
@@ -199,7 +199,7 @@ describe('テストケース4: API_KEY_NOT_CONFIGURED時に手動追加導線が
       isError: true,
       error,
       refetch: vi.fn(),
-    } as ReturnType<typeof useExternalSearchQuery>)
+    } as unknown as ReturnType<typeof useExternalSearchQuery>)
 
     renderPage('general')
 
@@ -227,7 +227,7 @@ describe('テストケース5: EXTERNAL_API_TIMEOUT時に再試行ボタンが�
       isError: true,
       error,
       refetch: mockRefetch,
-    } as ReturnType<typeof useExternalSearchQuery>)
+    } as unknown as ReturnType<typeof useExternalSearchQuery>)
 
     renderPage('general')
 

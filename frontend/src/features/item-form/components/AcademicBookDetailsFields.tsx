@@ -3,8 +3,6 @@ import { FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/f
 import { Input } from '@/components/ui/input'
 import type { CreateItemRequestInput } from '@/lib/itemSchema'
 
-const isbnPattern = /^[\d-]{10,17}$/
-
 function validateIsbn(value: string): string | undefined {
   if (!value) return undefined
   const digits = value.replace(/-/g, '')

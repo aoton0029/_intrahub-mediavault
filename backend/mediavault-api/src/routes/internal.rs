@@ -23,22 +23,22 @@ use crate::middleware::api_key_auth::api_key_auth;
 /// 【実装方針】: items本体のPOST/PATCH・GET検索（ListItemsQueryのtitle絞り込みを再利用）・
 /// groups/episodesのupsert・filesのパス指定登録を、Phase2/Phase4実装済みハンドラの再利用または
 /// 薄いupsertラッパーとしてマウントする。`/internal/items/search`はリテラルパスのため、
-/// 動的パス`/internal/items/:id`より前に登録し誤マッチを防ぐ。
+/// 動的パス`/internal/items/{id}`より前に登録し誤マッチを防ぐ。
 /// 🔵 信頼性レベル: TASK-0029.md「実装詳細1」api-endpoints.md「内部REST API」セクションに直接対応
 pub fn build_internal_router(state: AppState) -> Router {
     Router::new()
         .route("/internal/items", post(create_item_handler))
         .route("/internal/items/search", get(list_items_handler))
-        .route("/internal/items/:id", patch(update_item_handler))
+        .route("/internal/items/{id}", patch(update_item_handler))
         .route(
-            "/internal/items/:id/groups",
+            "/internal/items/{id}/groups",
             post(upsert_item_group_handler),
         )
         .route(
-            "/internal/groups/:group_id/episodes",
+            "/internal/groups/{group_id}/episodes",
             post(upsert_item_episode_handler),
         )
-        .route("/internal/items/:id/files", post(create_item_file_handler))
+        .route("/internal/items/{id}/files", post(create_item_file_handler))
         .layer(axum::middleware::from_fn(api_key_auth))
         .with_state(state)
 }
@@ -123,11 +123,11 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CREATED); // 【確認内容】: 認証通過後にハンドラが実行され201が返ることを確認 🔵
     }
 
-    /// TC-018-02: 正しいAPIキーでPATCH /internal/items/:id が既存アイテムを更新し200を返す
+    /// TC-018-02: 正しいAPIキーでPATCH /internal/items/{id} が既存アイテムを更新し200を返す
     /// 【テスト目的】: 認証通過後、既存update_item_handlerによる部分更新が/internal経由で正しく動作することを確認する
-    /// 【テスト内容】: 事前にPOSTで作成したitemに対しPATCH /internal/items/:idでタイトル更新する
+    /// 【テスト内容】: 事前にPOSTで作成したitemに対しPATCH /internal/items/{id}でタイトル更新する
     /// 【期待される動作】: 200 OKと更新後itemが返る
-    /// 🔵 信頼性レベル: 要件定義2.2表#2・4.1、note.md「PATCH /internal/items/:id」に対応
+    /// 🔵 信頼性レベル: 要件定義2.2表#2・4.1、note.md「PATCH /internal/items/{id}」に対応
     #[tokio::test]
     #[ignore]
     async fn patch_internal_items_id_with_valid_key_updates_and_returns_200() {
@@ -158,7 +158,7 @@ mod tests {
         let created: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
         let item_id = created["data"]["id"].as_str().unwrap().to_string();
 
-        // 【実際の処理実行】: PATCH /internal/items/:id で部分更新を実行する
+        // 【実際の処理実行】: PATCH /internal/items/{id} で部分更新を実行する
         let response = app
             .oneshot(
                 Request::builder()
@@ -394,7 +394,7 @@ mod tests {
         assert_eq!(updated["data"]["title"], "更新後タイトル"); // 【確認内容】: 2回目送信のフィールドが反映されupsert更新になっていることを確認 🔵
     }
 
-    /// TC-018-07: 正しいAPIキーでPOST /internal/items/:id/files がパス指定でファイルを登録し201を返す
+    /// TC-018-07: 正しいAPIキーでPOST /internal/items/{id}/files がパス指定でファイルを登録し201を返す
     /// 【テスト目的】: 監視プロセスからの「既存パス指定方式」ファイル登録（REQ-019）が/internal経由で機能することを確認する
     /// 【テスト内容】: 既存itemに対しCreateItemFileRequest（相対パス）を送信する
     /// 【期待される動作】: 201 Created、登録済みファイル情報が返る
@@ -627,7 +627,7 @@ mod tests {
         }
     }
 
-    /// TC-018-E02a: 正しいAPIキー + 存在しないitem_idでPATCH /internal/items/:id が404を返す
+    /// TC-018-E02a: 正しいAPIキー + 存在しないitem_idでPATCH /internal/items/{id} が404を返す
     /// 【テスト目的】: 認証通過後のリソース不在判定（404）が/internalで機能することを確認する
     /// 【テスト内容】: ランダム生成した存在しないitem_idへPATCHする
     /// 【期待される動作】: 404 Not Found、error.code=ITEM_NOT_FOUND
@@ -658,7 +658,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND); // 【確認内容】: 認証通過後も存在しないitem_idで404が返ることを確認 🔵
     }
 
-    /// TC-018-E02b: 正しいAPIキー + 存在しないitem_idでPOST /internal/items/:id/groups が404を返す
+    /// TC-018-E02b: 正しいAPIキー + 存在しないitem_idでPOST /internal/items/{id}/groups が404を返す
     /// 【テスト目的】: グループ登録の親item存在チェックが404で機能することを確認する
     /// 【テスト内容】: 存在しないitem_idへグループ登録を送信する
     /// 【期待される動作】: 404 Not Found、error.code=ITEM_NOT_FOUND
@@ -722,7 +722,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND); // 【確認内容】: 親groupが存在しない場合に孤立エピソードが作成されず404が返ることを確認 🔵
     }
 
-    /// TC-018-E02d: 正しいAPIキー + 存在しないitem_idでPOST /internal/items/:id/files が404を返す
+    /// TC-018-E02d: 正しいAPIキー + 存在しないitem_idでPOST /internal/items/{id}/files が404を返す
     /// 【テスト目的】: ファイル登録の親item存在チェックが404で機能することを確認する
     /// 【テスト内容】: 存在しないitem_idへファイル登録を送信する
     /// 【期待される動作】: 404 Not Found、error.code=ITEM_NOT_FOUND
@@ -815,7 +815,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND); // 【確認内容】: /api/v1/internal/itemsというパスが存在せず404になることを確認 🔵
     }
 
-    /// TC-018-B02: ルート誤マッチ防止 — /internal/items/search が /internal/items/:id に吸われない
+    /// TC-018-B02: ルート誤マッチ防止 — /internal/items/search が /internal/items/{id} に吸われない
     /// 【テスト目的】: リテラルパスsearchが動的パス:id（UUID必須）に誤って吸われないことを確認する
     /// 【テスト内容】: 正しいAPIキー付きでGET /internal/items/searchを呼び出す
     /// 【期待される動作】: UUIDパース由来の400や500にならない

@@ -41,6 +41,12 @@ export default function GeneralListPage() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      <div className="flex items-center justify-end">
+        <Button type="button" size="sm" onClick={() => navigate('/search/general')}>
+          + 追加する
+        </Button>
+      </div>
+
       <FilterBar
         filters={filters}
         onChange={next => setFilters(next)}

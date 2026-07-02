@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import HomePage from './HomePage'
@@ -73,7 +73,7 @@ describe('HomePage - 正常系', () => {
       data: { data: [makeItem('1'), makeItem('2'), makeItem('3')], pagination: undefined },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderHomePage()
 
@@ -86,12 +86,13 @@ describe('HomePage - 正常系', () => {
       data: { data: [], pagination: undefined },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderHomePage()
 
-    expect(screen.getByTestId('empty-state')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /追加/i })).toBeInTheDocument()
+    const emptyState = screen.getByTestId('empty-state')
+    expect(emptyState).toBeInTheDocument()
+    expect(within(emptyState).getByRole('button', { name: /追加/i })).toBeInTheDocument()
   })
 
   it('TC-HP-N-03: FilterBarでmediaType=animeを選択するとsetFiltersが呼ばれURLクエリが反映される', () => {
@@ -99,7 +100,7 @@ describe('HomePage - 正常系', () => {
       data: { data: [], pagination: undefined },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderHomePage()
 
@@ -115,7 +116,7 @@ describe('HomePage - 正常系', () => {
       data: { data: [makeItem('1')], pagination },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderHomePage()
 
@@ -130,7 +131,7 @@ describe('HomePage - 正常系', () => {
       data: { data: [makeItem('item-abc')], pagination: undefined },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderHomePage()
 
@@ -149,7 +150,7 @@ describe('HomePage - ローディング・エラー', () => {
       data: undefined,
       isLoading: true,
       isError: false,
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderHomePage()
 
@@ -162,7 +163,7 @@ describe('HomePage - ローディング・エラー', () => {
       isLoading: false,
       isError: true,
       refetch: vi.fn(),
-    } as ReturnType<typeof useItemsQuery>)
+    } as unknown as ReturnType<typeof useItemsQuery>)
 
     renderHomePage()
 

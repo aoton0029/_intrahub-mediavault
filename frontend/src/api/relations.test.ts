@@ -255,7 +255,7 @@ describe('useDeleteItemRelationMutation', () => {
     result.current.mutate('rel-001');
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const fetchMock = vi.mocked(global.fetch);
+    const fetchMock = vi.mocked(globalThis.fetch);
     const calledUrl = fetchMock.mock.calls[0][0] as string;
     expect(calledUrl).toContain('/item-relations/rel-001'); // 【確認内容】: DELETE /item-relations/:id が呼ばれる 🔵
     expect(invalidateSpy).toHaveBeenCalledWith(

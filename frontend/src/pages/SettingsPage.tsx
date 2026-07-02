@@ -46,16 +46,20 @@ function ProviderRow({ provider, maskedKey }: { provider: ApiProvider; label: st
     );
   }
 
+  const inputId = `api-key-${provider}`;
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-[120px_1fr_auto] items-start gap-3 py-2">
-      <Label className="pt-2">{PROVIDERS.find((p) => p.id === provider)?.label ?? provider}</Label>
+      <Label htmlFor={inputId} className="pt-2">{PROVIDERS.find((p) => p.id === provider)?.label ?? provider}</Label>
       <div className="flex flex-col gap-1">
         {editing || !maskedKey ? (
           <Input
+            id={inputId}
             {...register('apiKey')}
             type="text"
             placeholder="APIキーを入力"
             autoComplete="off"
+            aria-describedby={errors.apiKey ? `${inputId}-error` : undefined}
           />
         ) : (
           <div
@@ -65,7 +69,7 @@ function ProviderRow({ provider, maskedKey }: { provider: ApiProvider; label: st
             {maskedKey}
           </div>
         )}
-        {errors.apiKey && <p className="text-xs text-destructive">{errors.apiKey.message}</p>}
+        {errors.apiKey && <p id={`${inputId}-error`} className="text-xs text-destructive">{errors.apiKey.message}</p>}
       </div>
       <div className="flex gap-2 pt-0.5">
         {editing || !maskedKey ? (

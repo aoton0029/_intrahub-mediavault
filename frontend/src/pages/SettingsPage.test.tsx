@@ -6,7 +6,7 @@
  * TC-08: file 入力のラベル欠落検出
  * 🔵 信頼性レベル: TASK-0034 TC-2 と SettingsPage.tsx 実地調査より確実
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import SettingsPage from './SettingsPage'

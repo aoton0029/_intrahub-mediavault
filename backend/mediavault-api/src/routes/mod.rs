@@ -47,50 +47,50 @@ pub fn build_router(state: AppState) -> Router {
         .route("/health", get(health_handler))
         // 【TASK-0010】: GET /items（一覧・絞り込み）を既存POST /itemsと同一パスに追加 🔵
         .route("/items", get(list_items_handler).post(create_item_handler))
-        // 【TASK-0024】: GET /items/search（外部API検索）を/items/:idより前にリテラル登録し誤マッチ防止 🔵
+        // 【TASK-0024】: GET /items/search（外部API検索）を/items/{id}より前にリテラル登録し誤マッチ防止 🔵
         .route("/items/search", get(search_items_handler))
-        // 【TASK-0025】: POST /items/import（外部検索結果からのインポート）を/items/:idより前に
+        // 【TASK-0025】: POST /items/import（外部検索結果からのインポート）を/items/{id}より前に
         // リテラル登録し誤マッチ防止 🔵
         .route("/items/import", axum::routing::post(import_item_handler))
-        // 【TASK-0011】: GET /items/:id（個別詳細取得） 🟡
-        // 【TASK-0012】: PATCH /items/:id（部分更新）を同一パスに追加 🔵
-        // 【TASK-0013】: DELETE /items/:id（カスケード削除）を同一パスに追加 🔵
+        // 【TASK-0011】: GET /items/{id}（個別詳細取得） 🟡
+        // 【TASK-0012】: PATCH /items/{id}（部分更新）を同一パスに追加 🔵
+        // 【TASK-0013】: DELETE /items/{id}（カスケード削除）を同一パスに追加 🔵
         .route(
-            "/items/:id",
+            "/items/{id}",
             get(get_item_handler)
                 .patch(update_item_handler)
                 .delete(delete_item_handler),
         )
-        // 【TASK-0014】: PATCH /items/:id/status（視聴・読了状況更新専用エンドポイント） 🔵
+        // 【TASK-0014】: PATCH /items/{id}/status（視聴・読了状況更新専用エンドポイント） 🔵
         .route(
-            "/items/:id/status",
+            "/items/{id}/status",
             axum::routing::patch(update_item_status_handler),
         )
         // 【TASK-0015】: タグCRUD・アイテムへの付与・削除 🔵🟡
         .route("/tags", axum::routing::post(create_tag_handler))
-        .route("/tags/:id", axum::routing::delete(delete_tag_handler))
+        .route("/tags/{id}", axum::routing::delete(delete_tag_handler))
         .route(
-            "/items/:id/tags/:tag_id",
+            "/items/{id}/tags/{tag_id}",
             axum::routing::post(attach_tag_handler).delete(detach_tag_handler),
         )
         // 【TASK-0015】: カテゴリCRUD・アイテムへの付与・削除 🔵🟡
         .route("/categories", axum::routing::post(create_category_handler))
         .route(
-            "/categories/:id",
+            "/categories/{id}",
             axum::routing::delete(delete_category_handler),
         )
         .route(
-            "/items/:id/categories/:category_id",
+            "/items/{id}/categories/{category_id}",
             axum::routing::post(attach_category_handler).delete(detach_category_handler),
         )
         // 【TASK-0016】: マイリストCRUD・itemの追加・削除 🔵
         .route("/mylists", axum::routing::post(create_mylist_handler))
         .route(
-            "/mylists/:id/items",
+            "/mylists/{id}/items",
             axum::routing::post(add_mylist_item_handler),
         )
         .route(
-            "/mylists/:id/items/:item_id",
+            "/mylists/{id}/items/{item_id}",
             axum::routing::delete(remove_mylist_item_handler),
         )
         // 【TASK-0017】: item_relations（関連付け・DLC）CRUD 🔵
@@ -99,69 +99,69 @@ pub fn build_router(state: AppState) -> Router {
             axum::routing::post(create_item_relation_handler),
         )
         .route(
-            "/item-relations/:id",
+            "/item-relations/{id}",
             axum::routing::delete(delete_item_relation_handler),
         )
         // 【TASK-0018】: item_groups（シーズン/巻/章）CRUD 🔵🟡
         .route(
-            "/items/:id/groups",
+            "/items/{id}/groups",
             axum::routing::post(create_item_group_handler).get(list_item_groups_handler),
         )
         // 【TASK-0019】: item_episodes（season/chapter配下の話数）CRUD + EDGE-101検証 🔵
         .route(
-            "/groups/:group_id/episodes",
+            "/groups/{group_id}/episodes",
             axum::routing::post(create_item_episode_handler).get(list_item_episodes_handler),
         )
         // 【TASK-0020】: スタッフ管理CRUD（staff作成・itemへの紐付け・紐付け削除） 🔵🟡
         .route("/staff", axum::routing::post(create_staff_handler))
         .route(
-            "/items/:id/staff",
+            "/items/{id}/staff",
             axum::routing::post(create_item_staff_handler),
         )
         .route(
-            "/items/:id/staff/:item_staff_id",
+            "/items/{id}/staff/{item_staff_id}",
             axum::routing::delete(delete_item_staff_handler),
         )
         // 【TASK-0026】: item_files（パス指定方式）登録 🔵
         .route(
-            "/items/:id/files",
+            "/items/{id}/files",
             axum::routing::post(create_item_file_handler),
         )
-        // 【TASK-0027】: POST /items/:id/files/upload（multipart/form-dataバイナリ直接アップロード）。
+        // 【TASK-0027】: POST /items/{id}/files/upload（multipart/form-dataバイナリ直接アップロード）。
         // DefaultBodyLimitのデフォルト（2MB）はPDF等の大容量ファイルには不足するため、
         // このルートに限り100MBへ緩和する 🟡
         .route(
-            "/items/:id/files/upload",
+            "/items/{id}/files/upload",
             axum::routing::post(upload_item_file_handler)
                 .layer(DefaultBodyLimit::max(100 * 1024 * 1024)),
         )
-        // 【TASK-0028】: PATCH /items/:id/files/:file_id/calibre-link
+        // 【TASK-0028】: PATCH /items/{id}/files/{file_id}/calibre-link
         // （Calibre-Web取込完了後のcalibre_book_id紐付け） 🔵
         .route(
-            "/items/:id/files/:file_id/calibre-link",
+            "/items/{id}/files/{file_id}/calibre-link",
             axum::routing::patch(update_calibre_link_handler),
         )
         // 【TASK-0021】: item_links（参考リンク）CRUD 🔵🟡
         .route(
-            "/items/:id/links",
+            "/items/{id}/links",
             axum::routing::post(create_item_link_handler),
         )
         .route(
-            "/items/:id/links/:link_id",
+            "/items/{id}/links/{link_id}",
             axum::routing::delete(delete_item_link_handler),
         )
         // 【TASK-0021】: item_trailers（トレーラー動画リンク）CRUD 🔵🟡
         .route(
-            "/items/:id/trailers",
+            "/items/{id}/trailers",
             axum::routing::post(create_item_trailer_handler),
         )
         .route(
-            "/items/:id/trailers/:trailer_id",
+            "/items/{id}/trailers/{trailer_id}",
             axum::routing::delete(delete_item_trailer_handler),
         )
-        // 【TASK-0022】: api_credentials（外部APIキー管理）PUT /settings/api-keys/:provider 🔵
+        // 【TASK-0022】: api_credentials（外部APIキー管理）PUT /settings/api-keys/{provider} 🔵
         .route(
-            "/settings/api-keys/:provider",
+            "/settings/api-keys/{provider}",
             axum::routing::put(update_api_key_handler),
         )
         // 【TASK-0030】: POST /import/booklog（ブクログCSVインポート）。/items/search・/items/import等の
@@ -340,12 +340,12 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 不正なenum値が400で拒否されることを確認 🔵
     }
 
-    /// TC-0024-B02: ルート誤マッチ防止 — /items/searchが/items/:idに吸われない（ルーター経由、実DB必要）
+    /// TC-0024-B02: ルート誤マッチ防止 — /items/searchが/items/{id}に吸われない（ルーター経由、実DB必要）
     /// 🔵 信頼性レベル: 要件 3 ルーティング制約・note.md L47-50・L192 より
     #[tokio::test]
     #[ignore] // 実DB・外部API（wiremock）が必要
     async fn get_items_search_does_not_fall_through_to_item_id_route() {
-        // 【テスト目的】: /items/searchがリテラルパスとして登録され、/items/:id（UUID必須）の
+        // 【テスト目的】: /items/searchがリテラルパスとして登録され、/items/{id}（UUID必須）の
         // 動的経路に誤って吸われない（"search"という文字列がUUIDとしてパースされず400 UUIDエラーにならない）
         // ことを確認する
         // 【テスト内容】: GET /items/search?media_type=anime&q=foo をルーター経由で実行する
@@ -364,7 +364,7 @@ mod tests {
             .await
             .unwrap();
 
-        // 【結果検証】: /items/:id経由のUUIDパースエラー（"idはUUID形式である必要があります"）には
+        // 【結果検証】: /items/{id}経由のUUIDパースエラー（"idはUUID形式である必要があります"）には
         // ならないことを、最低限「サーバーエラーで落ちない（500ではない）」ことで確認する
         assert_ne!(response.status(), StatusCode::INTERNAL_SERVER_ERROR); // 【確認内容】: ルーティング誤マッチによるpanic/500が発生しないことを確認 🔵
     }

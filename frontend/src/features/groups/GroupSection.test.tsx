@@ -54,7 +54,6 @@ const animeItem: Item = { ...baseItem, mediaType: 'anime', details: { genreList:
 const dramaItem: Item = { ...baseItem, mediaType: 'drama', details: { genreList: [] } };
 const mangaItem: Item = { ...baseItem, mediaType: 'manga', details: {} };
 const novelItem: Item = { ...baseItem, mediaType: 'novel', details: {} };
-const movieItem: Item = { ...baseItem, mediaType: 'movie', details: { genreList: [] } };
 const gameItem: Item = { ...baseItem, mediaType: 'game', details: { platformList: [] } };
 
 // ===== テストユーティリティ =====
@@ -77,7 +76,7 @@ describe('GroupSection', () => {
       data: { data: [] },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemGroupsQuery>);
+    } as unknown as ReturnType<typeof useItemGroupsQuery>);
     // 【テスト前準備】: useCreateEpisodeMutationのデフォルトモック設定
     vi.mocked(useCreateEpisodeMutation).mockReturnValue({
       mutate: vi.fn(),
@@ -104,7 +103,7 @@ describe('GroupSection', () => {
       data: { data: [mockSeasonGroup] },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemGroupsQuery>);
+    } as unknown as ReturnType<typeof useItemGroupsQuery>);
 
     renderWithQueryClient(<GroupSection item={animeItem} />);
 
@@ -121,7 +120,7 @@ describe('GroupSection', () => {
       data: { data: [mockSeasonGroup] },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemGroupsQuery>);
+    } as unknown as ReturnType<typeof useItemGroupsQuery>);
 
     renderWithQueryClient(<GroupSection item={dramaItem} />);
 
@@ -139,7 +138,7 @@ describe('GroupSection', () => {
       data: { data: [mockVolumeGroup] },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemGroupsQuery>);
+    } as unknown as ReturnType<typeof useItemGroupsQuery>);
 
     renderWithQueryClient(<GroupSection item={mangaItem} />);
 
@@ -155,7 +154,7 @@ describe('GroupSection', () => {
       data: { data: [mockVolumeGroup] },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemGroupsQuery>);
+    } as unknown as ReturnType<typeof useItemGroupsQuery>);
 
     renderWithQueryClient(<GroupSection item={novelItem} />);
 
@@ -184,7 +183,7 @@ describe('VolumeGroupList (EDGE-004)', () => {
       data: { data: [mockVolumeGroup] },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemGroupsQuery>);
+    } as unknown as ReturnType<typeof useItemGroupsQuery>);
   });
 
   afterEach(() => {
@@ -214,7 +213,7 @@ describe('SeasonGroupList', () => {
       data: { data: [mockSeasonGroup] },
       isLoading: false,
       isError: false,
-    } as ReturnType<typeof useItemGroupsQuery>);
+    } as unknown as ReturnType<typeof useItemGroupsQuery>);
     vi.mocked(useCreateEpisodeMutation).mockReturnValue({
       mutate: vi.fn(),
       mutateAsync: vi.fn(),
