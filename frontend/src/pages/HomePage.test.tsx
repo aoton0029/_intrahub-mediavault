@@ -126,6 +126,36 @@ describe('HomePage - 正常系', () => {
     expect(mockSetFilters).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }))
   })
 
+  it('TC-HP-N-06: タイトルバーに「＋ 作品を追加」ボタン（accentバリアント）が表示され、クリックで検索追加画面へ遷移する', () => {
+    vi.mocked(useItemsQuery).mockReturnValue({
+      data: { data: [], pagination: undefined },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useItemsQuery>)
+
+    renderHomePage()
+
+    const addButton = screen.getByRole('button', { name: '＋ 作品を追加' })
+    expect(addButton).toHaveAttribute('data-variant', 'accent')
+
+    fireEvent.click(addButton)
+
+    expect(mockNavigate).toHaveBeenCalledWith('/search/general')
+  })
+
+  it('TC-HP-N-07: MediaCard一覧がcard-gridクラスのコンテナ内に表示される', () => {
+    vi.mocked(useItemsQuery).mockReturnValue({
+      data: { data: [makeItem('1'), makeItem('2')], pagination: undefined },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useItemsQuery>)
+
+    renderHomePage()
+
+    const cards = screen.getAllByTestId('media-card')
+    expect(cards[0].closest('.card-grid')).not.toBeNull()
+  })
+
   it('TC-HP-N-05: カードをクリックすると/items/:idへナビゲーションが発生する', () => {
     vi.mocked(useItemsQuery).mockReturnValue({
       data: { data: [makeItem('item-abc')], pagination: undefined },

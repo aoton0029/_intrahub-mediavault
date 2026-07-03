@@ -37,61 +37,64 @@ export default function HomePage() {
   const totalPages = pagination ? Math.ceil(pagination.total / pagination.limit) : 1
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center justify-end">
-        <Button type="button" size="sm" onClick={() => navigate('/search/general')}>
-          + 追加する
+    <div className="flex flex-col gap-4">
+      <div className="titlebar">
+        <h1>全体一覧</h1>
+        <Button type="button" variant="accent" onClick={() => navigate('/search/general')}>
+          ＋ 作品を追加
         </Button>
       </div>
 
-      <FilterBar
-        filters={filters}
-        onChange={next => setFilters(next)}
-        tagOptions={[]}
-        categoryOptions={[]}
-      />
-
-      {items.length === 0 ? (
-        <EmptyState
-          message="コレクションがありません"
-          actionLabel="+ 追加する"
-          onAction={() => navigate('/search/general')}
+      <div className="flex flex-col gap-4 px-4 pb-4">
+        <FilterBar
+          filters={filters}
+          onChange={next => setFilters(next)}
+          tagOptions={[]}
+          categoryOptions={[]}
         />
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-            {items.map(item => (
-              <MediaCard
-                key={item.id}
-                item={item}
-                onClick={clicked => navigate(`/items/${clicked.id}`)}
-              />
-            ))}
-          </div>
 
-          {pagination && (
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                type="button"
-                disabled={currentPage <= 1}
-                onClick={() => setFilters({ page: currentPage - 1 })}
-                aria-label="前のページ"
-              >
-                前のページ
-              </Button>
-              <span className="text-sm">{currentPage} / {totalPages}</span>
-              <Button
-                type="button"
-                disabled={currentPage >= totalPages}
-                onClick={() => setFilters({ page: currentPage + 1 })}
-                aria-label="次のページ"
-              >
-                次のページ
-              </Button>
+        {items.length === 0 ? (
+          <EmptyState
+            message="コレクションがありません"
+            actionLabel="+ 追加する"
+            onAction={() => navigate('/search/general')}
+          />
+        ) : (
+          <>
+            <div className="card-grid">
+              {items.map(item => (
+                <MediaCard
+                  key={item.id}
+                  item={item}
+                  onClick={clicked => navigate(`/items/${clicked.id}`)}
+                />
+              ))}
             </div>
-          )}
-        </>
-      )}
+
+            {pagination && (
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setFilters({ page: currentPage - 1 })}
+                  aria-label="前のページ"
+                >
+                  前のページ
+                </Button>
+                <span className="text-sm">{currentPage} / {totalPages}</span>
+                <Button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setFilters({ page: currentPage + 1 })}
+                  aria-label="次のページ"
+                >
+                  次のページ
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

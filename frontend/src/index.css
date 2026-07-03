@@ -369,6 +369,97 @@ code {
   padding: 2px 7px;
 }
 
+/* 【Titlebarスタイル】: _shared.css .titlebar相当（画面上部・右端に追加ボタン）（TASK-0010 REQ-005） 🔵 */
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.titlebar h1 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+.titlebar .actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 【Breadcrumbスタイル】: _shared.css .breadcrumb相当（画面上部の階層ナビゲーション）（TASK-0011 REQ-007） 🔵 */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 0 0 2px;
+  padding: 0 16px;
+}
+.breadcrumb span { color: var(--text-muted); }
+
+/* 【Btn/BtnDangerスタイル】: _shared.css .btn/.btn-danger相当（タイトルバー右の編集・削除ボタン）（TASK-0011 REQ-007） 🔵 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.btn-danger { color: var(--danger); border-color: var(--border); background: var(--bg-surface); }
+.btn-danger:hover { background: rgba(224, 97, 90, 0.12); border-color: var(--danger); }
+
+/* 【DocBody(detail)スタイル】: _shared.css .doc-cover/.doc-title/.doc-original/.doc-section相当（TASK-0011 REQ-007） 🔵 */
+.doc {
+  padding: 24px 16px 48px;
+}
+.doc-cover {
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, #33304a, #232323);
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 18px;
+}
+.doc-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.doc-original {
+  color: var(--text-faint);
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+.doc-section { margin-bottom: 28px; max-width: 680px; }
+.doc-section h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin: 0 0 10px;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 6px;
+}
+.doc-section p { color: var(--text-primary); line-height: 1.7; }
+
+/* 【CardGridスタイル】: _shared.css .card-grid相当（MediaCard一覧のグリッドレイアウト）（TASK-0010 REQ-005） 🔵 */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 16px;
+}
+
 /* 【FilterBarスタイル】: _shared.css .filter-bar/.chip/.search-box相当（TASK-0006 REQ-005, REQ-011） 🔵 */
 .filter-bar {
   display: flex;
@@ -422,4 +513,36 @@ code {
 }
 .search-box input::placeholder {
   color: var(--text-faint);
+}
+
+/* 【AppShellスタイル】: _shared.css .app-shell/.app-shell.has-properties相当（Sidebar + main の2カラム、
+   アイテム詳細画面のみproperties列を含む3カラム）（TASK-0009 REQ-006） 🔵 */
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  height: 100vh;
+}
+.app-shell.has-properties {
+  grid-template-columns: var(--sidebar-w) 1fr var(--properties-w);
+}
+.main {
+  overflow-y: auto;
+  min-width: 0;
+}
+/* 【propertiesプレースホルダ】: 空間確保のみ、中身は実装しない（TASK-0009スコープ外） 🔵 */
+.properties {
+  border-left: 1px solid var(--border-soft);
+  background: var(--bg-sidebar);
+  overflow-y: auto;
+}
+
+@media (max-width: 980px) {
+  .app-shell,
+  .app-shell.has-properties {
+    grid-template-columns: 1fr;
+  }
+  .sidebar,
+  .properties {
+    display: none;
+  }
 }

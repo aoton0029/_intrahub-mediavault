@@ -76,7 +76,7 @@ TASK-0001 → TASK-0002
 - [x] [TASK-0006: FilterBarのモックアップ準拠更新](TASK-0006.md) - 6h (TDD) 🔵
 - [x] [TASK-0007: Sidebarのモックアップ準拠拡張](TASK-0007.md) - 8h (TDD) 🔵
 - [x] [TASK-0008: MediaCardのモックアップ準拠拡張](TASK-0008.md) - 6h (TDD) 🔵
-- [ ] [TASK-0009: RootLayoutのapp-shellグリッド化](TASK-0009.md) - 6h (TDD) 🔵
+- [x] [TASK-0009: RootLayoutのapp-shellグリッド化](TASK-0009.md) - 6h (TDD) 🔵
 
 ### 依存関係
 
@@ -98,8 +98,8 @@ TASK-0002 → TASK-0009
 
 ### タスク一覧
 
-- [ ] [TASK-0010: HomePageのフィルタバー・追加ボタン統合](TASK-0010.md) - 8h (TDD) 🔵
-- [ ] [TASK-0011: ItemDetailPageのパンくず・タイトルバー・ドキュメント本文](TASK-0011.md) - 8h (TDD) 🔵
+- [x] [TASK-0010: HomePageのフィルタバー・追加ボタン統合](TASK-0010.md) - 8h (TDD) 🔵
+- [x] [TASK-0011: ItemDetailPageのパンくず・タイトルバー・ドキュメント本文](TASK-0011.md) - 8h (TDD) 🔵
 - [ ] [TASK-0012: SearchAddPageの検索結果リスト更新](TASK-0012.md) - 6h (TDD) 🔵
 - [ ] [TASK-0013: ItemFormPageの2カラムフォーム化](TASK-0013.md) - 8h (TDD) 🔵
 - [ ] [TASK-0014: SettingsPageのタブ+パネルレイアウト化](TASK-0014.md) - 8h (TDD) 🔵
