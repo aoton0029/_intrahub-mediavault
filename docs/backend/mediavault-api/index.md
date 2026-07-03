@@ -1,0 +1,150 @@
+# MediaVault API 設計
+
+## 基本方針
+- RESTful API（Rust / Axum / sqlx / PostgreSQL）
+- ベースURL:
+  - 公開API: `/api/v1`
+  - 内部API: `/internal`（バージョンプレフィックスなし）
+- 認証:
+  - 公開API（`/api/v1/*`）: **認証なし**。単一ユーザー・セルフホスト用途のためログイン機構は持たない。
+  - 内部API（`/internal/*`）: `api_key_auth` ミドルウェアが全ルートに適用される。`Authorization` ヘッダに `INTERNAL_API_KEY` 環境変数の値（生の値、または `Bearer <key>` 形式）を渡す必要がある。キー未設定・不一致は `401 UNAUTHORIZED`。
+- レスポンス形式: JSON
+
+---
+
+## 共通レスポンス形式
+
+### 成功時（`ApiOk<T>`）
+```json
+{ "success": true, "data": { /* T */ } }
+```
+特記のない限り HTTP `200`。作成系は `201`、削除系は `204 No Content`（ボディなし）。
+
+### ページネーション付き成功時（`PaginatedOk<T>`）
+```json
+{
+  "success": true,
+  "data": [ /* T[] */ ],
+  "pagination": { "page": 1, "limit": 20, "total": 123 }
+}
+```
+
+### エラー時（`ApiError`）
+```json
+{ "success": false, "error": { "code": "ITEM_NOT_FOUND", "message": "..." } }
+```
+
+### エラーコード一覧
+
+| コード | HTTPステータス | 説明 |
+|---|---|---|
+| VALIDATION_ERROR | 400 | リクエストの値が不正（UUID形式不正、必須項目欠如など） |
+| UNAUTHORIZED | 401 | 内部APIキー不一致・未設定 |
+| ITEM_NOT_FOUND | 404 | 指定した item が存在しない |
+| UNPROCESSABLE_ENTITY | 422 | 汎用の処理不能エラー |
+| INTERNAL_ERROR | 500 | サーバ内部エラー（DB接続失敗など） |
+| EXTERNAL_API_ERROR | 502 | 外部API呼び出し全般のエラー |
+| DUPLICATE_TAG_NAME | 409 | タグ名が重複 |
+| TAG_NOT_FOUND | 404 | 指定した tag が存在しない |
+| DUPLICATE_CATEGORY_NAME | 409 | カテゴリ名が重複 |
+| CATEGORY_NOT_FOUND | 404 | 指定した category が存在しない |
+| MYLIST_NOT_FOUND | 404 | 指定した mylist が存在しない |
+| DUPLICATE_RELATION | 409 | 同一の item 関連がすでに存在 |
+| GROUP_NOT_FOUND | 404 | 指定した item group が存在しない |
+| INVALID_GROUP_TYPE_FOR_EPISODES | 400 | `volume` タイプの group に episode を作成しようとした |
+| DUPLICATE_EPISODE_NUMBER | 409 | 同一 group 内で episode_number が重複 |
+| STAFF_NOT_FOUND | 404 | 指定した staff が存在しない |
+| INVALID_PROVIDER | 400 | `provider` パスパラメータが未対応の値 |
+| API_KEY_NOT_CONFIGURED | 422 | 外部検索に必要なAPIキーが未登録 |
+| EXTERNAL_API_TIMEOUT | 502 | 外部APIの呼び出しタイムアウト・失敗 |
+| ITEM_ALREADY_IMPORTED | 409 | 既に同一ソースからインポート済み |
+| FILE_STORAGE_WRITE_FAILED | 500 | アップロードファイルの保存に失敗 |
+| FILE_NOT_FOUND | 404 | 指定した item file が存在しない |
+| STEAM_API_KEY_INVALID | 401 | Steam Web API キーが無効 |
+
+### ページネーション正規化
+`page` / `limit` クエリパラメータは以下のルールで補正される（`normalize_pagination`）:
+- `page < 1` → `1`
+- `limit` 未指定 → `20`（デフォルト）
+- `limit < 1` → `20`
+- `limit > 100` → `100`
+
+---
+
+## 主要Enum
+
+| Enum | 値 |
+|---|---|
+| `media_type` | anime, movie, drama, manga, novel, game, academic_book, paper |
+| `item_status` | （例: unwatched/watching/completed 等、item のステータス管理に使用） |
+| `item_source` | アイテムの取得経路（手動登録／外部API取込／CSVインポート等） |
+| `group_type` | season, volume, chapter |
+| `relation_type` | reference, dlc |
+| `file_type` | pdf, image, other |
+| `api_provider` | tmdb, igdb, ndl, steam, open_library, ani_list（jikanは認証不要のため対象外） |
+
+---
+
+## エンドポイント一覧（公開API `/api/v1`）
+
+| Method | Path | 説明 | 詳細 |
+|--------|------|------|------|
+| GET | /health | ヘルスチェック | [health.md](./health.md) |
+| GET | /items | アイテム一覧取得（フィルタ・ページネーション） | [items.md](./items.md) |
+| POST | /items | アイテム新規作成 | [items.md](./items.md) |
+| GET | /items/search | 外部API横断検索 | [items.md](./items.md) |
+| POST | /items/import | 外部検索結果からアイテムをインポート | [items.md](./items.md) |
+| GET | /items/{id} | アイテム詳細取得 | [items.md](./items.md) |
+| PATCH | /items/{id} | アイテム更新 | [items.md](./items.md) |
+| DELETE | /items/{id} | アイテム削除 | [items.md](./items.md) |
+| PATCH | /items/{id}/status | ステータス更新 | [items.md](./items.md) |
+| POST | /tags | タグ作成 | [tags.md](./tags.md) |
+| DELETE | /tags/{id} | タグ削除 | [tags.md](./tags.md) |
+| POST | /items/{id}/tags/{tag_id} | アイテムにタグ付与 | [tags.md](./tags.md) |
+| DELETE | /items/{id}/tags/{tag_id} | アイテムからタグ削除 | [tags.md](./tags.md) |
+| POST | /categories | カテゴリ作成 | [categories.md](./categories.md) |
+| DELETE | /categories/{id} | カテゴリ削除 | [categories.md](./categories.md) |
+| POST | /items/{id}/categories/{category_id} | アイテムにカテゴリ付与 | [categories.md](./categories.md) |
+| DELETE | /items/{id}/categories/{category_id} | アイテムからカテゴリ削除 | [categories.md](./categories.md) |
+| POST | /mylists | マイリスト作成 | [mylists.md](./mylists.md) |
+| POST | /mylists/{id}/items | マイリストにアイテム追加 | [mylists.md](./mylists.md) |
+| DELETE | /mylists/{id}/items/{item_id} | マイリストからアイテム削除 | [mylists.md](./mylists.md) |
+| POST | /item-relations | アイテム関連作成 | [item-relations.md](./item-relations.md) |
+| DELETE | /item-relations/{id} | アイテム関連削除 | [item-relations.md](./item-relations.md) |
+| POST | /items/{id}/groups | グループ作成（season/volume/chapter） | [item-groups.md](./item-groups.md) |
+| GET | /items/{id}/groups | グループ一覧取得 | [item-groups.md](./item-groups.md) |
+| POST | /groups/{group_id}/episodes | エピソード作成 | [item-episodes.md](./item-episodes.md) |
+| GET | /groups/{group_id}/episodes | エピソード一覧取得 | [item-episodes.md](./item-episodes.md) |
+| POST | /staff | スタッフ作成 | [staff.md](./staff.md) |
+| POST | /items/{id}/staff | アイテムにスタッフ紐付け | [staff.md](./staff.md) |
+| DELETE | /items/{id}/staff/{item_staff_id} | アイテムのスタッフ紐付け削除 | [staff.md](./staff.md) |
+| POST | /items/{id}/files | アイテムファイル情報登録 | [item-files.md](./item-files.md) |
+| POST | /items/{id}/files/upload | アイテムファイルアップロード（multipart） | [item-files.md](./item-files.md) |
+| PATCH | /items/{id}/files/{file_id}/calibre-link | Calibre連携ID更新 | [item-files.md](./item-files.md) |
+| POST | /items/{id}/links | 外部リンク追加 | [item-links.md](./item-links.md) |
+| DELETE | /items/{id}/links/{link_id} | 外部リンク削除 | [item-links.md](./item-links.md) |
+| POST | /items/{id}/trailers | 予告編リンク追加 | [item-trailers.md](./item-trailers.md) |
+| DELETE | /items/{id}/trailers/{trailer_id} | 予告編リンク削除 | [item-trailers.md](./item-trailers.md) |
+| PUT | /settings/api-keys/{provider} | 外部APIキー登録・更新 | [settings.md](./settings.md) |
+| POST | /import/booklog | Booklog CSVインポート | [import.md](./import.md) |
+| POST | /import/steam | Steamライブラリインポート | [import.md](./import.md) |
+
+内部API（`/internal/*`）の一覧・詳細は [internal-api.md](./internal-api.md) を参照。
+
+## カテゴリ別詳細
+
+- [health.md](./health.md) — Health
+- [items.md](./items.md) — Items
+- [tags.md](./tags.md) — Tags
+- [categories.md](./categories.md) — Categories
+- [mylists.md](./mylists.md) — Mylists
+- [item-relations.md](./item-relations.md) — Item Relations
+- [item-groups.md](./item-groups.md) — Item Groups（season / volume / chapter）
+- [item-episodes.md](./item-episodes.md) — Item Episodes
+- [staff.md](./staff.md) — Staff
+- [item-files.md](./item-files.md) — Item Files
+- [item-links.md](./item-links.md) — Item Links
+- [item-trailers.md](./item-trailers.md) — Item Trailers
+- [settings.md](./settings.md) — Settings
+- [import.md](./import.md) — Import
+- [internal-api.md](./internal-api.md) — 内部API（`/internal/*`）
