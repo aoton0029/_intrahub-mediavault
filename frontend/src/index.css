@@ -1,3 +1,9 @@
+/* 【フォント導入】: _shared.css準拠のGoogle Fonts CDN方式でInter/Source Serif 4/JetBrains Monoを導入する 🟡 */
+/* 【import順序改善】: 本importを他の@importより前に配置し、CSSバンドル時の
+   「@import rules must precede all rules」警告を解消する。
+   `@fontsource-variable/geist`はビルド時に実際の@font-faceルールへ展開されるため、
+   後方に置くと本importがそのルール群より後続になり警告の原因になっていた 🔵 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -6,13 +12,35 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* MediaVaultダークテーマトークン（note.md「既存デザインシステム」準拠、具体値は参照元CSS削除のため推測） */
-  --bg-base: #0f1115;
-  --bg-surface: #1a1d23;
-  --bg-elevated: #232730;
-  --text-primary: #f5f5f5;
-  --text-secondary: #9ca3af;
-  --border-default: #2d313a;
+  /* 【デザイントークン再定義】: MediaVaultダークテーマトークンを_shared.css準拠の値に置換（TASK-0001 REQ-001） 🔵 */
+  /* 背景色系トークン */
+  --bg-app: #1e1e1e;
+  --bg-sidebar: #161616;
+  --bg-surface: #262626;
+  --bg-surface-hover: #2c2c2c;
+  --bg-input: #1c1c1c;
+
+  /* 文字色系トークン */
+  --text-primary: #dcddde;
+  --text-muted: #8a8a8d;
+  --text-faint: #5c5c5f;
+
+  /* ステータス色トークン */
+  --favorite: #e0a85a;
+  --status-progress: #5aa9e0;
+  --status-done: #5ac98a;
+  --status-none: #6b6b6e;
+  --danger: #e0615a;
+
+  /* フォントトークン */
+  --font-ui: 'Inter', -apple-system, sans-serif;
+  --font-display: 'Source Serif 4', Georgia, serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* レイアウト・角丸トークン */
+  --sidebar-w: 232px;
+  --properties-w: 300px;
+  --radius: 6px;
 
   /* media_type別アクセントカラー（MediaType型8種別） */
   --accent-anime: #f97316;
@@ -27,9 +55,16 @@
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
-  --border: oklch(0.922 0 0);
+  /* 【境界線・アクセント色置換】: shadcn由来oklch値を_shared.css準拠の値で上書き（REQ-402） 🔵 */
+  --border: #383838;
+  --border-soft: #2e2e2e;
   --code-bg: #f4f3ec;
-  --accent: oklch(0.97 0 0);
+  /* 【brand-accentへのリネーム】: shadcnの--accent（hover背景用ニュートラルトークン）と
+     名前が衝突するため、_shared.css由来の単一アクセント色は--brand-accentとして保持し、
+     shadcnの--primaryからこのエイリアスを参照する（TASK-0002 REQ-402） 🟡 */
+  --brand-accent: #8b6cf6;
+  --accent-strong: #a48bf8;
+  --accent-soft: rgba(139, 108, 246, 0.15);
   --accent-bg: rgba(170, 59, 255, 0.1);
   --accent-border: rgba(170, 59, 255, 0.5);
   --social-bg: rgba(244, 243, 236, 0.5);
@@ -54,37 +89,41 @@
     font-size: 16px;
   }
 
-  --background: oklch(1 0 0);
+  /* 【shadcn oklchトークンの上書き】: _shared.cssの対応色で上書きし、ダークUI単一構成に統一する（TASK-0002 REQ-402） 🔵 */
+  --background: var(--bg-app);
 
-  --foreground: oklch(0.145 0 0);
+  --foreground: var(--text-primary);
 
-  --card: oklch(1 0 0);
+  --card: var(--bg-surface);
 
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: var(--text-primary);
 
-  --popover: oklch(1 0 0);
+  --popover: var(--bg-surface);
 
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: var(--text-primary);
 
-  --primary: oklch(0.205 0 0);
+  --primary: var(--brand-accent);
 
-  --primary-foreground: oklch(0.985 0 0);
+  --primary-foreground: var(--text-primary);
 
-  --secondary: oklch(0.97 0 0);
+  --secondary: var(--bg-surface-hover);
 
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary-foreground: var(--text-primary);
 
-  --muted: oklch(0.97 0 0);
+  --muted: var(--bg-surface-hover);
 
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: var(--text-muted);
 
-  --accent-foreground: oklch(0.205 0 0);
+  /* 【shadcn --accent】: hover背景用のニュートラルトークン（_shared.cssの単一アクセント色--brand-accentとは別概念） 🟡 */
+  --accent: var(--accent-soft);
 
-  --destructive: oklch(0.577 0.245 27.325);
+  --accent-foreground: var(--text-primary);
 
-  --input: oklch(0.922 0 0);
+  --destructive: var(--danger);
 
-  --ring: oklch(0.708 0 0);
+  --input: var(--bg-input);
+
+  --ring: var(--accent-strong);
 
   --chart-1: oklch(0.87 0 0);
 
@@ -96,7 +135,8 @@
 
   --chart-5: oklch(0.269 0 0);
 
-  --radius: 0.625rem;
+  /* 【角丸トークンのリネーム】: shadcn用の旧--radius値を--radius-shadcnへ退避し、新--radius(6px)との名前衝突を回避 🟡 */
+  --radius-shadcn: 0.625rem;
 
   --sidebar: oklch(0.985 0 0);
 
@@ -196,12 +236,14 @@ code {
 }
 
 @theme inline {
-  --color-bg-base: var(--bg-base);
+  /* 【旧トークン参照の追随修正】: :root側の--bg-base等の旧トークンを削除したため、
+     @theme inlineのマッピングも未定義参照を避けて新トークン名に追随修正する（本タスクスコープ最小限の対応） 🟡 */
+  --color-bg-base: var(--bg-app);
   --color-bg-surface: var(--bg-surface);
-  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-elevated: var(--bg-surface-hover);
   --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-border-default: var(--border-default);
+  --color-text-secondary: var(--text-muted);
+  --color-border-default: var(--border);
 
   --color-accent-anime: var(--accent-anime);
   --color-accent-movie: var(--accent-movie);
@@ -245,34 +287,39 @@ code {
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* 【--radius-shadcnへの追随修正】: 新--radius(6px)への巻き込み事故を防ぐため、
+     shadcn用角丸計算式の参照元を--radius-shadcnに書き換える（TC-05対応） 🟡 */
+  --radius-sm: calc(var(--radius-shadcn) * 0.6);
+  --radius-md: calc(var(--radius-shadcn) * 0.8);
+  --radius-lg: var(--radius-shadcn);
+  --radius-xl: calc(var(--radius-shadcn) * 1.4);
+  --radius-2xl: calc(var(--radius-shadcn) * 1.8);
+  --radius-3xl: calc(var(--radius-shadcn) * 2.2);
+  --radius-4xl: calc(var(--radius-shadcn) * 2.6);
 }
 
+/* 【.darkブロックの方針B採用】: 本プロジェクトはダークUI単一構成であり、:root自体をダークテーマの正とする。
+   ライトモード切替は本要件のスコープ外のため、.darkクラスの有無に関わらず同一の見た目になるよう
+   :rootと同じトークン参照に揃え、将来のテーマ切替実装まで値を凍結する（TASK-0002） 🟡 */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: var(--bg-app);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-accent);
+  --primary-foreground: var(--text-primary);
+  --secondary: var(--bg-surface-hover);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-surface-hover);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--accent-soft);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--danger);
+  --border: var(--border);
+  --input: var(--bg-input);
+  --ring: var(--accent-strong);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -292,6 +339,7 @@ code {
   * {
     @apply border-border outline-ring/50;}
   body {
-    @apply bg-background text-foreground;}
+    @apply bg-background text-foreground;
+    background: var(--bg-app);}
   html {
     @apply font-sans;}}
