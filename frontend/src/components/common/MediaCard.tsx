@@ -1,10 +1,19 @@
 import { cn } from '@/lib/utils'
 import { MediaTypeBadge } from './MediaTypeBadge'
-import type { Item } from '@/types'
+import type { Item, ItemStatus } from '@/types'
 
 interface MediaCardProps {
   item: Item
   onClick?: (item: Item) => void
+}
+
+// 【ステータスマッピング】: ItemStatus（not_started/in_progress/completed）を
+// モックアップの3値（none/progress/done）に対応させる
+// 🟡 信頼性レベル: 資料に直接記載はないが型定義とモックアップから妥当な推測
+const STATUS_DOT_CLASS: Record<ItemStatus, 'none' | 'progress' | 'done'> = {
+  not_started: 'none',
+  in_progress: 'progress',
+  completed: 'done',
 }
 
 /**
@@ -24,26 +33,51 @@ export function MediaCard({ item, onClick }: MediaCardProps) {
       data-testid="media-card"
       onClick={handleClick}
       className={cn(
-        'flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-background'
+        'media-card flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-background transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-[var(--accent)]'
       )}
     >
-      {/* 【カバー画像】: coverImageUrl 未設定時もプレースホルダで例外を起こさない */}
-      <img
-        src={item.coverImageUrl ?? ''}
-        alt={item.title}
-        className="aspect-[2/3] w-full object-cover"
-      />
+      {/* 【カバー画像プレースホルダ】: coverImageUrl 未設定時もグラデーションプレースホルダで例外を起こさない */}
+      <div
+        className="cover relative flex aspect-[2/3] w-full items-end justify-end p-1.5"
+        style={{ background: 'linear-gradient(160deg, #33304a, #232323)' }}
+      >
+        {item.coverImageUrl && (
+          <img
+            src={item.coverImageUrl}
+            alt={item.title}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+
+        {/* 【media-typeバッジのオーバーレイ】: coverコンテナ内に絶対配置してラップする */}
+        <div
+          className="badge absolute left-1.5 top-1.5 rounded bg-black/55 px-1.5 py-0.5"
+        >
+          <MediaTypeBadge mediaType={item.mediaType} />
+        </div>
+
+        {/* 【お気に入り表示】: isFavorite=true の場合のみ★アイコンを表示 */}
+        {item.isFavorite && (
+          <span
+            className="fav relative text-sm"
+            style={{ color: 'var(--favorite)' }}
+            data-testid="media-card-favorite"
+            data-favorite="true"
+          >
+            ★
+          </span>
+        )}
+      </div>
 
       <div className="flex flex-col gap-1 p-2">
         <span className="text-sm font-medium">{item.title}</span>
 
-        <MediaTypeBadge mediaType={item.mediaType} />
-
-        {/* 【お気に入り表示】: isFavorite を data-favorite 属性で表現 */}
-        <span data-testid="media-card-favorite" data-favorite={String(item.isFavorite)} />
-
-        {/* 【ステータス表示】: status を data-status 属性で表現 */}
-        <span data-testid="media-card-status" data-status={item.status} />
+        {/* 【ステータス表示】: status を .status-dot クラス + data-status 属性で表現 */}
+        <span
+          className={cn('status-dot', STATUS_DOT_CLASS[item.status])}
+          data-testid="media-card-status"
+          data-status={item.status}
+        />
       </div>
     </div>
   )

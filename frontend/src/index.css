@@ -343,3 +343,83 @@ code {
     background: var(--bg-app);}
   html {
     @apply font-sans;}}
+
+/* 【EmptyStateスタイル】: _shared.css .empty-state相当（中央揃え・大パディング・見出しはSource Serif 4）（TASK-0005 REQ-011） 🔵 */
+.empty-state {
+  text-align: center;
+  padding: 64px 20px;
+  color: var(--text-faint);
+}
+.empty-state-heading {
+  font-family: var(--font-display);
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+/* 【TagPillスタイル】: _shared.css .tag-pill相当（#プレフィックス付きハッシュタグ風表示）（TASK-0004 REQ-011） 🔵 */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+/* 【FilterBarスタイル】: _shared.css .filter-bar/.chip/.search-box相当（TASK-0006 REQ-005, REQ-011） 🔵 */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--accent-strong);
+  color: var(--text-primary);
+}
+.chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  min-width: 220px;
+}
+.search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 100%;
+}
+.search-box input::placeholder {
+  color: var(--text-faint);
+}

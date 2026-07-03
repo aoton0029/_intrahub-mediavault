@@ -224,6 +224,67 @@ describe('MediaCard', () => {
     expect(screen.getByText(`タイトル-${mediaType}`)).toBeInTheDocument() // 【確認内容】: 種別によらずタイトルが正しく表示されることを確認
   })
 
+  it('TC-MC-N-07: isFavorite=true のとき★アイコンが表示される', () => {
+    // 【テスト目的】: isFavorite=true の場合に★アイコン要素が描画されることを確認する
+    // 🔵 信頼性レベル: TASK-0008完了条件・requirements.md REQ-004正常系より
+    const item = makeAnimeItem({ isFavorite: true })
+    render(<MediaCard item={item} />)
+
+    expect(screen.getByText('★')).toBeInTheDocument() // 【確認内容】: ★アイコンが表示されることを確認
+  })
+
+  it('TC-MC-N-08: isFavorite=false のとき★アイコンが表示されない', () => {
+    // 【テスト目的】: isFavorite=false の場合に★アイコン要素が描画されないことを確認する
+    // 🔵 信頼性レベル: TASK-0008完了条件・requirements.md REQ-004正常系より
+    const item = makeAnimeItem({ isFavorite: false })
+    render(<MediaCard item={item} />)
+
+    expect(screen.queryByText('★')).not.toBeInTheDocument() // 【確認内容】: ★アイコンが描画されないことを確認
+  })
+
+  it('TC-MC-E-03: status=not_started のときステータスドットが.status-dot.noneクラスを持つ', () => {
+    // 【テスト目的】: 未設定相当（not_started）の場合、グレーのステータスドットクラスが付与されることを確認する
+    // 🔵 信頼性レベル: TASK-0008完了条件・requirements.md REQ-004異常系より
+    const item = makeAnimeItem({ status: 'not_started' })
+    render(<MediaCard item={item} />)
+
+    const statusIndicator = screen.getByTestId('media-card-status')
+    expect(statusIndicator).toHaveClass('status-dot', 'none') // 【確認内容】: noneクラスが付与されることを確認
+  })
+
+  it('TC-MC-N-09: status=in_progress のときステータスドットが.status-dot.progressクラスを持つ', () => {
+    // 【テスト目的】: in_progress の場合、progress色のステータスドットクラスが付与されることを確認する
+    // 🔵 信頼性レベル: TASK-0008完了条件より
+    const item = makeAnimeItem({ status: 'in_progress' })
+    render(<MediaCard item={item} />)
+
+    const statusIndicator = screen.getByTestId('media-card-status')
+    expect(statusIndicator).toHaveClass('status-dot', 'progress')
+  })
+
+  it('TC-MC-N-10: status=completed のときステータスドットが.status-dot.doneクラスを持つ', () => {
+    // 【テスト目的】: completed の場合、done色のステータスドットクラスが付与されることを確認する
+    // 🔵 信頼性レベル: TASK-0008完了条件より
+    const item = makeAnimeItem({ status: 'completed' })
+    render(<MediaCard item={item} />)
+
+    const statusIndicator = screen.getByTestId('media-card-status')
+    expect(statusIndicator).toHaveClass('status-dot', 'done')
+  })
+
+  it('TC-MC-N-11: media-typeバッジがcoverコンテナ内にオーバーレイ配置される', () => {
+    // 【テスト目的】: バッジ要素がcoverコンテナ内に配置され、オーバーレイ相当のクラスが付与されることを確認する
+    // 🟡 信頼性レベル: TASK-0008完了条件・_shared.css .badge定義から妥当な推測
+    const item = makeAnimeItem()
+    const { container } = render(<MediaCard item={item} />)
+
+    const cover = container.querySelector('.cover')
+    expect(cover).not.toBeNull()
+    const badgeWrapper = cover?.querySelector('.badge')
+    expect(badgeWrapper).not.toBeNull()
+    expect(badgeWrapper?.querySelector('[data-testid="media-type-badge"]')).not.toBeNull()
+  })
+
   it('TC-MC-B-02: タイトルが空文字でも描画が破綻しない', () => {
     // 【テスト目的】: title が空文字でも MediaCard がクラッシュしないことを確認する
     // 【テスト内容】: title='' を指定し、例外が発生せずカードコンテナが描画されることを検証する

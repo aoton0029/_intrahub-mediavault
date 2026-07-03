@@ -16,9 +16,9 @@ export function EmptyState({ message, actionLabel, onAction }: EmptyStateProps) 
   return (
     <div
       data-testid="empty-state"
-      className="flex flex-col items-center justify-center gap-3 py-12 text-center"
+      className="empty-state flex flex-col items-center justify-center gap-3"
     >
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="empty-state-heading">{message}</p>
 
       {/* 【アクションボタン】: actionLabel 指定時のみ描画する */}
       {actionLabel ? (

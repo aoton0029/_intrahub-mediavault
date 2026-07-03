@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { FilterBar } from './FilterBar'
 import type { ItemListFilters, Tag, Category, MediaType } from '@/types'
 
@@ -77,11 +77,11 @@ describe('FilterBar - 正常系', () => {
     expect(onChange).toHaveBeenCalledWith({ isFavorite: true }) // 【確認内容】: isFavorite:trueが正しく渡されることを確認
   })
 
-  it('TC-FB-N-03: statusセレクトでin_progressを選択するとonChangeが{status:"in_progress"}で呼ばれる', () => {
-    // 【テスト目的】: statusセレクトの操作でonChangeが正しい引数で呼ばれることを確認する
-    // 【テスト内容】: FilterBarをレンダリングし、statusセレクトでin_progressを選択してonChangeの引数を検証する
+  it('TC-FB-N-03: ステータスchipで進行中をクリックするとonChangeが{status:"in_progress"}で呼ばれる', () => {
+    // 【テスト目的】: statusのchipボタン操作でonChangeが正しい引数で呼ばれることを確認する
+    // 【テスト内容】: FilterBarをレンダリングし、ステータスchip群から「進行中」をクリックしてonChangeの引数を検証する
     // 【期待される動作】: onChange({ status: 'in_progress' }) が呼ばれる
-    // 🔵 REQ-002・TASK-0010テストケース3より確実
+    // 🔵 REQ-002・REQ-005・TASK-0006（chip化）より確実
 
     // 【テストデータ準備】: status未設定のfiltersを用意する
     // 【初期条件設定】: statusが未設定のfiltersでFilterBarをレンダリングする
@@ -95,10 +95,11 @@ describe('FilterBar - 正常系', () => {
       />
     )
 
-    // 【実際の処理実行】: statusセレクトでin_progressを選択する
-    // 【処理内容】: ユーザーがstatusドロップダウンから「進行中」を選択する操作を再現する
-    const statusSelect = screen.getByRole('combobox', { name: /ステータス/i })
-    fireEvent.change(statusSelect, { target: { value: 'in_progress' } })
+    // 【実際の処理実行】: ステータスchip群から「進行中」をクリックする
+    // 【処理内容】: ユーザーがステータスchipグループから「進行中」ボタンを押す操作を再現する
+    const statusGroup = screen.getByRole('group', { name: /ステータス/i })
+    const inProgressChip = within(statusGroup).getByRole('button', { name: '進行中' })
+    fireEvent.click(inProgressChip)
 
     // 【結果検証】: onChangeが正しい引数で呼ばれたことを確認する
     // 【期待値確認】: { status: 'in_progress' } でonChangeが1回呼ばれること
@@ -221,6 +222,31 @@ describe('FilterBar - 正常系', () => {
     // 【期待値確認】: filters.mediaType='anime'がselectのvalueに正しく反映されること
     expect(mediaTypeSelect.value).toBe('anime') // 【確認内容】: media_typeセレクトの初期値がfiltersと同期していることを確認
   })
+
+  it('TC-FB-N-08: filters={status:"completed"}を渡すと該当のステータスchipがactive状態（aria-pressed=true）で表示される', () => {
+    // 【テスト目的】: controlledコンポーネントとしてfiltersプロパティがステータスchipのactive状態に反映されることを確認する
+    // 【テスト内容】: filters={status:'completed'}でFilterBarをレンダリングし、対応するchipのaria-pressedを検証する
+    // 【期待される動作】: 「完了」chipのaria-pressedがtrue、他のchipはfalseになる
+    // 🟡 _shared.css .chip.active定義・タスク指示「chipのactive状態の色分け」から妥当な推測
+
+    const onChange = vi.fn()
+    render(
+      <FilterBar
+        filters={{ status: 'completed' }}
+        onChange={onChange}
+        tagOptions={[]}
+        categoryOptions={[]}
+      />
+    )
+
+    const statusGroup = screen.getByRole('group', { name: /ステータス/i })
+    const completedChip = within(statusGroup).getByRole('button', { name: '完了' })
+    const notStartedChip = within(statusGroup).getByRole('button', { name: '未開始' })
+
+    expect(completedChip).toHaveAttribute('aria-pressed', 'true') // 【確認内容】: 選択中のchipがactive状態であることを確認
+    expect(completedChip.className).toContain('active') // 【確認内容】: active用のCSSクラスが付与されていることを確認
+    expect(notStartedChip).toHaveAttribute('aria-pressed', 'false') // 【確認内容】: 未選択のchipはactiveでないことを確認
+  })
 })
 
 // ===== 異常系テストケース =====
@@ -307,6 +333,29 @@ describe('FilterBar - 異常系', () => {
 
     // 【結果検証】: FilterBarコンテナが存在することを確認する
     expect(screen.getByTestId('filter-bar')).toBeInTheDocument() // 【確認内容】: コンポーネント自体が正常に描画されることを確認
+  })
+
+  it('TC-FB-E-04: キーワード検索欄に入力するとonChangeが{keyword:入力値}で呼ばれる', () => {
+    // 【テスト目的】: キーワード検索inputの操作でonChangeが正しい引数で呼ばれることを確認する
+    // 【テスト内容】: FilterBarをレンダリングし、検索inputに文字列を入力してonChangeの引数を検証する
+    // 【期待される動作】: onChange({ keyword: 'test' }) が呼ばれる
+    // 🟡 REQ-005「検索ボックス」・タスク指示「検索ボックスのフォーカス状態」から妥当な推測
+
+    const onChange = vi.fn()
+    render(
+      <FilterBar
+        filters={emptyFilters}
+        onChange={onChange}
+        tagOptions={[]}
+        categoryOptions={[]}
+      />
+    )
+
+    const keywordInput = screen.getByPlaceholderText('キーワード検索')
+    fireEvent.change(keywordInput, { target: { value: 'test' } })
+
+    expect(onChange).toHaveBeenCalledTimes(1) // 【確認内容】: onChangeが1回だけ呼ばれることを確認
+    expect(onChange).toHaveBeenCalledWith({ keyword: 'test' }) // 【確認内容】: keyword:'test'が正しく渡されることを確認
   })
 })
 
@@ -398,14 +447,15 @@ describe('FilterBar - 境界値', () => {
       />
     )
 
-    // 【実際の処理実行】: セレクト要素のdisabled属性を確認する
+    // 【実際の処理実行】: セレクト要素・chipボタンのdisabled属性を確認する
     const mediaTypeSelect = screen.getByRole('combobox', { name: /メディアタイプ/i })
-    const statusSelect = screen.getByRole('combobox', { name: /ステータス/i })
+    const statusGroup = screen.getByRole('group', { name: /ステータス/i })
+    const statusChip = within(statusGroup).getByRole('button', { name: '進行中' })
     const favoriteCheckbox = screen.getByRole('checkbox', { name: /お気に入り/i })
 
     // 【結果検証】: 各フィルタUIがdisabledになっていることを確認する
     expect(mediaTypeSelect).toBeDisabled() // 【確認内容】: media_typeセレクトがdisabledになることを確認
-    expect(statusSelect).toBeDisabled() // 【確認内容】: statusセレクトがdisabledになることを確認
+    expect(statusChip).toBeDisabled() // 【確認内容】: statusのchipボタンがdisabledになることを確認
     expect(favoriteCheckbox).toBeDisabled() // 【確認内容】: お気に入りcheckboxがdisabledになることを確認
   })
 
@@ -429,12 +479,15 @@ describe('FilterBar - 境界値', () => {
 
     // 【実際の処理実行】: 各フィルタUIの状態を確認する
     const mediaTypeSelect = screen.getByRole('combobox', { name: /メディアタイプ/i }) as HTMLSelectElement
-    const statusSelect = screen.getByRole('combobox', { name: /ステータス/i }) as HTMLSelectElement
+    const statusGroup = screen.getByRole('group', { name: /ステータス/i })
+    const statusChips = within(statusGroup).getAllByRole('button')
     const favoriteCheckbox = screen.getByRole('checkbox', { name: /お気に入り/i }) as HTMLInputElement
 
     // 【結果検証】: 全フィルタUIが未選択状態であることを確認する
     expect(mediaTypeSelect.value).toBe('') // 【確認内容】: media_typeセレクトが未選択（空値）であることを確認
-    expect(statusSelect.value).toBe('') // 【確認内容】: statusセレクトが未選択（空値）であることを確認
+    for (const chip of statusChips) {
+      expect(chip).toHaveAttribute('aria-pressed', 'false') // 【確認内容】: 全ステータスchipが未選択状態（aria-pressed=false）であることを確認
+    }
     expect(favoriteCheckbox.checked).toBe(false) // 【確認内容】: お気に入りcheckboxがuncheckedであることを確認
   })
 })

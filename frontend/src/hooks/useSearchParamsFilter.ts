@@ -7,6 +7,7 @@ const KEY_MAP: Record<keyof ItemListFilters, string> = {
   categoryId: 'category_id',
   isFavorite: 'favorite',
   status: 'status',
+  keyword: 'keyword',
   page: 'page',
   limit: 'limit',
 }
@@ -24,6 +25,7 @@ export function useSearchParamsFilter() {
     categoryId: searchParams.get('category_id') ?? undefined,
     isFavorite: searchParams.get('favorite') === 'true' ? true : undefined,
     status: (searchParams.get('status') as ItemStatus) ?? undefined,
+    keyword: searchParams.get('keyword') ?? undefined,
     page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
     limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
   }

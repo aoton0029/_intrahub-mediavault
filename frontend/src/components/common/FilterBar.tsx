@@ -119,9 +119,9 @@ export function FilterBar({
     onChange({ ...filters, categoryId: e.target.value || undefined })
   }
 
-  const handleStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value
-    onChange({ ...filters, status: v ? (v as ItemStatus) : undefined })
+  // 【ステータスchipハンドラ】: 選択中のchipを再クリックするとundefined（トグル解除）、それ以外は選択値を設定する 🔵 REQ-005
+  const handleStatusChipClick = (status: ItemStatus) => {
+    onChange({ ...filters, status: filters.status === status ? undefined : status })
   }
 
   // 【お気に入りハンドラ】: checked=trueならisFavorite=true、falseならundefined（false不使用）🔵
@@ -129,14 +129,16 @@ export function FilterBar({
     onChange({ ...filters, isFavorite: e.target.checked ? true : undefined })
   }
 
+  // 【キーワード検索ハンドラ】: 空文字はundefinedに変換してURLクエリパラメータを除去する 🟡
+  const handleKeywordChange = (e: ChangeEvent<HTMLInputElement>) => {
+    onChange({ ...filters, keyword: e.target.value || undefined })
+  }
+
   // 【クリアハンドラ】: onChange({})で全フィルタをリセットしURLクエリパラメータを全て除去する 🟡
   const handleClear = () => onChange({})
 
   return (
-    <div
-      data-testid="filter-bar"
-      className="flex flex-wrap items-center gap-2 sm:flex-row flex-col"
-    >
+    <div data-testid="filter-bar" className="filter-bar">
       {/* メディアタイプ */}
       <FilterSelectField
         id="filter-media-type"
@@ -189,18 +191,37 @@ export function FilterBar({
         お気に入り
       </label>
 
-      {/* ステータス */}
-      <FilterSelectField
-        id="filter-status"
-        label="ステータス"
-        value={filters.status ?? ''}
-        onChange={handleStatusChange}
-        disabled={disabled}
-      >
-        {ALL_STATUSES.map(s => (
-          <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-        ))}
-      </FilterSelectField>
+      {/* ステータス: .chip相当のトグルボタン群 🔵 REQ-005・_shared.css .chip/.chip.active定義より */}
+      <div role="group" aria-label="ステータス" className="flex items-center gap-1.5">
+        {ALL_STATUSES.map(s => {
+          const isActive = filters.status === s
+          return (
+            <button
+              key={s}
+              type="button"
+              className={`chip${isActive ? ' active' : ''}`}
+              aria-pressed={isActive}
+              disabled={disabled}
+              onClick={() => handleStatusChipClick(s)}
+            >
+              {STATUS_LABELS[s]}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* キーワード検索ボックス: .search-box相当のレイアウト・配色 🟡 REQ-005より */}
+      <label htmlFor="filter-keyword" className="search-box ml-auto">
+        <span className="sr-only">キーワード検索</span>
+        <input
+          id="filter-keyword"
+          type="search"
+          placeholder="キーワード検索"
+          value={filters.keyword ?? ''}
+          onChange={handleKeywordChange}
+          disabled={disabled}
+        />
+      </label>
 
       {/* クリアボタン: 全フィルタをリセットしURLクエリパラメータを全て除去する 🟡 */}
       <button

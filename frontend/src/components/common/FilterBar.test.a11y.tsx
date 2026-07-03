@@ -6,7 +6,7 @@
  * 🔵 信頼性レベル: TASK-0034 TC-5 と FilterBar.tsx 実装より確実
  */
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { FilterBar } from './FilterBar'
 import type { Tag, Category } from '@/types'
 
@@ -99,9 +99,10 @@ describe('FilterBar - アクセシビリティ (TASK-0034)', () => {
       expect(favoriteCheckbox).toHaveAttribute('type', 'checkbox') // 【確認内容】: 取得した要素が checkbox type の input であることを確認
     })
 
-    it('TC-04-5: ステータス select が getByLabelText で取得できる', () => {
-      // 【テスト目的】: ステータスセレクトにアクセシブルネームが付いていることを確認する
-      // 🔵 信頼性レベル: TASK-0034 TC-5 より確実
+    it('TC-04-5: ステータスchipグループが role=group とアクセシブルネームで取得できる', () => {
+      // 【テスト目的】: ステータスのchipボタン群がグループとしてアクセシブルネームを持つことを確認する
+      // 【変更理由】: TASK-0006でステータス絞り込みがselectから.chip相当のトグルボタン群に変更されたため
+      // 🔵 信頼性レベル: TASK-0006 REQ-005・FilterBar.tsx実装（role="group" aria-label="ステータス"）より確実
 
       render(
         <FilterBar
@@ -112,14 +113,14 @@ describe('FilterBar - アクセシビリティ (TASK-0034)', () => {
         />
       )
 
-      const statusSelect = screen.getByLabelText('ステータス') // 【確認内容】: ステータスラベルが select に関連付いていることを確認
-      expect(statusSelect).toBeInTheDocument()
-      expect(statusSelect.tagName.toLowerCase()).toBe('select') // 【確認内容】: 取得した要素が select であることを確認
+      const statusGroup = screen.getByRole('group', { name: 'ステータス' }) // 【確認内容】: ステータスグループがrole/aria-labelで取得できることを確認
+      expect(statusGroup).toBeInTheDocument()
+      expect(within(statusGroup).getAllByRole('button')).toHaveLength(3) // 【確認内容】: 未開始/進行中/完了の3chipが存在することを確認
     })
 
-    it('TC-04-6: 5 種全コントロール（select×4, checkbox×1）がすべてラベルで取得できる', () => {
+    it('TC-04-6: 5 種全コントロール（select×3, chipグループ×1, checkbox×1）がすべてラベル/ロールで取得できる', () => {
       // 【テスト目的】: フィルタUIの全コントロールにアクセシブルネームが付いていることを一括確認する
-      // 🔵 信頼性レベル: TASK-0034 TC-5 より確実
+      // 🔵 信頼性レベル: TASK-0006・TASK-0034 TC-5 より確実
 
       render(
         <FilterBar
@@ -130,12 +131,12 @@ describe('FilterBar - アクセシビリティ (TASK-0034)', () => {
         />
       )
 
-      // 【結果検証】: 5 種全コントロールがラベルで取得できることを一括確認する
+      // 【結果検証】: 5 種全コントロールがラベル/ロールで取得できることを一括確認する
       expect(screen.getByLabelText('メディアタイプ')).toBeInTheDocument() // 【確認内容】: メディアタイプコントロール
       expect(screen.getByLabelText('タグ')).toBeInTheDocument() // 【確認内容】: タグコントロール
       expect(screen.getByLabelText('カテゴリ')).toBeInTheDocument() // 【確認内容】: カテゴリコントロール
       expect(screen.getByLabelText('お気に入り')).toBeInTheDocument() // 【確認内容】: お気に入りコントロール
-      expect(screen.getByLabelText('ステータス')).toBeInTheDocument() // 【確認内容】: ステータスコントロール
+      expect(screen.getByRole('group', { name: 'ステータス' })).toBeInTheDocument() // 【確認内容】: ステータスchipグループコントロール
     })
   })
 })

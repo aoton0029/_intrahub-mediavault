@@ -122,4 +122,22 @@ describe('EmptyState', () => {
     // 【期待値確認】: 空・非空で描画構造が一貫していること
     expect(container?.querySelector('[data-testid="empty-state"]')).not.toBeNull() // 【確認内容】: message 空文字時もコンテナ自体は描画されることを確認
   })
+
+  // ===== スタイル回帰確認（TASK-0005） =====
+
+  it('TC-ES-S-01: ルート要素に .empty-state クラスが付与される', () => {
+    // 【テスト目的】: _shared.css .empty-state 相当の中央揃え・パディングスタイルが適用されることを確認する
+    // 🔵 信頼性レベル: _shared.css .empty-state定義より
+    render(<EmptyState message="コレクションがありません" />)
+
+    expect(screen.getByTestId('empty-state')).toHaveClass('empty-state') // 【確認内容】: ルート要素にスタイル用クラスが付与されていることを確認
+  })
+
+  it('TC-ES-S-02: 見出し部分に .empty-state-heading クラス（Source Serif 4フォント適用）が付与される', () => {
+    // 【テスト目的】: message 表示要素に見出し相当のクラスが付与されることを確認する
+    // 🟡 信頼性レベル: タスク指示「見出しにSource Serif 4フォント」からの妥当な推測
+    render(<EmptyState message="コレクションがありません" />)
+
+    expect(screen.getByText('コレクションがありません')).toHaveClass('empty-state-heading') // 【確認内容】: 見出し要素にフォントスタイル用クラスが付与されていることを確認
+  })
 })

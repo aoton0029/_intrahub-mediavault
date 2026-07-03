@@ -176,4 +176,38 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: '学術書・専門書' }).className).not.toContain('active') // 【確認内容】: 学術書・専門書が誤ってactiveにならないことを確認
     expect(screen.getByRole('link', { name: '論文・文献' }).className).not.toContain('active') // 【確認内容】: 論文・文献が誤ってactiveにならないことを確認
   })
+
+  // ===== TASK-0007: モックアップ準拠拡張 =====
+
+  it('TC-09: ブランドロゴ（MediaVault）が表示される', () => {
+    // 【テスト目的】: サイドバー上部にブランドロゴが表示されることを確認する
+    // 🔵 信頼性レベル: TASK-0007.md 拡張要素1より確定
+    renderWithRouter(['/'])
+    expect(screen.getByText('MediaVault')).toBeInTheDocument() // 【確認内容】: ブランドロゴのテキストが表示されることを確認
+  })
+
+  it('TC-10: 「ライブラリ」セクション見出しが表示される', () => {
+    // 【テスト目的】: 「ライブラリ」セクション見出しが表示されることを確認する
+    // 🔵 信頼性レベル: TASK-0007.md 拡張要素4より確定
+    renderWithRouter(['/'])
+    expect(screen.getByText('ライブラリ')).toBeInTheDocument() // 【確認内容】: セクション見出しが表示されることを確認
+  })
+
+  it('TC-11: メディアグループ別一覧のナビ項目にindentクラスが付与される', () => {
+    // 【テスト目的】: サブカテゴリ相当のナビ項目にインデント階層クラスが適用されることを確認する
+    // 🔵 信頼性レベル: TASK-0007.md 拡張要素3・テストケース3より確定
+    renderWithRouter(['/'])
+    expect(screen.getByRole('link', { name: '一般メディア' }).className).toContain('indent') // 【確認内容】: サブカテゴリ項目にindentが付与されることを確認
+    expect(screen.getByRole('link', { name: '学術書・専門書' }).className).toContain('indent')
+    expect(screen.getByRole('link', { name: '論文・文献' }).className).toContain('indent')
+    expect(screen.getByRole('link', { name: '全体一覧' }).className).not.toContain('indent') // 【確認内容】: トップレベル項目にはindentが付与されないことを確認
+  })
+
+  it('TC-12: 「設定」ナビ項目がDOM上で末尾に配置される', () => {
+    // 【テスト目的】: 「設定」ナビ項目がSidebar下部（末尾）に固定配置されることを確認する
+    // 🔵 信頼性レベル: TASK-0007.md 拡張要素5より確定
+    renderWithRouter(['/'])
+    const links = screen.getAllByRole('link')
+    expect(links[links.length - 1]).toHaveAttribute('href', '/settings') // 【確認内容】: 「設定」リンクがDOM順で最後に配置されることを確認
+  })
 })

@@ -281,6 +281,7 @@ export interface ItemListFilters {
   categoryId?: string;
   isFavorite?: boolean;
   status?: ItemStatus;
+  keyword?: string;
   page?: number;
   limit?: number;
 }
