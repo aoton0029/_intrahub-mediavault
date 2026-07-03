@@ -6,6 +6,7 @@ import { useExternalSearchQuery, useImportItemMutation } from '@/api/search'
 import { ApiClientError } from '@/types'
 import type { MediaType, ExternalSearchResultItem, ExternalSearchQuery } from '@/types'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/common/EmptyState'
 
 type ItemGroup = 'general' | 'academic' | 'paper'
 
@@ -162,23 +163,20 @@ export default function SearchAddPage({ group }: SearchAddPageProps) {
       {renderErrorUI()}
 
       {!isSearching && !isError && results && results.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <div className="flex flex-col">
           {results.map((result) => (
-            <div key={result.externalId} className="flex flex-col gap-2 rounded-lg border border-border p-3">
-              {result.coverImageUrl && (
-                <img
-                  src={result.coverImageUrl}
-                  alt={result.title}
-                  className="w-full rounded object-cover"
-                />
-              )}
-              <p className="font-medium">{result.title}</p>
-              {result.releaseDate && (
-                <p className="text-xs text-muted-foreground">{result.releaseDate}</p>
-              )}
+            <div key={result.externalId} className="result-row" onClick={() => handleImport(result)}>
+              <div
+                className="thumb"
+                style={result.coverImageUrl ? { backgroundImage: `url(${result.coverImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+              />
+              <div className="info">
+                <div className="title">{result.title}</div>
+                {result.releaseDate && <div className="sub">{result.releaseDate}</div>}
+              </div>
               <Button
                 type="button"
-                onClick={() => handleImport(result)}
+                onClick={(e) => { e.stopPropagation(); handleImport(result) }}
                 disabled={importMutation.isPending}
               >
                 {importMutation.isPending ? '追加中...' : '追加'}
@@ -189,7 +187,7 @@ export default function SearchAddPage({ group }: SearchAddPageProps) {
       )}
 
       {!isSearching && !isError && results && results.length === 0 && searchQuery && (
-        <p className="text-center text-sm text-muted-foreground">検索結果がありません</p>
+        <EmptyState message="検索結果がありません" />
       )}
     </div>
   )

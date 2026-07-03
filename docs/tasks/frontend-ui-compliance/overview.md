@@ -100,9 +100,9 @@ TASK-0002 → TASK-0009
 
 - [x] [TASK-0010: HomePageのフィルタバー・追加ボタン統合](TASK-0010.md) - 8h (TDD) 🔵
 - [x] [TASK-0011: ItemDetailPageのパンくず・タイトルバー・ドキュメント本文](TASK-0011.md) - 8h (TDD) 🔵
-- [ ] [TASK-0012: SearchAddPageの検索結果リスト更新](TASK-0012.md) - 6h (TDD) 🔵
-- [ ] [TASK-0013: ItemFormPageの2カラムフォーム化](TASK-0013.md) - 8h (TDD) 🔵
-- [ ] [TASK-0014: SettingsPageのタブ+パネルレイアウト化](TASK-0014.md) - 8h (TDD) 🔵
+- [x] [TASK-0012: SearchAddPageの検索結果リスト更新](TASK-0012.md) - 6h (TDD) 🔵
+- [x] [TASK-0013: ItemFormPageの2カラムフォーム化](TASK-0013.md) - 8h (TDD) 🔵
+- [x] [TASK-0014: SettingsPageのタブ+パネルレイアウト化](TASK-0014.md) - 8h (TDD) 🔵
 
 ### 依存関係
 
@@ -123,7 +123,7 @@ TASK-0003 → TASK-0014
 
 ### タスク一覧
 
-- [ ] [TASK-0015: 全画面横断のアクセシビリティ・コントラスト比検証](TASK-0015.md) - 6h (DIRECT) 🔵
+- [x] [TASK-0015: 全画面横断のアクセシビリティ・コントラスト比検証](TASK-0015.md) - 6h (DIRECT) 🔵
 - [ ] [TASK-0016: 全体リグレッションチェックとビルド確認](TASK-0016.md) - 6h (DIRECT) 🔵
 
 ### 依存関係

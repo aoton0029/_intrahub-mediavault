@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -47,45 +48,43 @@ function ProviderRow({ provider, maskedKey }: { provider: ApiProvider; label: st
   }
 
   const inputId = `api-key-${provider}`;
+  const label = PROVIDERS.find((p) => p.id === provider)?.label ?? provider;
+
+  if (!editing && maskedKey) {
+    return (
+      <div className="kv-card">
+        <div>
+          <div className="provider">{label}</div>
+          <div className="key">{maskedKey}</div>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>
+          編集
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-[120px_1fr_auto] items-start gap-3 py-2">
-      <Label htmlFor={inputId} className="pt-2">{PROVIDERS.find((p) => p.id === provider)?.label ?? provider}</Label>
+      <Label htmlFor={inputId} className="pt-2">{label}</Label>
       <div className="flex flex-col gap-1">
-        {editing || !maskedKey ? (
-          <Input
-            id={inputId}
-            {...register('apiKey')}
-            type="text"
-            placeholder="APIキーを入力"
-            autoComplete="off"
-            aria-describedby={errors.apiKey ? `${inputId}-error` : undefined}
-          />
-        ) : (
-          <div
-            className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground cursor-pointer"
-            onClick={() => setEditing(true)}
-          >
-            {maskedKey}
-          </div>
-        )}
+        <Input
+          id={inputId}
+          {...register('apiKey')}
+          type="text"
+          placeholder="APIキーを入力"
+          autoComplete="off"
+          aria-describedby={errors.apiKey ? `${inputId}-error` : undefined}
+        />
         {errors.apiKey && <p id={`${inputId}-error`} className="text-xs text-destructive">{errors.apiKey.message}</p>}
       </div>
       <div className="flex gap-2 pt-0.5">
-        {editing || !maskedKey ? (
-          <>
-            <Button type="submit" size="sm" disabled={mutation.isPending}>
-              保存
-            </Button>
-            {maskedKey && (
-              <Button type="button" size="sm" variant="ghost" onClick={() => { reset(); setEditing(false); }}>
-                キャンセル
-              </Button>
-            )}
-          </>
-        ) : (
-          <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>
-            編集
+        <Button type="submit" size="sm" disabled={mutation.isPending}>
+          保存
+        </Button>
+        {maskedKey && (
+          <Button type="button" size="sm" variant="ghost" onClick={() => { reset(); setEditing(false); }}>
+            キャンセル
           </Button>
         )}
       </div>
@@ -249,23 +248,37 @@ function ExportTab() {
   );
 }
 
+const SETTINGS_TABS = [
+  { id: 'api-keys', label: 'APIキー' },
+  { id: 'import', label: 'インポート' },
+  { id: 'export', label: 'エクスポート' },
+] as const;
+
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<string>('api-keys');
+
   return (
-    <div className="container mx-auto max-w-2xl py-8">
+    <div className="container mx-auto max-w-4xl py-8">
       <h1 className="mb-6 text-2xl font-bold">設定</h1>
-      <Tabs defaultValue="api-keys">
-        <TabsList className="mb-6">
-          <TabsTrigger value="api-keys">APIキー</TabsTrigger>
-          <TabsTrigger value="import">インポート</TabsTrigger>
-          <TabsTrigger value="export">エクスポート</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="settings-shell">
+        <TabsList className="settings-tabs flex-col items-stretch">
+          {SETTINGS_TABS.map((tab) => (
+            <TabsTrigger
+              key={tab.id}
+              value={tab.id}
+              className={cn('settings-tab', activeTab === tab.id && 'active')}
+            >
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent value="api-keys">
+        <TabsContent value="api-keys" className="settings-panel">
           <ApiKeysTab />
         </TabsContent>
-        <TabsContent value="import">
+        <TabsContent value="import" className="settings-panel">
           <ImportTab />
         </TabsContent>
-        <TabsContent value="export">
+        <TabsContent value="export" className="settings-panel">
           <ExportTab />
         </TabsContent>
       </Tabs>

@@ -9,17 +9,18 @@ export function ItemBaseFields() {
   const coverImageUrl = form.watch('coverImageUrl')
 
   return (
-    <div className="space-y-4">
+    <>
       <FormField
         control={form.control}
         name="title"
         render={({ field }) => (
-          <FormItem>
-            <FormLabel>タイトル *</FormLabel>
+          <FormItem className="form-field">
+            <FormLabel>タイトル<span className="required">*</span></FormLabel>
             <FormControl>
               <Input placeholder="タイトルを入力" {...field} />
             </FormControl>
-            <FormMessage />
+            <p className="field-hint">作品の正式名称を入力してください</p>
+            <FormMessage className="field-error" />
           </FormItem>
         )}
       />
@@ -28,12 +29,12 @@ export function ItemBaseFields() {
         control={form.control}
         name="originalTitle"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="form-field">
             <FormLabel>原題</FormLabel>
             <FormControl>
               <Input placeholder="原題（任意）" {...field} />
             </FormControl>
-            <FormMessage />
+            <FormMessage className="field-error" />
           </FormItem>
         )}
       />
@@ -42,12 +43,12 @@ export function ItemBaseFields() {
         control={form.control}
         name="description"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="form-field full">
             <FormLabel>説明</FormLabel>
             <FormControl>
               <Textarea placeholder="説明（任意）" rows={3} {...field} />
             </FormControl>
-            <FormMessage />
+            <FormMessage className="field-error" />
           </FormItem>
         )}
       />
@@ -56,12 +57,12 @@ export function ItemBaseFields() {
         control={form.control}
         name="coverImageUrl"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="form-field">
             <FormLabel>カバー画像URL</FormLabel>
             <FormControl>
               <Input placeholder="https://..." {...field} />
             </FormControl>
-            <FormMessage />
+            <FormMessage className="field-error" />
             {coverImageUrl && (
               <img
                 src={coverImageUrl}
@@ -77,12 +78,12 @@ export function ItemBaseFields() {
         control={form.control}
         name="releaseDate"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="form-field">
             <FormLabel>公開日</FormLabel>
             <FormControl>
               <Input type="date" {...field} />
             </FormControl>
-            <FormMessage />
+            <FormMessage className="field-error" />
           </FormItem>
         )}
       />
@@ -91,15 +92,15 @@ export function ItemBaseFields() {
         control={form.control}
         name="homepageUrl"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="form-field">
             <FormLabel>公式サイトURL</FormLabel>
             <FormControl>
               <Input placeholder="https://..." {...field} />
             </FormControl>
-            <FormMessage />
+            <FormMessage className="field-error" />
           </FormItem>
         )}
       />
-    </div>
+    </>
   )
 }

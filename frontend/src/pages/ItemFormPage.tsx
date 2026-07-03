@@ -174,15 +174,15 @@ export default function ItemFormPage({ mode, group }: ItemFormPageProps) {
 
       <FormProvider {...form}>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="form-grid">
             {/* media_type selector: create only */}
             {mode === 'create' && (
               <FormField
                 control={form.control}
                 name="mediaType"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>メディア種別 *</FormLabel>
+                  <FormItem className="form-field">
+                    <FormLabel>メディア種別<span className="required">*</span></FormLabel>
                     <FormControl>
                       <select
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -195,7 +195,7 @@ export default function ItemFormPage({ mode, group }: ItemFormPageProps) {
                         ))}
                       </select>
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="field-error" />
                   </FormItem>
                 )}
               />
@@ -210,12 +210,12 @@ export default function ItemFormPage({ mode, group }: ItemFormPageProps) {
                 control={form.control}
                 name="externalId"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="form-field">
                     <FormLabel>外部ID</FormLabel>
                     <FormControl>
                       <Input {...field} readOnly disabled className="bg-muted" />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="field-error" />
                   </FormItem>
                 )}
               />
@@ -224,11 +224,11 @@ export default function ItemFormPage({ mode, group }: ItemFormPageProps) {
             {/* media-type specific fields */}
             <DetailsFields mediaType={mediaType} />
 
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
+            <div className="form-actions form-field full">
+              <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
                 キャンセル
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" variant="accent" disabled={isPending}>
                 {isPending && (
                   <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 )}
