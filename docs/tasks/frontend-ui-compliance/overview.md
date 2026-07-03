@@ -70,7 +70,7 @@ TASK-0001 → TASK-0002
 
 ### タスク一覧
 
-- [ ] [TASK-0003: Buttonコンポーネントのvariant拡張](TASK-0003.md) - 6h (TDD) 🔵
+- [x] [TASK-0003: Buttonコンポーネントのvariant拡張](TASK-0003.md) - 6h (TDD) 🔵
 - [ ] [TASK-0004: TagPillコンポーネントの新規作成](TASK-0004.md) - 4h (TDD) 🔵
 - [ ] [TASK-0005: EmptyStateのモックアップ準拠更新](TASK-0005.md) - 3h (TDD) 🔵
 - [ ] [TASK-0006: FilterBarのモックアップ準拠更新](TASK-0006.md) - 6h (TDD) 🔵
