@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — 設定</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- サイドバー(01_home.htmlと共通、「設定」をactiveに) -->
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+
+    <div class="nav-section">
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　漫画<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　小説<span class="count">7</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ゲーム<span class="count">3</span></a>
+      <a href="03_academic_books.html" class="nav-item" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
+      <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">ライブラリ</div>
+      <a href="06_mylists.html" class="nav-item" style="text-decoration:none;">⭐ マイリスト</a>
+      <a href="07_tags.html" class="nav-item" style="text-decoration:none;">🏷️ タグ</a>
+      <a href="14_categories.html" class="nav-item" style="text-decoration:none;">📁 カテゴリ</a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　積読<span class="count">12</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　お気に入り原作<span class="count">6</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　2026年鑑賞予定<span class="count">4</span></a>
+      <a href="08_staff.html" class="nav-item" style="text-decoration:none;">👤 スタッフ</a>
+    </div>
+
+    <div class="nav-section" style="margin-top: auto;">
+      <a href="19_settings.html" class="nav-item active" style="text-decoration:none;">⚙️ 設定</a>
+    </div>
+  </aside>
+
+  <!-- メイン -->
+  <main class="main">
+    <div class="titlebar">
+      <h1>設定</h1>
+    </div>
+
+    <div class="content">
+      <!-- CSSのみのタブ切り替え(resource-tabsパターンを流用)。JSは使わず input[type=radio] + :checked ~ で表示を切り替える -->
+      <div class="settings-shell" style="position: relative;">
+        <input type="radio" name="settings-tab" id="tab-api" checked style="position:absolute; opacity:0; pointer-events:none;">
+        <input type="radio" name="settings-tab" id="tab-import" style="position:absolute; opacity:0; pointer-events:none;">
+        <input type="radio" name="settings-tab" id="tab-system" style="position:absolute; opacity:0; pointer-events:none;">
+
+        <div class="settings-tabs">
+          <label for="tab-api" class="settings-tab" id="label-api">API連携</label>
+          <label for="tab-import" class="settings-tab" id="label-import">データインポート</label>
+          <label for="tab-system" class="settings-tab" id="label-system">システム状態</label>
+        </div>
+
+        <div class="settings-panel">
+
+          <!-- ① API連携パネル。PUT /settings/api-keys/{provider} に対応。
+               GET /settings/api-keys(一覧取得)は現状ドキュメントに無いため、
+               既存キーの値・設定済みかどうかは取得できない前提で、6プロバイダ固定の
+               空欄入力+保存ボタンのみを先行実装する(バックエンド実装時に一覧取得APIの追加が必要)。 -->
+          <div class="panel-api">
+            <h2>API連携</h2>
+            <p class="desc">外部データソースのAPIキーを登録します。各プロバイダごとに個別のキーを保存できます。</p>
+
+            <div class="kv-card">
+              <div>
+                <div class="provider">TMDB</div>
+                <div class="key">provider: tmdb ・ 最終更新: 2026-06-12 09:41</div>
+              </div>
+              <div style="display:flex; gap: 8px;">
+                <input type="password" placeholder="APIキーを入力" style="width:220px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-family:var(--font-ui); font-size:13px; padding:7px 10px; outline:none;">
+                <button class="btn btn-accent btn-sm">保存</button>
+              </div>
+            </div>
+
+            <div class="kv-card">
+              <div>
+                <div class="provider">IGDB</div>
+                <div class="key">provider: igdb ・ 未設定</div>
+              </div>
+              <div style="display:flex; gap: 8px;">
+                <input type="password" placeholder="APIキーを入力" style="width:220px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-family:var(--font-ui); font-size:13px; padding:7px 10px; outline:none;">
+                <button class="btn btn-accent btn-sm">保存</button>
+              </div>
+            </div>
+
+            <div class="kv-card">
+              <div>
+                <div class="provider">NDL(国立国会図書館)</div>
+                <div class="key">provider: ndl ・ 未設定</div>
+              </div>
+              <div style="display:flex; gap: 8px;">
+                <input type="password" placeholder="APIキーを入力" style="width:220px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-family:var(--font-ui); font-size:13px; padding:7px 10px; outline:none;">
+                <button class="btn btn-accent btn-sm">保存</button>
+              </div>
+            </div>
+
+            <div class="kv-card">
+              <div>
+                <div class="provider">Steam</div>
+                <div class="key">provider: steam ・ 最終更新: 2026-05-30 21:03</div>
+              </div>
+              <div style="display:flex; gap: 8px;">
+                <input type="password" placeholder="APIキーを入力" style="width:220px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-family:var(--font-ui); font-size:13px; padding:7px 10px; outline:none;">
+                <button class="btn btn-accent btn-sm">保存</button>
+              </div>
+            </div>
+
+            <div class="kv-card">
+              <div>
+                <div class="provider">Open Library</div>
+                <div class="key">provider: open_library ・ 未設定</div>
+              </div>
+              <div style="display:flex; gap: 8px;">
+                <input type="password" placeholder="APIキーを入力" style="width:220px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-family:var(--font-ui); font-size:13px; padding:7px 10px; outline:none;">
+                <button class="btn btn-accent btn-sm">保存</button>
+              </div>
+            </div>
+
+            <div class="kv-card">
+              <div>
+                <div class="provider">AniList</div>
+                <div class="key">provider: ani_list ・ 未設定</div>
+              </div>
+              <div style="display:flex; gap: 8px;">
+                <input type="password" placeholder="APIキーを入力" style="width:220px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-family:var(--font-ui); font-size:13px; padding:7px 10px; outline:none;">
+                <button class="btn btn-accent btn-sm">保存</button>
+              </div>
+            </div>
+
+            <!-- Jikan(MyAnimeList)はAPIキー不要のためキー入力欄を設けず、参考情報として読み取り専用表示のみ -->
+            <div class="kv-card">
+              <div>
+                <div class="provider">Jikan(MyAnimeList)</div>
+                <div class="key">provider: jikan ・ APIキー不要(認証なしで利用可能)</div>
+              </div>
+              <span class="field-hint">設定不要</span>
+            </div>
+          </div>
+
+          <!-- ② データインポートパネル。POST /import/booklog(multipart)・POST /import/steam に対応 -->
+          <div class="panel-import">
+            <h2>データインポート</h2>
+            <p class="desc">外部サービスのデータを一括で取り込みます。</p>
+
+            <div class="form-section-title" style="margin-top:0;">Booklogからインポート</div>
+            <div class="kv-card" style="align-items:flex-start; flex-direction:column; gap:12px;">
+              <div class="form-field full" style="max-width:420px;">
+                <label>CSVファイル</label>
+                <input type="file" accept=".csv">
+                <span class="field-hint">Booklogからエクスポートした読書記録CSVを選択してください</span>
+              </div>
+              <div class="form-actions" style="margin-top:0; padding-top:0; border-top:none;">
+                <button class="btn btn-accent btn-sm">アップロードして取り込む</button>
+              </div>
+            </div>
+
+            <div class="form-section-title">Steamからインポート</div>
+            <div class="kv-card" style="align-items:flex-start; flex-direction:column; gap:12px;">
+              <div class="form-field" style="max-width:320px;">
+                <label>Steam ID</label>
+                <input type="text" placeholder="例: 76561198000000000">
+              </div>
+              <div class="form-actions" style="margin-top:0; padding-top:0; border-top:none;">
+                <button class="btn btn-accent btn-sm">ライブラリを取り込む</button>
+              </div>
+            </div>
+
+            <!-- インポート結果表示例(ImportSummary: success_count / failure_count / failures[]) -->
+            <div class="form-section-title">直近のインポート結果</div>
+            <div class="kv-card" style="align-items:flex-start; flex-direction:column; gap:8px;">
+              <div class="meta-bar" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
+                <span class="meta-item">成功: 10件</span>
+                <span class="meta-item">失敗: 2件</span>
+              </div>
+              <div class="prop-list-item">
+                <span class="label">5行目</span>
+                <span class="sub">reason: タイトルが空です</span>
+              </div>
+              <div class="prop-list-item">
+                <span class="label">9行目</span>
+                <span class="sub">reason: 不正な評価値です</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ③ システム状態パネル。GET /health に対応 -->
+          <div class="panel-system">
+            <h2>システム状態</h2>
+            <p class="desc">アプリケーションの動作状況を確認します。</p>
+
+            <div class="kv-card">
+              <div>
+                <div class="provider">データベース接続</div>
+                <div class="key">GET /health</div>
+              </div>
+              <span class="tag-pill" style="color: var(--status-done);">status: ok</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

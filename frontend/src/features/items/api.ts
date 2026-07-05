@@ -1,6 +1,14 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiFetchPaginated } from '@/lib/api-client';
-import type { CategoryRef, Item, MediaType, TagRef } from './types';
+import type {
+  CategoryRef,
+  ExternalSearchResult,
+  GeneralMediaType,
+  ImportItemRequest,
+  Item,
+  MediaType,
+  TagRef,
+} from './types';
 
 export interface ListItemsParams {
   media_type?: MediaType;
@@ -104,5 +112,44 @@ export function useMediaTypeCountsQuery() {
     queryKey: ['items-counts-by-media-type'],
     queryFn: async () => (await apiFetch<MediaTypeCounts>('/items/counts-by-media-type')).data,
     retry: false,
+  });
+}
+
+export async function searchExternalItems(params: {
+  media_type: GeneralMediaType;
+  q: string;
+}): Promise<ExternalSearchResult[]> {
+  const search = new URLSearchParams({ media_type: params.media_type, q: params.q });
+  return (await apiFetch<ExternalSearchResult[]>(`/items/search?${search.toString()}`)).data;
+}
+
+export function useExternalSearchQuery(mediaType: GeneralMediaType, q: string) {
+  const trimmed = q.trim();
+  return useQuery({
+    queryKey: ['items-search', mediaType, trimmed],
+    queryFn: () => searchExternalItems({ media_type: mediaType, q: trimmed }),
+    enabled: trimmed.length > 0,
+    retry: false,
+  });
+}
+
+export async function importItem(body: ImportItemRequest): Promise<Item> {
+  return (
+    await apiFetch<Item>('/items/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  ).data;
+}
+
+export function useImportItemMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: importItem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['items-counts-by-media-type'] });
+    },
   });
 }

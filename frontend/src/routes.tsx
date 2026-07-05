@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { HomePage } from '@/pages/HomePage'
+import { SearchAddPage } from '@/pages/SearchAddPage'
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +16,9 @@ export const router = createBrowserRouter([
       { path: '/tags', element: <PlaceholderPage title="タグ" /> },
       { path: '/categories', element: <PlaceholderPage title="カテゴリ" /> },
       { path: '/staff', element: <PlaceholderPage title="スタッフ" /> },
+      { path: '/search-add', element: <SearchAddPage /> },
+      { path: '/search-add/manual', element: <PlaceholderPage title="手動で入力する" /> },
+      { path: '/settings', element: <PlaceholderPage title="設定" /> },
     ],
   },
 ])
