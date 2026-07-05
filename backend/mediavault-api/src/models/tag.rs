@@ -15,6 +15,17 @@ pub struct Tag {
     pub name: String,
 }
 
+/// タグ + 付与アイテム件数（`GET /tags`のレスポンスで返す表現）
+///
+/// フロントエンドのフィルタチップ・サイドバー表示用に、タグ本体へ
+/// 付与済みアイテム数（item_tags経由のCOUNT）を付加した表現。
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct TagWithCount {
+    pub id: Uuid,
+    pub name: String,
+    pub item_count: i64,
+}
+
 /// `POST /tags` リクエストDTO
 /// 🔵 信頼性レベル: タスク仕様「タグ名（name）を受け取り」に直接対応
 #[derive(Debug, Clone, Deserialize)]

@@ -15,6 +15,15 @@ pub struct Category {
     pub name: String,
 }
 
+/// カテゴリ + 付与アイテム件数（`GET /categories`のレスポンスで返す表現）
+/// 🟡 信頼性レベル: models::tag::TagWithCountと完全に対称
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct CategoryWithCount {
+    pub id: Uuid,
+    pub name: String,
+    pub item_count: i64,
+}
+
 /// `POST /categories` リクエストDTO
 /// 🔵 信頼性レベル: タグと対称、タスク仕様「カテゴリのitem付与・削除」に対応
 #[derive(Debug, Clone, Deserialize)]

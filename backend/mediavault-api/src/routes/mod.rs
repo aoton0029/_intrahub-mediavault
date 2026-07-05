@@ -12,7 +12,7 @@ use axum::routing::get;
 use crate::AppState;
 use crate::handlers::categories::{
     attach_category_handler, create_category_handler, delete_category_handler,
-    detach_category_handler,
+    detach_category_handler, list_categories_handler,
 };
 use crate::handlers::health::health_handler;
 use crate::handlers::import_booklog::import_booklog_handler;
@@ -26,8 +26,9 @@ use crate::handlers::item_links::{create_item_link_handler, delete_item_link_han
 use crate::handlers::item_relations::{create_item_relation_handler, delete_item_relation_handler};
 use crate::handlers::item_trailers::{create_item_trailer_handler, delete_item_trailer_handler};
 use crate::handlers::items::{
-    create_item_handler, delete_item_handler, get_item_handler, import_item_handler,
-    list_items_handler, search_items_handler, update_item_handler, update_item_status_handler,
+    count_items_by_media_type_handler, create_item_handler, delete_item_handler, get_item_handler,
+    import_item_handler, list_items_handler, search_items_handler, update_item_handler,
+    update_item_status_handler,
 };
 use crate::handlers::mylists::{
     add_mylist_item_handler, create_mylist_handler, remove_mylist_item_handler,
@@ -38,6 +39,7 @@ use crate::handlers::staff::{
 };
 use crate::handlers::tags::{
     attach_tag_handler, create_tag_handler, delete_tag_handler, detach_tag_handler,
+    list_tags_handler,
 };
 
 /// アプリケーション全体のRouterを構築する。
@@ -52,6 +54,12 @@ pub fn build_router(state: AppState) -> Router {
         // 【TASK-0025】: POST /items/import（外部検索結果からのインポート）を/items/{id}より前に
         // リテラル登録し誤マッチ防止 🔵
         .route("/items/import", axum::routing::post(import_item_handler))
+        // GET /items/counts-by-media-type（サイドバー用メディア種別件数）を/items/{id}より前に
+        // リテラル登録し誤マッチ防止（/items/search・/items/importと同一方針）
+        .route(
+            "/items/counts-by-media-type",
+            get(count_items_by_media_type_handler),
+        )
         // 【TASK-0011】: GET /items/{id}（個別詳細取得） 🟡
         // 【TASK-0012】: PATCH /items/{id}（部分更新）を同一パスに追加 🔵
         // 【TASK-0013】: DELETE /items/{id}（カスケード削除）を同一パスに追加 🔵
@@ -67,14 +75,19 @@ pub fn build_router(state: AppState) -> Router {
             axum::routing::patch(update_item_status_handler),
         )
         // 【TASK-0015】: タグCRUD・アイテムへの付与・削除 🔵🟡
-        .route("/tags", axum::routing::post(create_tag_handler))
+        // GET /tags（付与件数付き一覧、サイドバー・フィルタチップ表示用）を追加
+        .route("/tags", get(list_tags_handler).post(create_tag_handler))
         .route("/tags/{id}", axum::routing::delete(delete_tag_handler))
         .route(
             "/items/{id}/tags/{tag_id}",
             axum::routing::post(attach_tag_handler).delete(detach_tag_handler),
         )
         // 【TASK-0015】: カテゴリCRUD・アイテムへの付与・削除 🔵🟡
-        .route("/categories", axum::routing::post(create_category_handler))
+        // GET /categories（付与件数付き一覧）を追加
+        .route(
+            "/categories",
+            get(list_categories_handler).post(create_category_handler),
+        )
         .route(
             "/categories/{id}",
             axum::routing::delete(delete_category_handler),
@@ -223,26 +236,26 @@ mod tests {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 不正なenum値が400で拒否されることを確認 🔵
     }
 
-    /// TC-0010-E02: 不正なpage値（非数値）→ 400（ルーター経由）
+    /// TC-0010-E02: 不正なafter_created_at値（非日時形式）→ 400（ルーター経由）
     /// 🔵 信頼性レベル: 要件 EC-1・note.md 6章 技術的制約に直接対応
     #[tokio::test]
     #[ignore]
-    async fn get_items_with_non_numeric_page_returns_400() {
-        // 【テスト目的】: page=abcのようなu32にパースできない値が400で拒否されることを確認する
+    async fn get_items_with_non_datetime_after_created_at_returns_400() {
+        // 【テスト目的】: after_created_at=abcのようなNaiveDateTimeにパースできない値が400で拒否されることを確認する
         let state = test_app_state().await;
         let app = build_router(state);
 
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/items?page=abc")
+                    .uri("/items?after_created_at=abc")
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 数値以外のpageが400で拒否されることを確認 🔵
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 日時形式でないafter_created_atが400で拒否されることを確認
     }
 
     /// TC-0010-E03: 不正なis_favorite値（bool以外）→ 400（ルーター経由）

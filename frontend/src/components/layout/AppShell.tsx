@@ -1,23 +1,29 @@
-import type { ReactNode } from 'react'
+import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Titlebar } from './Titlebar'
 import { Content } from './Content'
+import { TitlebarProvider } from './TitlebarContext'
+import { useTitlebarState } from './useTitlebar'
 
-export interface AppShellProps {
-  title: string
-  breadcrumb?: ReactNode
-  action?: ReactNode
-  children: ReactNode
-}
-
-export function AppShell({ title, breadcrumb, action, children }: AppShellProps) {
+function AppShellLayout() {
+  const { title, breadcrumb, action } = useTitlebarState()
   return (
-    <div className="collapse:grid-cols-1 grid h-screen grid-cols-[var(--width-sidebar)_1fr]">
+    <div className="max-collapse:grid-cols-1 grid min-h-screen grid-cols-[var(--width-sidebar)_1fr]">
       <Sidebar />
-      <main className="min-w-0 overflow-y-auto">
+      <main className="min-w-0">
         <Titlebar title={title} breadcrumb={breadcrumb} action={action} />
-        <Content>{children}</Content>
+        <Content>
+          <Outlet />
+        </Content>
       </main>
     </div>
+  )
+}
+
+export function AppShell() {
+  return (
+    <TitlebarProvider>
+      <AppShellLayout />
+    </TitlebarProvider>
   )
 }

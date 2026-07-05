@@ -2,6 +2,12 @@
 
 # Tags API
 
+## GET /tags
+全タグを、付与アイテム件数(`item_count`)付きで一覧取得する。ページネーションなし。
+
+- **認証**: 不要
+- **成功レスポンス** (200): `ApiOk<TagWithCount[]>`（`TagWithCount = { id: UUID, name: string, item_count: number }`）
+
 ## POST /tags
 - **リクエストボディ** (`CreateTagRequest`): `name` (必須)
 - **成功レスポンス** (201): `ApiOk<Tag>`

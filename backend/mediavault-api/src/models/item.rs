@@ -112,8 +112,14 @@ pub struct ListItemsQuery {
     /// 🔵 信頼性レベル: TASK-0029要件定義2.2表#3「title部分一致」に直接対応
     #[serde(default)]
     pub title: Option<String>,
-    pub page: Option<u32>,
     pub limit: Option<u32>,
+    /// keysetページネーションのカーソル（前回レスポンスのnext_after_created_atを渡す）。
+    /// after_idと両方指定された場合のみ有効（片方のみの場合は先頭ページとして扱う）
+    #[serde(default)]
+    pub after_created_at: Option<NaiveDateTime>,
+    /// keysetページネーションのカーソル（前回レスポンスのnext_after_idを渡す）
+    #[serde(default)]
+    pub after_id: Option<Uuid>,
 }
 
 /// アイテム部分更新リクエスト（PATCH semantics）
@@ -312,6 +318,35 @@ impl ItemDetail {
             calibre_links,
         }
     }
+}
+
+/// `GET /items` 一覧レスポンス用の表現（Item本体 + tags/categories）
+///
+/// フロントエンドのカードUI（タグピル表示）のため、一覧取得時にも
+/// `ItemDetail`と同様のtags/categoriesを付加する。DB行マッピング用の
+/// `Item`構造体自体は変更せず、ハンドラ側でバッチ取得した結果を合成する。
+#[derive(Debug, Clone, Serialize)]
+pub struct ItemWithRefs {
+    #[serde(flatten)]
+    pub item: Item,
+    pub tags: Vec<TagRef>,
+    pub categories: Vec<CategoryRef>,
+}
+
+/// メディア種別ごとのアイテム件数（サイドバー表示用、`GET /items/counts-by-media-type`）
+///
+/// 8種のMediaType値それぞれの件数を固定形状のフィールドとして持つ。
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct MediaTypeCounts {
+    pub anime: i64,
+    pub movie: i64,
+    pub drama: i64,
+    pub manga: i64,
+    pub novel: i64,
+    pub game: i64,
+    pub academic_book: i64,
+    pub paper: i64,
+    pub total: i64,
 }
 
 /// パスパラメータの文字列をUUIDへパースする。

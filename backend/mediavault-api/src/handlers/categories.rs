@@ -8,7 +8,9 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
 use crate::AppState;
-use crate::models::category::{Category, CreateCategoryRequest, validate_category_name};
+use crate::models::category::{
+    Category, CategoryWithCount, CreateCategoryRequest, validate_category_name,
+};
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::category_repository;
@@ -25,6 +27,15 @@ pub async fn create_category_handler(
     let category = category_repository::create_category(&state.db, request.name).await?;
 
     Ok(created_response(category))
+}
+
+/// 【機能概要】: `GET /categories` ハンドラ。全カテゴリを付与件数(item_count)付きで一覧取得する
+/// 🔵 信頼性レベル: handlers::tags::list_tags_handlerと完全に対称
+pub async fn list_categories_handler(
+    State(state): State<AppState>,
+) -> Result<ApiOk<Vec<CategoryWithCount>>, ApiError> {
+    let categories = category_repository::list_categories_with_counts(&state.db).await?;
+    Ok(ApiOk::new(categories))
 }
 
 /// 【機能概要】: `DELETE /categories/:id` ハンドラ。カテゴリを削除する

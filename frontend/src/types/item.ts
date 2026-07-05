@@ -10,7 +10,7 @@ export type MediaType =
   | 'academic_book'
   | 'paper'
 
-export type ItemStatus = '未着手' | '視聴中' | '視聴済'
+export type ItemStatus = 'not_started' | 'in_progress' | 'completed'
 
 export type RegistrationMethod =
   | { type: 'api'; source: string; external_id: string }

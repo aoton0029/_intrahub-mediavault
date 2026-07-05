@@ -5,7 +5,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::models::category::Category;
+use crate::models::category::{Category, CategoryWithCount};
 use crate::models::response::{ApiError, ApiErrorCode};
 use crate::repositories::db_error_utils::{is_foreign_key_violation, is_unique_violation};
 
@@ -104,6 +104,22 @@ pub async fn detach_category_from_item(
         .map_err(db_error)?;
 
     Ok(result.rows_affected() > 0)
+}
+
+/// 【機能概要】: 全カテゴリを、item_categories経由の付与件数（item_count）付きで一覧取得する
+/// 🟡 信頼性レベル: tag_repository::list_tags_with_countsと完全に対称
+pub async fn list_categories_with_counts(
+    pool: &PgPool,
+) -> Result<Vec<CategoryWithCount>, ApiError> {
+    let categories: Vec<CategoryWithCount> = sqlx::query_as(
+        "SELECT c.id, c.name, COUNT(ic.item_id) AS item_count \
+        FROM categories c LEFT JOIN item_categories ic ON ic.category_id = c.id \
+        GROUP BY c.id, c.name ORDER BY c.name",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)?;
+    Ok(categories)
 }
 
 #[cfg(test)]

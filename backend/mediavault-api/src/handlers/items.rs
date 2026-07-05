@@ -10,8 +10,9 @@ use axum::response::IntoResponse;
 use crate::AppState;
 use crate::models::external_search::ExternalSearchResult;
 use crate::models::item::{
-    Item, ItemDetail, ListItemsQuery, UpdateItemRequest, UpdateStatusRequest, deserialize_request,
-    parse_create_item_request, parse_item_id, validate_update_title,
+    Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaTypeCounts, UpdateItemRequest,
+    UpdateStatusRequest, deserialize_request, parse_create_item_request, parse_item_id,
+    validate_update_title,
 };
 use crate::models::item_import::parse_import_item_request;
 use crate::models::item_search::ItemSearchQuery;
@@ -53,54 +54,89 @@ fn created_response(item: Item) -> axum::response::Response {
     (StatusCode::CREATED, Json(ApiOk::new(item))).into_response()
 }
 
-/// 【機能概要】: page/limitクエリパラメータを正規化（クランプ）する純関数
-/// 【実装方針】: page<1→1、limit<1→20（デフォルト）、limit>100→100にクランプする。
-/// 不正な値でも400エラーにせず安全な範囲へ丸めることで、OFFSET計算のアンダーフローや
-/// 過大なLIMIT要求からサーバーを保護する
-/// 【テスト対応】: TC-0010-B01〜B06（normalize_paginationの境界値テスト）を通すための実装
-/// 🟡 信頼性レベル: テストケース定義書 確定2（page<1→1, limit<1→20, limit>100→100）に対応
-pub fn normalize_pagination(page: Option<u32>, limit: Option<u32>) -> (u32, u32) {
-    // 【page正規化】: 未指定はデフォルト1、0は1にクランプ（u32なので負数は型レベルで排除済み） 🟡
-    let page = match page {
-        Some(p) if p >= 1 => p,
-        _ => 1,
-    };
-
-    // 【limit正規化】: 未指定はデフォルト20、0は20にクランプ、100超は100にクランプ 🟡
-    let limit = match limit {
+/// 【機能概要】: limitクエリパラメータを正規化（クランプ）する純関数
+/// 【実装方針】: limit<1→20（デフォルト）、limit>100→100にクランプする。
+/// 不正な値でも400エラーにせず安全な範囲へ丸めることで、過大なLIMIT要求からサーバーを保護する
+pub fn normalize_limit(limit: Option<u32>) -> u32 {
+    match limit {
         None => 20,
         Some(0) => 20,
         Some(l) if l > 100 => 100,
         Some(l) => l,
-    };
-
-    (page, limit)
+    }
 }
 
 /// 【機能概要】: `GET /items` ハンドラ。クエリパラメータによる絞り込み・ページネーションを行い
 /// 一覧を返す
-/// 【実装方針】: クエリパラメータを正規化し、repository層のlist_items/count_itemsを呼び出して
-/// PaginatedOkで200を返す
+/// 【実装方針】: limitを正規化し、repository層のlist_itemsをlimit+1件で呼び出してhas_more/次カーソルを
+/// 判定し、PaginatedOkで200を返す
 /// 【テスト対応】: TC-0010-N01〜N08等のルーティング・統合テストで利用される
 /// 🔵 信頼性レベル: 要件定義書 2.4 データフローに直接対応
 pub async fn list_items_handler(
     State(state): State<AppState>,
     Query(query): Query<ListItemsQuery>,
-) -> Result<PaginatedOk<Vec<Item>>, ApiError> {
-    // 【ページネーション正規化】: page/limitをクランプして安全な範囲に揃える 🟡
-    let (page, limit) = normalize_pagination(query.page, query.limit);
+) -> Result<PaginatedOk<Vec<ItemWithRefs>>, ApiError> {
+    // 【limit正規化】: limitをクランプして安全な範囲に揃える
+    let limit = normalize_limit(query.limit);
     let normalized_query = ListItemsQuery {
-        page: Some(page),
         limit: Some(limit),
         ..query
     };
 
-    // 【データ取得】: 絞り込み条件に従いitems一覧とtotal件数を取得する 🔵
-    let items = item_repository::list_items(&state.db, &normalized_query).await?;
-    let total = item_repository::count_items(&state.db, &normalized_query).await?;
+    // 【データ取得】: 絞り込み条件に従いitems一覧を取得する（limit+1件取得してhas_moreを判定する） 🔵
+    let mut items = item_repository::list_items(&state.db, &normalized_query).await?;
+
+    // 【has_more判定】: limit+1件目が取得できた場合は次ページが存在する
+    let has_more = items.len() as u32 > limit;
+    if has_more {
+        items.truncate(limit as usize);
+    }
+    let (next_after_created_at, next_after_id) = if has_more {
+        let last = items.last().expect("has_more implies non-empty items");
+        (Some(last.created_at), Some(last.id))
+    } else {
+        (None, None)
+    };
+
+    // 【tags/categories付与】: カードUIのタグピル表示のため、一覧アイテムにもtags/categoriesを
+    // バッチ取得して合成する（N+1回避のためitem_id単位で一括取得しRust側でzipする）
+    let item_ids: Vec<uuid::Uuid> = items.iter().map(|item| item.id).collect();
+    let mut tags_by_item = item_repository::get_items_tags_batch(&state.db, &item_ids).await?;
+    let mut categories_by_item =
+        item_repository::get_items_categories_batch(&state.db, &item_ids).await?;
+
+    let items_with_refs: Vec<ItemWithRefs> = items
+        .into_iter()
+        .map(|item| {
+            let tags = tags_by_item.remove(&item.id).unwrap_or_default();
+            let categories = categories_by_item.remove(&item.id).unwrap_or_default();
+            ItemWithRefs {
+                item,
+                tags,
+                categories,
+            }
+        })
+        .collect();
 
     // 【レスポンス構築】: {success, data, pagination}形式で200を返す 🔵
-    Ok(PaginatedOk::new(items, Pagination { page, limit, total }))
+    Ok(PaginatedOk::new(
+        items_with_refs,
+        Pagination {
+            limit,
+            has_more,
+            next_after_created_at,
+            next_after_id,
+        },
+    ))
+}
+
+/// 【機能概要】: `GET /items/counts-by-media-type` ハンドラ。サイドバー表示用に
+/// メディア種別ごとのアイテム件数を集計して返す
+pub async fn count_items_by_media_type_handler(
+    State(state): State<AppState>,
+) -> Result<ApiOk<MediaTypeCounts>, ApiError> {
+    let counts = item_repository::count_items_by_media_type(&state.db).await?;
+    Ok(ApiOk::new(counts))
 }
 
 /// 【機能概要】: `GET /items/:id` ハンドラ。アイテム詳細をメディア別詳細テーブル・タグ・
@@ -309,116 +345,28 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CREATED); // 【確認内容】: 作成成功時のHTTPステータスが201であることを確認 🔵
     }
 
-    /// TC-0010-B01: limit 最大値クランプ（limit=500 → 100）
-    /// 🟡 信頼性レベル: TASK-0010 TC-004・要件 UC-6 に対応
+    /// limit 最大値クランプ（limit=500 → 100）
     #[test]
-    fn normalize_pagination_clamps_limit_to_100() {
-        // 【テスト目的】: limit が上限(100)を超えた場合に100へクランプされることを確認する
-        // 【テスト内容】: normalize_pagination(Some(1), Some(500)) を呼び出す
-        // 【期待される動作】: (page, limit) = (1, 100) が返る
-        // 🟡 信頼性レベル: TASK-0010 TC-004（limit=500→100）に対応（normalize_paginationは未実装関数）
-
-        // 【テストデータ準備】: 上限超過のlimit=500を用意（過大要求のサーバー保護を検証するため）
-        // 【初期条件設定】: pageは正常値1
-        let (page, limit) = normalize_pagination(Some(1), Some(500));
-
-        // 【結果検証】: limitが100に丸められることを確認
-        // 【期待値確認】: 過大要求でも応答時間・メモリが保護される設計であることの確認
-        assert_eq!(page, 1); // 【確認内容】: pageは変更されないことを確認 🟡
-        assert_eq!(limit, 100); // 【確認内容】: limitが上限100にクランプされることを確認 🟡
+    fn normalize_limit_clamps_to_100() {
+        assert_eq!(normalize_limit(Some(500)), 100);
     }
 
-    /// TC-0010-B02: limit 上限ちょうど（limit=100 → 100、非クランプ境界）
-    /// 🟡 信頼性レベル: 確定2・タスク「1〜100にクランプ」からの妥当な推測
+    /// limit 上限ちょうど（limit=100 → 100、非クランプ境界）
     #[test]
-    fn normalize_pagination_does_not_clamp_limit_at_exactly_100() {
-        // 【テスト目的】: limit=100ちょうどの場合はクランプされず100のまま通過することを確認する
-        // 【テスト内容】: normalize_pagination(Some(1), Some(100)) を呼び出す
-        // 【期待される動作】: (page, limit) = (1, 100)（クランプ非発生）
-        // 🟡 信頼性レベル: 上限境界の包含関係（>100でクランプ、==100は通過）を確認するためのoff-by-one防止テスト
-
-        // 【テストデータ準備】: 上限ぴったりのlimit=100を用意
-        // 【初期条件設定】: pageは正常値1
-        let (page, limit) = normalize_pagination(Some(1), Some(100));
-
-        // 【結果検証】: 100が101のように誤ってクランプされないことを確認
-        assert_eq!(page, 1); // 【確認内容】: pageは変更されないことを確認 🟡
-        assert_eq!(limit, 100); // 【確認内容】: limit=100は境界内のためクランプされず100のままであることを確認 🟡
+    fn normalize_limit_does_not_clamp_at_exactly_100() {
+        assert_eq!(normalize_limit(Some(100)), 100);
     }
 
-    /// TC-0010-B03: limit=0 → デフォルト20にクランプ
-    /// 🟡 信頼性レベル: テストケース定義書 確定2（本フェーズで方針確定）に基づく
+    /// limit=0 → デフォルト20にクランプ
     #[test]
-    fn normalize_pagination_clamps_zero_limit_to_default_20() {
-        // 【テスト目的】: limit=0（下限割れ）が400エラーではなくデフォルト値20にクランプされることを確認する
-        // 【テスト内容】: normalize_pagination(Some(1), Some(0)) を呼び出す
-        // 【期待される動作】: (page, limit) = (1, 20)
-        // 🟡 信頼性レベル: 確定2「limit<1 → 20」の方針に基づく（normalize_paginationは未実装関数）
-
-        // 【テストデータ準備】: 下限割れのlimit=0を用意（無意味なLIMIT 0クエリを防ぐ検証のため）
-        // 【初期条件設定】: pageは正常値1
-        let (page, limit) = normalize_pagination(Some(1), Some(0));
-
-        // 【結果検証】: limitがデフォルト値20にクランプされることを確認
-        assert_eq!(page, 1); // 【確認内容】: pageは変更されないことを確認 🟡
-        assert_eq!(limit, 20); // 【確認内容】: limit=0はデフォルトの20にクランプされることを確認 🟡
+    fn normalize_limit_clamps_zero_to_default_20() {
+        assert_eq!(normalize_limit(Some(0)), 20);
     }
 
-    /// TC-0010-B04: page=0 → 1にクランプ（OFFSET=0）
-    /// 🟡 信頼性レベル: 確定2・note.md 6章（page=0方針）に基づく
+    /// limit未指定 → デフォルト20
     #[test]
-    fn normalize_pagination_clamps_zero_page_to_1() {
-        // 【テスト目的】: page=0（下限割れ）が1にクランプされ、OFFSET算出時のアンダーフローを防ぐことを確認する
-        // 【テスト内容】: normalize_pagination(Some(0), Some(20)) を呼び出す
-        // 【期待される動作】: (page, limit) = (1, 20)
-        // 🟡 信頼性レベル: 確定2「page<1 → 1」、OFFSET=(page-1)*limitのu32アンダーフロー回避方針に基づく
-
-        // 【テストデータ準備】: 下限割れのpage=0を用意（(0-1)のu32アンダーフローpanicを防ぐ検証のため）
-        // 【初期条件設定】: limitは正常値20
-        let (page, limit) = normalize_pagination(Some(0), Some(20));
-
-        // 【結果検証】: pageが1にクランプされ、OFFSET計算が安全に行えることを確認
-        assert_eq!(page, 1); // 【確認内容】: page=0は1にクランプされることを確認 🟡
-        assert_eq!(limit, 20); // 【確認内容】: limitは変更されないことを確認 🟡
-        assert_eq!((page - 1) * limit, 0); // 【確認内容】: OFFSET算出がアンダーフローせず0になることを確認 🟡
-    }
-
-    /// TC-0010-B05: パラメータ未指定 → デフォルト(page=1, limit=20)
-    /// 🔵 信頼性レベル: 要件 入力仕様表（page デフォルト1, limit デフォルト20）に直接対応
-    #[test]
-    fn normalize_pagination_defaults_to_page1_limit20_when_none() {
-        // 【テスト目的】: page/limitともにNoneの場合、デフォルト値(1, 20)が適用されることを確認する
-        // 【テスト内容】: normalize_pagination(None, None) を呼び出す
-        // 【期待される動作】: (page, limit) = (1, 20)、OFFSET=0
-        // 🔵 信頼性レベル: 要件定義書 2.1 入力仕様表（pageデフォルト1, limitデフォルト20）に直接対応
-
-        // 【テストデータ準備】: クエリパラメータ完全未指定の状況を再現
-        // 【初期条件設定】: page, limit ともに None
-        let (page, limit) = normalize_pagination(None, None);
-
-        // 【結果検証】: Noneとデフォルト値指定で同一結果になることを確認
-        assert_eq!(page, 1); // 【確認内容】: page未指定時のデフォルトが1であることを確認 🔵
-        assert_eq!(limit, 20); // 【確認内容】: limit未指定時のデフォルトが20であることを確認 🔵
-        assert_eq!((page - 1) * limit, 0); // 【確認内容】: デフォルト時のOFFSETが0であることを確認 🔵
-    }
-
-    /// TC-0010-B06: OFFSET算出（page=2, limit=20 → OFFSET=20）
-    /// 🟡 信頼性レベル: 要件 UC-7「page=2&limit=20 → 21〜40件目（OFFSET=20）」に対応
-    #[test]
-    fn normalize_pagination_computes_offset_20_for_page2_limit20() {
-        // 【テスト目的】: 2ページ目（page=2, limit=20）のOFFSET算出が正しく20になることを確認する
-        // 【テスト内容】: normalize_pagination(Some(2), Some(20)) の結果から (page-1)*limit を計算する
-        // 【期待される動作】: page=2, limit=20が保持され、OFFSET=(2-1)*20=20となる
-        // 🟡 信頼性レベル: 要件定義書 UC-7（page=2&limit=20→OFFSET=20）に対応
-
-        // 【テストデータ準備】: 2ページ目を指定する正常値
-        // 【初期条件設定】: page=2, limit=20（クランプ不要な正常範囲）
-        let (page, limit) = normalize_pagination(Some(2), Some(20));
-
-        // 【結果検証】: ページ送りのOFFSET計算が正しいことを確認
-        assert_eq!(page, 2); // 【確認内容】: pageが2のまま保持されることを確認 🟡
-        assert_eq!(limit, 20); // 【確認内容】: limitが20のまま保持されることを確認 🟡
-        assert_eq!((page - 1) * limit, 20); // 【確認内容】: OFFSET=(page-1)*limitが20と算出されることを確認 🟡
+    fn normalize_limit_defaults_to_20_when_none() {
+        assert_eq!(normalize_limit(None), 20);
     }
 
     /// TC-001-E02-B: update_item_handlerが存在しないIDに対し404 ITEM_NOT_FOUNDを返す（実DB必要）

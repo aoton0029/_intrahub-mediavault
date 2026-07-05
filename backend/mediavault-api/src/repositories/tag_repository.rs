@@ -6,7 +6,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::models::response::{ApiError, ApiErrorCode};
-use crate::models::tag::Tag;
+use crate::models::tag::{Tag, TagWithCount};
 use crate::repositories::db_error_utils::{is_foreign_key_violation, is_unique_violation};
 
 /// 【機能概要】: sqlxのDBエラーを統一エラー型（INTERNAL_ERROR）へ変換する
@@ -116,6 +116,22 @@ pub async fn detach_tag_from_item(
         .map_err(db_error)?;
 
     Ok(result.rows_affected() > 0)
+}
+
+/// 【機能概要】: 全タグを、item_tags経由の付与件数（item_count）付きで一覧取得する
+/// 【実装方針】: tagsをitem_tagsへLEFT JOINしCOUNT(it.item_id)でグルーピングする。
+/// LEFT JOINのため付与件数0件のタグもitem_count=0として結果に含まれる
+/// 🟡 信頼性レベル: 既存get_item_tags（item_repository.rs）のJOINパターンからの妥当な推測
+pub async fn list_tags_with_counts(pool: &PgPool) -> Result<Vec<TagWithCount>, ApiError> {
+    let tags: Vec<TagWithCount> = sqlx::query_as(
+        "SELECT t.id, t.name, COUNT(it.item_id) AS item_count \
+        FROM tags t LEFT JOIN item_tags it ON it.tag_id = t.id \
+        GROUP BY t.id, t.name ORDER BY t.name",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)?;
+    Ok(tags)
 }
 
 #[cfg(test)]

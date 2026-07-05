@@ -5,7 +5,9 @@
 //! `AppState`定義は`lib.rs`へ移動した。本ファイルは`mediavault_api::*`を利用する薄い
 //! エントリポイントとする（振る舞いの変更なし）。
 
+use axum::http::HeaderValue;
 use mediavault_api::{AppState, db, routes};
+use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() {
@@ -18,6 +20,8 @@ async fn main() {
         .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
+    let cors_allowed_origin = std::env::var("CORS_ALLOWED_ORIGIN")
+        .unwrap_or_else(|_| "http://localhost".to_string());
 
     let db = match db::create_pool(&database_url).await {
         Ok(pool) => pool,
@@ -35,9 +39,19 @@ async fn main() {
     // REQ-007/REQ-009・architecture.md「API設計: /api/v1 配下」に対応するため、
     // 公開APIのみ /api/v1 配下にnestする。/internal/* は内部プロセス直結用のため
     // バージョンプレフィックスを付与しない（REQ-402の境界を維持）。
+    let cors = CorsLayer::new()
+        .allow_origin(
+            cors_allowed_origin
+                .parse::<HeaderValue>()
+                .unwrap_or_else(|err| panic!("CORS_ALLOWED_ORIGINが不正です: {err}")),
+        )
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = axum::Router::new()
         .nest("/api/v1", routes::build_router(state.clone()))
-        .merge(routes::internal::build_internal_router(state));
+        .merge(routes::internal::build_internal_router(state))
+        .layer(cors);
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)

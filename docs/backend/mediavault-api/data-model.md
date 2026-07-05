@@ -42,8 +42,19 @@
 | struct | フィールド |
 |---|---|
 | Tag | id: UUID, name: string |
+| TagWithCount | id: UUID, name: string, item_count: number（`GET /tags`用。item_tags経由の付与件数） |
 | Category | id: UUID, name: string |
+| CategoryWithCount | id: UUID, name: string, item_count: number（`GET /categories`用。item_categories経由の付与件数） |
 | Mylist | id: UUID, name: string, created_at: datetime |
+
+## ItemWithRefs / MediaTypeCounts
+
+`GET /items`（一覧）・`GET /items/counts-by-media-type`のレスポンス。
+
+| struct | フィールド |
+|---|---|
+| ItemWithRefs | Itemの全フィールド + tags: TagRef[] + categories: CategoryRef[]（一覧のカードUIでタグピル表示に使う） |
+| MediaTypeCounts | anime, movie, drama, manga, novel, game, academic_book, paper, total: number（サイドバーのメディア種別件数表示に使う） |
 
 ## ItemRelation
 
@@ -101,7 +112,7 @@
 |---|---|
 | ApiOk\<T\> | success: true, data: T |
 | ApiError | success: false, error: ApiErrorBody（`{ code: string, message: string }`） |
-| Pagination | page: number, limit: number, total: number |
+| Pagination | limit: number, has_more: boolean, next_after_created_at: string \| null, next_after_id: string \| null |
 | PaginatedOk\<T\> | success: true, data: T[], pagination: Pagination |
 
 エラーコード一覧（`ApiErrorCode`）は [index.md](./index.md#エラーコード一覧) を参照。

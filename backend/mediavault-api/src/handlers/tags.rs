@@ -10,7 +10,7 @@ use axum::response::IntoResponse;
 use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
-use crate::models::tag::{CreateTagRequest, Tag, validate_tag_name};
+use crate::models::tag::{CreateTagRequest, Tag, TagWithCount, validate_tag_name};
 use crate::repositories::tag_repository;
 
 /// 【機能概要】: `POST /tags` ハンドラ。タグ名を受け取りタグを作成する
@@ -30,6 +30,15 @@ pub async fn create_tag_handler(
 
     // 【成功レスポンス】: 作成済みタグを201で返す 🔵
     Ok(created_response(tag))
+}
+
+/// 【機能概要】: `GET /tags` ハンドラ。全タグを付与件数(item_count)付きで一覧取得する
+/// 【実装方針】: サイドバー・フィルタチップ表示用にページネーションなしで全件返す
+pub async fn list_tags_handler(
+    State(state): State<AppState>,
+) -> Result<ApiOk<Vec<TagWithCount>>, ApiError> {
+    let tags = tag_repository::list_tags_with_counts(&state.db).await?;
+    Ok(ApiOk::new(tags))
 }
 
 /// 【機能概要】: `DELETE /tags/:id` ハンドラ。タグを削除する

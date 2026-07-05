@@ -208,18 +208,17 @@ impl From<ExternalSearchError> for ApiError {
     }
 }
 
-/// ページネーション情報
+/// ページネーション情報（keyset/cursorページネーション）
 ///
-/// 【機能概要】: 一覧取得APIで返す page/limit/total を保持する
-/// 【実装方針】: 要件定義書2.2・テストケース定義書 確定1 に従い、page/limitはu32、totalはCOUNT(*)結果を
-/// そのまま保持できるi64とする
-/// 【テスト対応】: TC-0010-N09（PaginatedOkシリアライズ）を通すための実装
-/// 🟡 信頼性レベル: テストケース定義書 確定1（PaginatedOk型の新規定義）に対応
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+/// 【機能概要】: 一覧取得APIで返すlimit/has_more/次カーソル（created_at, id）を保持する
+/// 【実装方針】: page/offset方式からcursor方式へ変更し、COUNT(*)クエリを不要にする。
+/// next_after_created_at/next_after_idはhas_more=falseの場合はNoneとなる
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Pagination {
-    pub page: u32,
     pub limit: u32,
-    pub total: i64,
+    pub has_more: bool,
+    pub next_after_created_at: Option<chrono::NaiveDateTime>,
+    pub next_after_id: Option<uuid::Uuid>,
 }
 
 /// ページネーション付き統一APIレスポンス（成功）
@@ -335,9 +334,17 @@ mod tests {
         let body = PaginatedOk::new(
             vec![serde_json::json!({"id": 1})],
             Pagination {
-                page: 1,
                 limit: 20,
-                total: 100,
+                has_more: true,
+                next_after_created_at: Some(
+                    chrono::NaiveDate::from_ymd_opt(2026, 7, 1)
+                        .unwrap()
+                        .and_hms_opt(12, 0, 0)
+                        .unwrap(),
+                ),
+                next_after_id: Some(
+                    uuid::Uuid::parse_str("b2b5c1a0-0000-0000-0000-000000000000").unwrap(),
+                ),
             },
         );
 
@@ -345,16 +352,20 @@ mod tests {
         // 【処理内容】: PaginatedOk<T> の Serialize 実装による JSON 変換
         let json = serde_json::to_value(&body).unwrap();
 
-        // 【結果検証】: トップレベルキーとpagination構造が要件通りであることを確認
-        // 【期待値確認】: 要件定義書 2.2 のレスポンス例 { success, data, pagination: {page, limit, total} } に一致するか
+        // 【結果検証】: トップレベルキーとpagination構造がcursorページネーション仕様通りであることを確認
         assert_eq!(
             json,
             serde_json::json!({
                 "success": true,
                 "data": [{"id": 1}],
-                "pagination": {"page": 1, "limit": 20, "total": 100}
+                "pagination": {
+                    "limit": 20,
+                    "has_more": true,
+                    "next_after_created_at": "2026-07-01T12:00:00",
+                    "next_after_id": "b2b5c1a0-0000-0000-0000-000000000000"
+                }
             })
-        ); // 【確認内容】: success/data/paginationの3キー構成、pagination内のpage/limit/totalキー名が要件通りであることを確認 🟡
+        ); // 【確認内容】: success/data/paginationの3キー構成、pagination内のフィールド名がcursor仕様通りであることを確認
     }
 
     /// TC-NEW-10: `ApiErrorCode::InvalidProvider`が400ステータスにマッピングされる
@@ -393,9 +404,10 @@ mod tests {
         let body: PaginatedOk<Vec<serde_json::Value>> = PaginatedOk::new(
             Vec::new(),
             Pagination {
-                page: 1,
                 limit: 20,
-                total: 0,
+                has_more: false,
+                next_after_created_at: None,
+                next_after_id: None,
             },
         );
 

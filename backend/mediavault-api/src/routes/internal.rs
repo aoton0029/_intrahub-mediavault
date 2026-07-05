@@ -241,8 +241,8 @@ mod tests {
             .await
             .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
-        assert_eq!(json["pagination"]["page"], 1); // 【確認内容】: デフォルトpageが1であることを確認 🟡
         assert_eq!(json["pagination"]["limit"], 20); // 【確認内容】: デフォルトlimitが20であることを確認 🟡
+        assert!(json["pagination"]["has_more"].is_boolean()); // 【確認内容】: has_moreフィールドが存在することを確認
     }
 
     /// TC-018-05: 話数同期フロー（groups upsert → episodes upsert）が連鎖で成立する
@@ -877,57 +877,22 @@ mod tests {
         assert_eq!(json["pagination"]["limit"], 100); // 【確認内容】: 過大なlimit指定が上限100に丸められることを確認 🟡
     }
 
-    /// TC-018-B04a: page=0が1に補正される
-    /// 【テスト目的】: ページネーションpageの下限補正が/internalでも一貫することを確認する
-    /// 【テスト内容】: ?page=0でGET /internal/items/searchを呼び出す
-    /// 【期待される動作】: 200 OK、pagination.pageが1に補正される
-    /// 🟡 信頼性レベル: 既存normalize_pagination下限補正からの妥当推測
-    #[tokio::test]
-    #[ignore]
-    async fn get_internal_items_search_with_page_zero_normalizes_to_1() {
-        set_internal_api_key(TEST_KEY);
-        let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
-
-        // 【実際の処理実行】: page=0で検索を実行する
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/internal/items/search?page=0")
-                    .header("authorization", format!("Bearer {TEST_KEY}"))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
-
-        // 【結果検証】: pagination.pageが1に補正されることを確認する
-        assert_eq!(json["pagination"]["page"], 1); // 【確認内容】: page=0が下限1に補正されることを確認 🟡
-    }
-
-    /// TC-018-B04b: page=abc（非数値）が400を返す
-    /// 【テスト目的】: ページネーションpageの型不正処理が/internalでも一貫することを確認する
-    /// 【テスト内容】: ?page=abcでGET /internal/items/searchを呼び出す
+    /// TC-018-B04b: after_created_at=abc（非日時形式）が400を返す
+    /// 【テスト目的】: keysetページネーションのカーソルパラメータ型不正処理が/internalでも一貫することを確認する
+    /// 【テスト内容】: ?after_created_at=abcでGET /internal/items/searchを呼び出す
     /// 【期待される動作】: 400 Bad Request（extractorデシリアライズ失敗）
-    /// 🟡 信頼性レベル: 既存routes/mod.rsのpage=abc → 400パターンからの妥当推測
     #[tokio::test]
     #[ignore]
-    async fn get_internal_items_search_with_non_numeric_page_returns_400() {
+    async fn get_internal_items_search_with_non_datetime_after_created_at_returns_400() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
         let app: Router = build_internal_router(state);
 
-        // 【実際の処理実行】: page=abcで検索を実行する
+        // 【実際の処理実行】: after_created_at=abcで検索を実行する
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/internal/items/search?page=abc")
+                    .uri("/internal/items/search?after_created_at=abc")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .body(Body::empty())
                     .unwrap(),
@@ -935,7 +900,7 @@ mod tests {
             .await
             .unwrap();
 
-        // 【結果検証】: 型不正なpage値が400で拒否されることを確認する
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 数値以外のpageが400で拒否されることを確認 🟡
+        // 【結果検証】: 型不正なafter_created_at値が400で拒否されることを確認する
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 日時形式でないafter_created_atが400で拒否されることを確認
     }
 }

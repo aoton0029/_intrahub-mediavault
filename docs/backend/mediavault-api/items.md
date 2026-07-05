@@ -3,7 +3,7 @@
 # Items API
 
 ## GET /items
-アイテム一覧取得。フィルタ・ページネーション対応。
+アイテム一覧取得。フィルタ・keyset（カーソル）ページネーション対応。
 
 - **認証**: 不要
 - **クエリパラメータ** (`ListItemsQuery`):
@@ -13,9 +13,18 @@
   - `is_favorite` (bool, optional)
   - `status` (string, optional)
   - `title` (string, optional) — 部分一致検索
-  - `page` (u32, optional, default 1)
   - `limit` (u32, optional, default 20, max 100)
-- **成功レスポンス** (200): `PaginatedOk<Item[]>`
+  - `after_created_at` (string, optional, NaiveDateTime形式 例: `"2026-07-01T12:00:00"`) — 前回レスポンスの`pagination.next_after_created_at`をそのまま渡す
+  - `after_id` (uuid, optional) — 前回レスポンスの`pagination.next_after_id`をそのまま渡す
+  - 先頭ページを取得する場合は`after_created_at`/`after_id`を両方省略する。片方のみ指定された場合は無効なカーソルとして無視され、先頭ページとして扱われる（400にはならない）
+- **成功レスポンス** (200): `PaginatedOk<ItemWithRefs[]>`（`ItemWithRefs` = `Item`の全フィールド + `tags: TagRef[]` + `categories: CategoryRef[]`。フロントエンドのカードUIでタグピル表示に使う）。
+  `pagination`は`{ limit: number, has_more: boolean, next_after_created_at: string | null, next_after_id: string | null }`。`has_more=false`のとき`next_after_created_at`/`next_after_id`は`null`。件数の総数（`total`）は返さない（COUNT(*)クエリを避けるため）
+
+## GET /items/counts-by-media-type
+サイドバー表示用に、メディア種別ごとのアイテム件数を集計して返す。`/items/{id}` より前にルーティング登録。
+
+- **認証**: 不要
+- **成功レスポンス** (200): `ApiOk<MediaTypeCounts>`（`MediaTypeCounts = { anime, movie, drama, manga, novel, game, academic_book, paper, total: number }`）
 
 ## POST /items
 アイテム新規作成。

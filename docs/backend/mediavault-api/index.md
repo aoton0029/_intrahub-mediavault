@@ -20,14 +20,20 @@
 ```
 特記のない限り HTTP `200`。作成系は `201`、削除系は `204 No Content`（ボディなし）。
 
-### ページネーション付き成功時（`PaginatedOk<T>`）
+### ページネーション付き成功時（`PaginatedOk<T>`、keyset/カーソル方式）
 ```json
 {
   "success": true,
   "data": [ /* T[] */ ],
-  "pagination": { "page": 1, "limit": 20, "total": 123 }
+  "pagination": {
+    "limit": 20,
+    "has_more": true,
+    "next_after_created_at": "2026-07-01T12:00:00",
+    "next_after_id": "b2b5c1a0-0000-0000-0000-000000000000"
+  }
 }
 ```
+`has_more=false`の場合、`next_after_created_at`/`next_after_id`は`null`。件数の総数（`total`）は返さない。
 
 ### エラー時（`ApiError`）
 ```json
@@ -63,11 +69,12 @@
 | STEAM_API_KEY_INVALID | 401 | Steam Web API キーが無効 |
 
 ### ページネーション正規化
-`page` / `limit` クエリパラメータは以下のルールで補正される（`normalize_pagination`）:
-- `page < 1` → `1`
+`limit` クエリパラメータは以下のルールで補正される（`normalize_limit`）:
 - `limit` 未指定 → `20`（デフォルト）
 - `limit < 1` → `20`
 - `limit > 100` → `100`
+
+`after_created_at` / `after_id` は両方指定された場合のみ有効なカーソルとして扱われる。片方のみ指定された場合は無視され、先頭ページとして扱われる（400にはしない）。
 
 ---
 

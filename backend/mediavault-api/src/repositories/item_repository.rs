@@ -2,12 +2,14 @@
 //!
 //! TASK-0009: POST /items（手動作成）実装
 
+use std::collections::HashMap;
+
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;
 
 use crate::models::item::{
-    CategoryRef, CreateItemRequest, Item, ItemSource, ListItemsQuery, MediaType, TagRef,
-    UpdateItemRequest, UpdateStatusRequest, has_any_update_field,
+    CategoryRef, CreateItemRequest, Item, ItemSource, ListItemsQuery, MediaType, MediaTypeCounts,
+    TagRef, UpdateItemRequest, UpdateStatusRequest, has_any_update_field,
 };
 use crate::models::item_import::ImportItemRequest;
 use crate::models::response::{ApiError, ApiErrorCode};
@@ -177,12 +179,11 @@ pub async fn import_item(pool: &PgPool, request: ImportItemRequest) -> Result<It
 /// 【実装方針】: list用・count用の両クエリで同一のフィルタ条件を共有するための内部ヘルパー。
 /// 1件目の条件追加時のみ "WHERE" を、以降は "AND" を付与する。tag_id/category_idは
 /// 中間テーブルへのEXISTSサブクエリとして追加し、他のフィルタは通常カラム条件として追加する
-/// 【テスト対応】: TC-0010-Q01〜Q06（WHERE句生成）、list_items/count_itemsが同一条件を
-/// 共有することの保証に対応
-/// 🟡 信頼性レベル: テストケース定義書 確定3（EXISTSサブクエリ方針）・完了条件「AND結合」に対応
-#[allow(unused_assignments)]
-fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItemsQuery) {
-    // 【条件追加フラグ】: 2件目以降の条件にANDを付与するためのフラグ 🟡
+/// 戻り値のboolは条件が1つ以上追加されたか（呼び出し元がその後カーソル条件をWHERE/ANDで
+/// 繋ぐ判定に使う）
+fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItemsQuery) -> bool {
+    // 【条件追加フラグ】: 2件目以降の条件にANDを付与するためのフラグ。呼び出し元へ返し、
+    // カーソル条件をWHERE/ANDのどちらで繋ぐか判定できるようにする 🟡
     let mut has_condition = false;
 
     // 【WHERE/AND付与ヘルパー】: 1件目はWHERE、以降はANDを付与する。
@@ -248,14 +249,14 @@ fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItems
         builder.push("title ILIKE ");
         builder.push_bind(format!("%{title}%"));
     }
+
+    has_condition
 }
 
-/// 【機能概要】: GET /items 一覧取得用のSELECTクエリをQueryBuilderで構築する
-/// 【実装方針】: SELECT ... FROM items [WHERE ...] LIMIT ... OFFSET ... の形でクエリを組み立てる。
-/// limit/pageはハンドラ側のnormalize_paginationで正規化済みの値を前提とし、未指定時は
-/// デフォルト(page=1, limit=20)を適用する
-/// 【テスト対応】: TC-0010-Q01〜Q05（SQL文字列の構造検証）を通すための実装
-/// 🟡 信頼性レベル: テストケース定義書 確定3・QueryBuilder方針からの妥当な推測
+/// 【機能概要】: GET /items 一覧取得用のSELECTクエリをQueryBuilderで構築する（keysetページネーション）
+/// 【実装方針】: SELECT ... FROM items [WHERE ...] ORDER BY created_at DESC, id LIMIT ... の形で
+/// クエリを組み立てる。OFFSETは使わず、after_created_at/after_idが両方指定された場合のみ
+/// `(created_at, id) < (?, ?)` のカーソル条件を追加する。LIMITはhas_more判定のため+1して発行する
 pub fn build_list_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgres> {
     let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(
         "SELECT id, media_type, title, original_title, description, cover_image_url, \
@@ -263,32 +264,30 @@ pub fn build_list_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgr
         source, external_id, created_at, updated_at FROM items",
     );
 
-    // 【フィルタ条件追加】: list/countで共有するヘルパーでWHERE句を構築する 🟡
-    push_item_filters(&mut builder, query);
+    // 【フィルタ条件追加】: WHERE句を構築する。has_conditionを受け取り、カーソル条件の
+    // WHERE/AND判定に使う 🟡
+    let mut has_condition = push_item_filters(&mut builder, query);
 
-    // 【ページネーション句追加】: limit/pageはハンドラで正規化済みの値、未指定時はデフォルトを適用 🔵
+    // 【カーソル条件追加】: after_created_at/after_idが両方指定された場合のみkeyset条件を追加する。
+    // ORDER BY created_at DESC, id と対応する複合キー比較で「前回最後の行より後」を表現する 🔵
+    if let (Some(after_created_at), Some(after_id)) = (query.after_created_at, query.after_id) {
+        if has_condition {
+            builder.push(" AND (created_at, id) < (");
+        } else {
+            builder.push(" WHERE (created_at, id) < (");
+            has_condition = true;
+        }
+        builder.push_bind(after_created_at);
+        builder.push(", ");
+        builder.push_bind(after_id);
+        builder.push(")");
+    }
+    let _ = has_condition;
+
+    // 【LIMIT句追加】: has_more判定のため、要求されたlimitに+1した件数を取得する 🔵
     let limit = query.limit.unwrap_or(20);
-    let page = query.page.unwrap_or(1).max(1);
-    let offset = (page - 1) as i64 * limit as i64;
-
     builder.push(" ORDER BY created_at DESC, id LIMIT ");
-    builder.push_bind(limit as i64);
-    builder.push(" OFFSET ");
-    builder.push_bind(offset);
-
-    builder
-}
-
-/// 【機能概要】: GET /items の絞り込み条件に対するCOUNT(*)クエリをQueryBuilderで構築する
-/// 【実装方針】: build_list_items_queryと同一のpush_item_filtersヘルパーを使うことで、
-/// totalがdataと同条件で算出されることを保証する
-/// 【テスト対応】: TC-0010-Q06（list/countのWHERE句一致）を通すための実装
-/// 🟡 信頼性レベル: 要件定義書「totalは同条件COUNT(*)」からの妥当な推測
-pub fn build_count_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgres> {
-    let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new("SELECT COUNT(*) FROM items");
-
-    // 【フィルタ条件追加】: list用と同一ロジックでWHERE句を構築し、total整合性を保証する 🟡
-    push_item_filters(&mut builder, query);
+    builder.push_bind(limit as i64 + 1);
 
     builder
 }
@@ -305,20 +304,6 @@ pub async fn list_items(pool: &PgPool, query: &ListItemsQuery) -> Result<Vec<Ite
         .await
         .map_err(db_error)?;
     Ok(items)
-}
-
-/// 【機能概要】: 絞り込み条件に従いitemsの総件数（COUNT(*)）を取得する
-/// 【実装方針】: build_count_items_queryで構築したクエリをfetch_oneし、DBエラーはdb_errorで変換する
-/// 【テスト対応】: TC-0010-N01〜N08, B07/B08, E04（実DB統合テスト、#[ignore]）に対応
-/// 🔵 信頼性レベル: 要件定義書 2.4 データフロー・既存db_errorパターンに直接対応
-pub async fn count_items(pool: &PgPool, query: &ListItemsQuery) -> Result<i64, ApiError> {
-    let mut builder = build_count_items_query(query);
-    let total: i64 = builder
-        .build_query_scalar()
-        .fetch_one(pool)
-        .await
-        .map_err(db_error)?;
-    Ok(total)
 }
 
 /// 【機能概要】: 指定UUIDのitemsレコードを1件取得する
@@ -461,6 +446,107 @@ pub async fn get_item_categories(
     .await
     .map_err(db_error)?;
     Ok(categories)
+}
+
+/// 【機能概要】: 複数item_idに紐づくタグをまとめて取得し、item_id単位でグルーピングする
+/// 【実装方針】: `GET /items`一覧のN+1回避のため、`WHERE item_id = ANY($1)`で一括取得し、
+/// Rust側でHashMapへグルーピングする。タグが1件も無いitem_idはキー自体が存在しない
+/// （呼び出し側で`.get(id).cloned().unwrap_or_default()`のように空Vecへフォールバックする）
+pub async fn get_items_tags_batch(
+    pool: &PgPool,
+    item_ids: &[Uuid],
+) -> Result<HashMap<Uuid, Vec<TagRef>>, ApiError> {
+    if item_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let rows: Vec<(Uuid, Uuid, String)> = sqlx::query_as(
+        "SELECT it.item_id, t.id, t.name FROM item_tags it \
+        INNER JOIN tags t ON t.id = it.tag_id \
+        WHERE it.item_id = ANY($1)",
+    )
+    .bind(item_ids)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)?;
+
+    let mut grouped: HashMap<Uuid, Vec<TagRef>> = HashMap::new();
+    for (item_id, tag_id, name) in rows {
+        grouped
+            .entry(item_id)
+            .or_default()
+            .push(TagRef { id: tag_id, name });
+    }
+    Ok(grouped)
+}
+
+/// 【機能概要】: 複数item_idに紐づくカテゴリをまとめて取得し、item_id単位でグルーピングする
+/// 🟡 信頼性レベル: get_items_tags_batchと完全に対称
+pub async fn get_items_categories_batch(
+    pool: &PgPool,
+    item_ids: &[Uuid],
+) -> Result<HashMap<Uuid, Vec<CategoryRef>>, ApiError> {
+    if item_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let rows: Vec<(Uuid, Uuid, String)> = sqlx::query_as(
+        "SELECT ic.item_id, c.id, c.name FROM item_categories ic \
+        INNER JOIN categories c ON c.id = ic.category_id \
+        WHERE ic.item_id = ANY($1)",
+    )
+    .bind(item_ids)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)?;
+
+    let mut grouped: HashMap<Uuid, Vec<CategoryRef>> = HashMap::new();
+    for (item_id, category_id, name) in rows {
+        grouped.entry(item_id).or_default().push(CategoryRef {
+            id: category_id,
+            name,
+        });
+    }
+    Ok(grouped)
+}
+
+/// 【機能概要】: メディア種別ごとのアイテム件数をサイドバー表示用に集計する
+/// 【実装方針】: `GROUP BY media_type`で全種別の件数を取得し、8種固定形状の
+/// `MediaTypeCounts`へマッピングする。該当0件の種別はデフォルト0のまま返す
+pub async fn count_items_by_media_type(pool: &PgPool) -> Result<MediaTypeCounts, ApiError> {
+    let rows: Vec<(MediaType, i64)> =
+        sqlx::query_as("SELECT media_type, COUNT(*) FROM items GROUP BY media_type")
+            .fetch_all(pool)
+            .await
+            .map_err(db_error)?;
+
+    let mut counts = MediaTypeCounts {
+        anime: 0,
+        movie: 0,
+        drama: 0,
+        manga: 0,
+        novel: 0,
+        game: 0,
+        academic_book: 0,
+        paper: 0,
+        total: 0,
+    };
+
+    for (media_type, count) in rows {
+        match media_type {
+            MediaType::Anime => counts.anime = count,
+            MediaType::Movie => counts.movie = count,
+            MediaType::Drama => counts.drama = count,
+            MediaType::Manga => counts.manga = count,
+            MediaType::Novel => counts.novel = count,
+            MediaType::Game => counts.game = count,
+            MediaType::AcademicBook => counts.academic_book = count,
+            MediaType::Paper => counts.paper = count,
+        }
+        counts.total += count;
+    }
+
+    Ok(counts)
 }
 
 /// 【機能概要】: `UpdateItemRequest`のうちSomeであるフィールドのみを対象にUPDATE文のSET句を
@@ -831,8 +917,9 @@ mod tests {
             is_favorite: None,
             status: None,
             title: None,
-            page: None,
             limit: None,
+            after_created_at: None,
+            after_id: None,
         }
     }
 
@@ -851,11 +938,67 @@ mod tests {
         let builder = build_list_items_query(&query);
         let sql = builder.sql();
 
-        // 【結果検証】: 不要なWHERE句が付かないこと、LIMIT/OFFSETが付くことを確認
-        assert!(!sql.contains("WHERE")); // 【確認内容】: フィルタなし時にWHERE句が生成されないことを確認 🟡
-        assert!(sql.contains("FROM items")); // 【確認内容】: itemsテーブルを対象としたクエリであることを確認 🟡
-        assert!(sql.contains("LIMIT")); // 【確認内容】: ページネーション用LIMIT句が含まれることを確認 🟡
-        assert!(sql.contains("OFFSET")); // 【確認内容】: ページネーション用OFFSET句が含まれることを確認 🟡
+        // 【結果検証】: 不要なWHERE句が付かないこと、LIMITが付き、OFFSETは付かないことを確認
+        assert!(!sql.contains("WHERE")); // 【確認内容】: フィルタなし時にWHERE句が生成されないことを確認
+        assert!(sql.contains("FROM items")); // 【確認内容】: itemsテーブルを対象としたクエリであることを確認
+        assert!(sql.contains("LIMIT")); // 【確認内容】: keysetページネーション用LIMIT句が含まれることを確認
+        assert!(!sql.contains("OFFSET")); // 【確認内容】: keysetページネーションではOFFSETを使わないことを確認
+    }
+
+    /// カーソル指定時にSQLへ (created_at, id) < (?, ?) 条件が追加される
+    #[test]
+    fn build_list_items_sql_contains_cursor_condition_when_after_specified() {
+        let mut query = empty_query();
+        query.after_created_at = Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 7, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+        );
+        query.after_id = Some(Uuid::new_v4());
+
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(sql.contains("WHERE (created_at, id) < (")); // 【確認内容】: 条件なし時はWHEREでカーソル条件が繋がることを確認
+    }
+
+    /// 他フィルタと併用時、カーソル条件はANDで繋がる
+    #[test]
+    fn build_list_items_sql_joins_cursor_condition_with_and_when_other_filters_present() {
+        let mut query = empty_query();
+        query.media_type = Some(MediaType::Anime);
+        query.after_created_at = Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 7, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+        );
+        query.after_id = Some(Uuid::new_v4());
+
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(sql.contains("AND (created_at, id) < (")); // 【確認内容】: 他フィルタがある場合はANDでカーソル条件が繋がることを確認
+    }
+
+    /// after_created_at/after_idの片方のみ指定された場合はカーソル条件が無視される
+    #[test]
+    fn build_list_items_sql_ignores_cursor_when_only_one_field_specified() {
+        let mut query = empty_query();
+        query.after_created_at = Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 7, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+        );
+        // after_idは未指定
+
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(!sql.contains("created_at, id) <")); // 【確認内容】: 片方のみ指定時はカーソル条件が追加されないことを確認
+        assert!(!sql.contains("WHERE")); // 【確認内容】: 他フィルタも無いため WHERE 自体が生成されないことを確認
     }
 
     /// TC-0010-Q02: media_type 指定時のSQLに `media_type = ` を含む
@@ -947,40 +1090,14 @@ mod tests {
         assert!(sql.contains("is_favorite = ")); // 【確認内容】: is_favorite条件が含まれることを確認 🟡
     }
 
-    /// TC-0010-Q06: list_items と count_items が同一WHERE句を共有
-    /// 🟡 信頼性レベル: 要件 2.2/3章「total は同条件 COUNT(*)」からの妥当な推測
-    #[test]
-    fn build_count_items_sql_shares_same_where_clause_as_list() {
-        // 【テスト目的】: list用クエリとcount用クエリで同一のWHERE句（フィルタ条件）が使われることを確認する
-        // 【テスト内容】: 同一フィルタ集合からbuild_list_items_query / build_count_items_query を構築し、
-        //   両者のWHERE以降の文字列断片を比較する
-        // 【期待される動作】: フィルタ部分のSQL断片が一致する（totalがdataと同条件であることの保証）
-        // 🟡 信頼性レベル: 要件定義書「totalは同条件COUNT(*)」からの妥当な推測（build_count_items_queryは未実装関数）
-
-        // 【テストデータ準備】: status絞り込みを持つクエリ
-        let mut query = empty_query();
-        query.status = Some(ItemStatus::InProgress);
-
-        // 【実際の処理実行】: list用・count用それぞれのクエリビルダーを構築する
-        let list_builder = build_list_items_query(&query);
-        let count_builder = build_count_items_query(&query);
-        let list_sql = list_builder.sql();
-        let count_sql = count_builder.sql();
-
-        // 【結果検証】: 両方に同一のstatus条件が含まれることを確認（フィルタ句の整合性）
-        assert!(list_sql.contains("status = ")); // 【確認内容】: list用SQLにstatus条件が含まれることを確認 🟡
-        assert!(count_sql.contains("status = ")); // 【確認内容】: count用SQLにも同じstatus条件が含まれることを確認 🟡
-        assert!(count_sql.contains("COUNT(")); // 【確認内容】: count用SQLがCOUNT(*)クエリであることを確認 🟡
-    }
-
     /// TC-0010-N01: 絞り込みなしの一覧取得（デフォルトページネーション、実DB必要）
     /// 🔵 信頼性レベル: TASK-0010 単体テスト要件TC-001・要件 UC-1 に直接対応
     #[tokio::test]
     #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
-    async fn list_items_returns_first_20_with_total_25() {
-        // 【テスト目的】: items25件投入時、絞り込みなしのlist_itemsが先頭20件、count_itemsがtotal=25を返すことを確認する
-        // 【テスト内容】: テスト用DBへitemsを25件投入し、list_items/count_itemsをデフォルトページネーションで呼ぶ
-        // 【期待される動作】: items.len()==20、total==25
+    async fn list_items_returns_limit_plus_one_rows_for_has_more_detection() {
+        // 【テスト目的】: items25件投入時、絞り込みなしのlist_itemsがlimit+1(21)件返すことを確認する
+        // 【テスト内容】: テスト用DBへitemsを25件投入し、list_itemsをデフォルトlimitで呼ぶ
+        // 【期待される動作】: items.len()==21（ハンドラ層でhas_more判定・truncateされる前提の生データ）
         // 🔵 信頼性レベル: タスク単体テスト要件TC-001・要件UC-1に直接対応（実装はGreenフェーズで行う）
 
         // 【テスト前準備】: 環境変数TEST_DATABASE_URL等からテスト用PgPoolを取得する想定（未実装のためここでは到達しない）
@@ -988,14 +1105,12 @@ mod tests {
         let pool = test_pool().await;
         seed_items(&pool, 25).await;
 
-        // 【実際の処理実行】: list_items + count_items を既定ページネーションで呼ぶ
+        // 【実際の処理実行】: list_itemsをデフォルトlimit(20)で呼ぶ（has_more判定用に+1件取得される）
         let query = empty_query();
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
-        // 【結果検証】: 先頭20件 + total=25であることを確認
-        assert_eq!(items.len(), 20); // 【確認内容】: limit=20で先頭20件のみ取得されることを確認 🔵
-        assert_eq!(total, 25); // 【確認内容】: totalがlimitに依存せず全件数であることを確認 🔵
+        // 【結果検証】: has_more判定用の+1件を含む21件が返ることを確認（ハンドラ層でtruncateされる）
+        assert_eq!(items.len(), 21); // 【確認内容】: limit=20+1件のフェッチにより21件返ることを確認
     }
 
     /// TC-0010-N02: media_type による絞り込み（実DB必要）
@@ -1015,11 +1130,9 @@ mod tests {
         let mut query = empty_query();
         query.media_type = Some(MediaType::Anime);
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 3); // 【確認内容】: anime種別のみ3件取得されることを確認 🔵
         assert!(items.iter().all(|i| i.media_type == MediaType::Anime)); // 【確認内容】: 全要素がanimeであることを確認 🔵
-        assert_eq!(total, 3); // 【確認内容】: totalが絞り込み後件数(3)であることを確認 🔵
     }
 
     /// TC-0010-N03: 複数条件のAND絞り込み（実DB必要）
@@ -1041,7 +1154,6 @@ mod tests {
         query.media_type = Some(MediaType::Anime);
         query.is_favorite = Some(true);
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 2); // 【確認内容】: AND結合で両条件を満たす2件のみ取得されることを確認 🟡
         assert!(
@@ -1049,7 +1161,6 @@ mod tests {
                 .iter()
                 .all(|i| i.media_type == MediaType::Anime && i.is_favorite)
         ); // 【確認内容】: 全要素が両条件を満たすことを確認 🟡
-        assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🟡
     }
 
     /// TC-0010-N04: status による絞り込み（実DB必要）
@@ -1070,11 +1181,9 @@ mod tests {
         let mut query = empty_query();
         query.status = Some(ItemStatus::InProgress);
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 2); // 【確認内容】: in_progressのみ2件取得されることを確認 🔵
         assert!(items.iter().all(|i| i.status == ItemStatus::InProgress)); // 【確認内容】: 全要素がin_progressであることを確認 🔵
-        assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🔵
     }
 
     /// TC-0010-N05: is_favorite による絞り込み（実DB必要）
@@ -1094,11 +1203,9 @@ mod tests {
         let mut query = empty_query();
         query.is_favorite = Some(true);
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 3); // 【確認内容】: fav=trueのみ3件取得されることを確認 🔵
         assert!(items.iter().all(|i| i.is_favorite)); // 【確認内容】: 全要素がfav=trueであることを確認 🔵
-        assert_eq!(total, 3); // 【確認内容】: totalが絞り込み後件数(3)であることを確認 🔵
     }
 
     /// TC-0010-N06: tag_id による絞り込み（EXISTSサブクエリ、実DB必要）
@@ -1121,10 +1228,8 @@ mod tests {
         let mut query = empty_query();
         query.tag_id = Some(tag_a);
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 2); // 【確認内容】: TAG_Aを持つitemのみ2件取得され、重複しないことを確認 🟡
-        assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🟡
     }
 
     /// TC-0010-N07: category_id による絞り込み（EXISTSサブクエリ、実DB必要）
@@ -1147,10 +1252,8 @@ mod tests {
         let mut query = empty_query();
         query.category_id = Some(cat_a);
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 2); // 【確認内容】: CAT_Aを持つitemのみ2件取得されることを確認 🟡
-        assert_eq!(total, 2); // 【確認内容】: totalが絞り込み後件数(2)であることを確認 🟡
     }
 
     /// TC-0010-N08: tag_id と media_type の AND 複合（実DB必要）
@@ -1174,54 +1277,49 @@ mod tests {
         query.media_type = Some(MediaType::Anime);
         query.tag_id = Some(tag_a);
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 1); // 【確認内容】: anime+TAG_Aの組合せのみ1件取得されることを確認 🟡
-        assert_eq!(total, 1); // 【確認内容】: totalが絞り込み後件数(1)であることを確認 🟡
     }
 
-    /// TC-0010-B07: 範囲外page → 空配列 + 正しいtotal（実DB必要）
-    /// 🟡 信頼性レベル: 要件 UC-8 に対応
+    /// TC-0010-B07: 末尾を過ぎたカーソル指定 → 空配列（実DB必要）
+    /// 🟡 信頼性レベル: keysetページネーションへの変更に伴う書き直し
     #[tokio::test]
     #[ignore]
-    async fn list_items_returns_empty_array_with_correct_total_for_out_of_range_page() {
-        // 【テスト目的】: 件数を超えるpage指定時に空配列＋正しいtotalを返すことを確認する
-        // 【テスト内容】: items5件に対しpage=10,limit=20（OFFSET=180）で取得する
-        // 【期待される動作】: data==[]、total==5
-        // 🟡 信頼性レベル: 要件UC-8（件数超過pageは空配列+正しいtotal）に対応
+    async fn list_items_returns_empty_array_for_cursor_past_last_row() {
+        // 【テスト目的】: 最後の行より後のカーソルを指定した場合に空配列を返すことを確認する
+        // 【テスト内容】: items5件を投入し、最後の行のcreated_at/idをカーソルとして指定して取得する
+        // 【期待される動作】: data==[]
 
         let pool = test_pool().await;
         seed_items(&pool, 5).await;
 
-        let mut query = empty_query();
-        query.page = Some(10);
-        query.limit = Some(20);
-        let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
+        let all_items = list_items(&pool, &empty_query()).await.unwrap();
+        let last = all_items
+            .last()
+            .expect("5件投入済みのため最後の行が存在する");
 
-        assert_eq!(items.len(), 0); // 【確認内容】: 範囲外pageでは空配列が返ることを確認 🟡
-        assert_eq!(total, 5); // 【確認内容】: dataが空でもtotalは全条件件数(5)を維持することを確認 🟡
+        let mut query = empty_query();
+        query.after_created_at = Some(last.created_at);
+        query.after_id = Some(last.id);
+        let items = list_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 0); // 【確認内容】: 最後の行より後を指定すると空配列が返ることを確認
     }
 
-    /// TC-0010-B08: 全件0件（空テーブル）→ data=[], total=0（実DB必要）
+    /// TC-0010-B08: 全件0件（空テーブル）→ data=[]（実DB必要）
     /// 🟡 信頼性レベル: 要件 2.2 から妥当な推測（空集合の自明ケース）
     #[tokio::test]
     #[ignore]
-    async fn list_items_returns_empty_array_and_zero_total_when_table_is_empty() {
-        // 【テスト目的】: itemsテーブルが0件の場合、data=[]、total=0のフォーマットが維持されることを確認する
-        // 【テスト内容】: items0件の状態でGET /items相当のlist_items/count_itemsを呼ぶ
-        // 【期待される動作】: data==[]、total==0
-        // 🟡 信頼性レベル: 要件2.2から妥当な推測（空集合の自明ケース）
+    async fn list_items_returns_empty_array_when_table_is_empty() {
+        // 【テスト目的】: itemsテーブルが0件の場合、data=[]のフォーマットが維持されることを確認する
 
         let pool = test_pool().await;
         // 【テスト前準備】: 事前データなし（空テーブルの状態をそのまま利用）
 
         let query = empty_query();
         let items = list_items(&pool, &query).await.unwrap();
-        let total = count_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 0); // 【確認内容】: 0件テーブルでdataが空配列であることを確認 🟡
-        assert_eq!(total, 0); // 【確認内容】: 0件テーブルでtotalが0であることを確認 🟡
     }
 
     /// TC-0010-E04: DBエラー時 → 500 INTERNAL_ERROR（実DB必要、接続不能プールで再現）
