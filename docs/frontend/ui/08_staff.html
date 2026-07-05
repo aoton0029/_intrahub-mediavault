@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — スタッフ管理</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- サイドバー(01_home.htmlと共通、「スタッフ」をactiveに) -->
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+
+    <div class="nav-section">
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　漫画<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　小説<span class="count">7</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ゲーム<span class="count">3</span></a>
+      <a href="03_academic_books.html" class="nav-item" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
+      <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">ライブラリ</div>
+      <a href="06_mylists.html" class="nav-item" style="text-decoration:none;">⭐ マイリスト</a>
+      <a href="07_tags.html" class="nav-item" style="text-decoration:none;">🏷️ タグ</a>
+      <a href="14_categories.html" class="nav-item" style="text-decoration:none;">📁 カテゴリ</a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　積読<span class="count">12</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　お気に入り原作<span class="count">6</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　2026年鑑賞予定<span class="count">4</span></a>
+      <a href="08_staff.html" class="nav-item active" style="text-decoration:none;">👤 スタッフ</a>
+    </div>
+
+    <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-item">⚙️ 設定</div>
+    </div>
+  </aside>
+
+  <!-- メイン -->
+  <main class="main">
+    <div class="titlebar">
+      <h1>スタッフ</h1>
+      <a href="" class="btn btn-accent">＋ 新しいスタッフ</a>
+    </div>
+
+    <div class="content">
+      <!-- GET /staff に対応する一覧取得エンドポイントが現状ドキュメントに無く、
+           このスタッフ一覧自体もUIのみ先行実装(バックエンド実装時に一覧取得APIの追加が必要)。
+           スタッフ自体の更新・削除エンドポイントも無いため、編集・削除操作は設けていない。 -->
+
+      <!-- ＋ 新しいスタッフ フォーム。POST /staff { name, external_id?, image_url? } に対応 -->
+      <div class="kv-card" style="align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 18px;">
+        <div class="form-grid" style="max-width: 100%;">
+          <div class="form-field">
+            <label>名前<span class="required">必須</span></label>
+            <input type="text" placeholder="例: 新海誠">
+          </div>
+          <div class="form-field">
+            <label>外部ID</label>
+            <input type="text" placeholder="例: TMDB person id">
+          </div>
+          <div class="form-field full">
+            <label>画像URL</label>
+            <input type="text" placeholder="https://...">
+          </div>
+        </div>
+        <div class="form-actions" style="margin-top: 0; padding-top: 0; border-top: none;">
+          <button class="btn btn-accent btn-sm">追加する</button>
+          <button class="btn btn-ghost btn-sm">キャンセル</button>
+        </div>
+      </div>
+
+      <!-- 関連作品の role / character_name は Staff ではなく ItemStaff(作品×スタッフの関連)側のフィールド。
+           作品への紐付け(POST /items/{id}/staff)は詳細画面側の操作のため、ここでは参考情報として読み取り専用表示に留める -->
+      <div class="kv-card" style="align-items: flex-start;">
+        <div style="display:flex; gap: 12px;">
+          <div class="doc-cover" style="width:44px; max-width:44px; aspect-ratio:1/1; margin-bottom:0; border-radius: 50%;"></div>
+          <div>
+            <div class="provider">新津 明日香</div>
+            <div class="key">関連作品: 星屑のシンフォニア(監督) / 緋色の境界、青の余白(脚本)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kv-card" style="align-items: flex-start;">
+        <div style="display:flex; gap: 12px;">
+          <div class="doc-cover" style="width:44px; max-width:44px; aspect-ratio:1/1; margin-bottom:0; border-radius: 50%;"></div>
+          <div>
+            <div class="provider">結城 かなで</div>
+            <div class="key">関連作品: 星屑のシンフォニア(声優 / 役名: ルカ)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kv-card" style="align-items: flex-start;">
+        <div style="display:flex; gap: 12px;">
+          <div class="doc-cover" style="width:44px; max-width:44px; aspect-ratio:1/1; margin-bottom:0; border-radius: 50%;"></div>
+          <div>
+            <div class="provider">霧島 一（原作者）</div>
+            <div class="key">関連作品: 紙の上の庭園 第4巻(原作)</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — 埋め込み空間における意味距離の再評価</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- サイドバー(01_home.htmlと共通。詳細画面はどの一覧からも遷移し得るため active は付けない) -->
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+
+    <div class="nav-section">
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　漫画<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　小説<span class="count">7</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ゲーム<span class="count">3</span></a>
+      <a href="03_academic_books.html" class="nav-item" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
+      <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">ライブラリ</div>
+      <a href="06_mylists.html" class="nav-item" style="text-decoration:none;">⭐ マイリスト</a>
+      <a href="07_tags.html" class="nav-item" style="text-decoration:none;">🏷️ タグ</a>
+      <a href="14_categories.html" class="nav-item" style="text-decoration:none;">📁 カテゴリ</a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　積読<span class="count">12</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　お気に入り原作<span class="count">6</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　2026年鑑賞予定<span class="count">4</span></a>
+      <a href="08_staff.html" class="nav-item" style="text-decoration:none;">👤 スタッフ</a>
+    </div>
+
+    <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-item">⚙️ 設定</div>
+    </div>
+  </aside>
+
+  <!-- メイン -->
+  <main class="main">
+    <div class="titlebar">
+      <div class="breadcrumb"><a href="04_papers.html">論文・文献</a></div>
+      <a href="11_paper_form.html" class="btn btn-accent">編集する</a>
+    </div>
+
+    <div class="content">
+      <div class="detail-layout">
+
+        <!-- 左レール: カバー・識別情報・クイックファクト・分類メタデータ -->
+        <aside class="detail-rail">
+          <div class="doc-cover"></div>
+          <h1 class="doc-title">埋め込み空間における意味距離の再評価</h1>
+          <div class="doc-original">Revisiting Semantic Distance in Embedding Spaces ・ 2026年</div>
+
+          <!-- クイックファクト(状態/評価/お気に入り/発表日/登録方法)。
+               ステータス変更は PATCH /items/{id}/status、それ以外は PATCH /items/{id} に対応 -->
+          <div class="rail-facts">
+            <span class="meta-item">
+              <!-- react-icons/fi: FiCheckCircle(読了) -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              視聴済
+            </span>
+            <span class="rating-stars">
+              <!-- react-icons/fi: FiStar ×5 (評価に応じて塗り分け) -->
+              <svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              <svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              <svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              <svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              <svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              <span class="val">4.5</span>
+            </span>
+            <span class="meta-item favorite-toggle is-active">
+              <!-- react-icons/fi: FiHeart(登録済み) -->
+              <svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+              お気に入り
+            </span>
+            <span class="meta-item">
+              <!-- react-icons/fi: FiCalendar -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              2026-03-15
+            </span>
+            <span class="meta-item muted">
+              <!-- react-icons/fi: FiEdit3 -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+              手動登録
+            </span>
+          </div>
+
+          <hr class="rail-divider">
+
+          <!-- タグ: POST/DELETE /items/{id}/tags/{tag_id} -->
+          <div class="rail-section">
+            <h3>
+              <!-- react-icons/fi: FiTag -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 4H4v7l9.59 9.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+              タグ
+            </h3>
+            <div class="prop-taglist">
+              <span class="tag-pill">自然言語処理</span>
+              <span class="tag-pill">埋め込み表現</span>
+            </div>
+          </div>
+
+          <!-- カテゴリ: POST/DELETE /items/{id}/categories/{category_id} -->
+          <div class="rail-section">
+            <h3>
+              <!-- react-icons/fi: FiFolder -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              カテゴリ
+            </h3>
+            <div class="prop-taglist">
+              <span class="tag-pill">お気に入り原作</span>
+            </div>
+          </div>
+
+          <!-- マイリスト所属: 「この作品がどのマイリストに入っているか」を返すGETエンドポイントは
+               現状ドキュメントに無く、UIのみ先行実装(バックエンド実装時にAPI追加が必要) -->
+          <div class="rail-section">
+            <h3>
+              <!-- react-icons/fi: FiBookmark -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+              マイリスト
+            </h3>
+            <div class="prop-list-item">
+              <span class="label">研究サーベイ用</span>
+              <button class="btn btn-ghost btn-sm">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                解除
+              </button>
+            </div>
+            <a href="06_mylists.html" class="btn btn-ghost btn-sm" style="margin-top: 6px;">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              マイリストに追加
+            </a>
+          </div>
+        </aside>
+
+        <!-- 右メインカラム: 本文・種別固有情報・関連リソース -->
+        <div class="detail-main">
+
+          <!-- GET /items/{id} の ItemDetail (Item基本情報 + detail(paper) + tags + categories + calibre_links) に対応 -->
+          <div class="doc-section">
+            <h3>
+              <!-- react-icons/fi: FiFileText -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              概要
+            </h3>
+            <p>既存の埋め込みモデルにおけるコサイン類似度が持つ幾何学的な歪みを分析し、意味的距離をより正確に近似する新しい距離指標を提案する。</p>
+          </div>
+
+          <!-- 種別固有情報(paper): 11_paper_form.html の「種別固有情報」欄と同一フィールド -->
+          <div class="doc-section">
+            <h3>
+              <!-- react-icons/fi: FiFileText -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              種別固有情報
+            </h3>
+            <div class="prop-row">
+              <span class="key">DOI</span>
+              <span class="val">10.1234/jnlp.2026.0032</span>
+            </div>
+            <div class="prop-row">
+              <span class="key">掲載誌名</span>
+              <span class="val">言語処理学会誌</span>
+            </div>
+            <div class="prop-row">
+              <span class="key">巻号</span>
+              <span class="val">Vol.32 No.4</span>
+            </div>
+            <div class="prop-row">
+              <span class="key">ページ範囲</span>
+              <span class="val">123-140</span>
+            </div>
+            <div class="prop-row">
+              <span class="key">著者一覧</span>
+              <span class="val">山田 太郎 / 佐藤 花子</span>
+            </div>
+          </div>
+
+          <!-- 関連作品: POST /item-relations { item_id, related_item_id, relation_type }, relation_type は reference / dlc のみ -->
+          <div class="doc-section">
+            <h3>
+              <!-- react-icons/fi: FiGitBranch -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>
+              関連作品
+            </h3>
+            <div class="result-row">
+              <div class="thumb"></div>
+              <div class="info">
+                <div class="title">埋め込み空間の幾何学(先行研究)</div>
+                <div class="sub">reference</div>
+              </div>
+              <button class="btn btn-danger btn-sm">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                解除
+              </button>
+            </div>
+            <button class="btn btn-ghost btn-sm">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              関連作品を追加
+            </button>
+          </div>
+
+          <!-- リンク・ファイル: POST/DELETE /items/{id}/links, /items/{id}/files
+               (構造が共通の2リストのため、単一セクション内のタブ切替に統合。JS不要のCSSのみタブ) -->
+          <div class="doc-section">
+            <h3>
+              <!-- react-icons/fi: FiPaperclip -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              リソース
+            </h3>
+            <div class="resource-tabs">
+              <input type="radio" name="resource-tab" id="tab-links" checked>
+              <input type="radio" name="resource-tab" id="tab-files">
+
+              <div class="resource-tabbar">
+                <label for="tab-links">
+                  <!-- react-icons/fi: FiLink2 -->
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3"></path><path d="M9 17H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                  リンク
+                </label>
+                <label for="tab-files">
+                  <!-- react-icons/fi: FiPaperclip -->
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                  ファイル
+                </label>
+              </div>
+
+              <div class="resource-panels">
+                <div class="resource-panel panel-links">
+                  <div class="prop-list-item">
+                    <span class="label">出版社ページ(DOI解決)</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span class="sub">https://doi.org/10.1234/jnlp.2026.0032</span>
+                      <button class="btn btn-danger btn-sm">
+                        <!-- react-icons/fi: FiTrash2 -->
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                  <button class="btn btn-ghost btn-sm" style="margin-top: 10px;">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    リンクを追加
+                  </button>
+                </div>
+
+                <!-- file_type: pdf / image / other。pdfのみ PATCH /items/{id}/files/{file_id}/calibre-link でCalibre連携可能 -->
+                <div class="resource-panel panel-files">
+                  <div class="prop-list-item">
+                    <span class="label">semantic-distance-2026.pdf</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span class="sub">pdf</span>
+                      <button class="btn btn-danger btn-sm">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                  <button class="btn btn-ghost btn-sm" style="margin-top: 10px;">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    ファイルを追加
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

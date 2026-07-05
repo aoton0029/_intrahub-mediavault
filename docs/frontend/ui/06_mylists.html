@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — マイリスト管理</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- サイドバー(01_home.htmlと共通、「マイリスト」をactiveに) -->
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+
+    <div class="nav-section">
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　漫画<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　小説<span class="count">7</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ゲーム<span class="count">3</span></a>
+      <a href="03_academic_books.html" class="nav-item" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
+      <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">ライブラリ</div>
+      <a href="06_mylists.html" class="nav-item active" style="text-decoration:none;">⭐ マイリスト</a>
+      <a href="07_tags.html" class="nav-item" style="text-decoration:none;">🏷️ タグ</a>
+      <a href="14_categories.html" class="nav-item" style="text-decoration:none;">📁 カテゴリ</a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　積読<span class="count">12</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　お気に入り原作<span class="count">6</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　2026年鑑賞予定<span class="count">4</span></a>
+      <a href="08_staff.html" class="nav-item" style="text-decoration:none;">👤 スタッフ</a>
+    </div>
+
+    <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-item">⚙️ 設定</div>
+    </div>
+  </aside>
+
+  <!-- メイン -->
+  <main class="main">
+    <div class="titlebar">
+      <h1>マイリスト</h1>
+      <a href="" class="btn btn-accent">＋ 新しいマイリスト</a>
+    </div>
+
+    <div class="content">
+      <!-- GET /mylists に対応する一覧取得エンドポイントが現状ドキュメントに無く、
+           この一覧自体もUIのみ先行実装(バックエンド実装時に一覧取得APIの追加が必要)。
+           タイトルバーの「＋ 新しいマイリスト」を押すと、ページ下部の .modal-overlay が表示される想定
+           (通常時は非表示。ここでは静的モックのためモーダルを開いた状態のまま配置している)。
+           「開く」はその場で展開せず、収録作品を編集する詳細ページ(15_mylist_detail.html)へ遷移する。
+           マイリスト自体のリネーム・削除に対応するAPIは無いため、カード上にはそれらの操作を置いていない。 -->
+      <div class="card-grid">
+
+        <a class="media-card" href="15_mylist_detail.html" style="display:block; color:inherit;">
+          <div class="mylist-cover n4">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <span class="badge">12件</span>
+          </div>
+          <div class="body">
+            <p class="title">積読</p>
+            <div class="meta">12 件</div>
+          </div>
+        </a>
+
+        <a class="media-card" href="15_mylist_detail.html" style="display:block; color:inherit;">
+          <div class="mylist-cover n2">
+            <div></div>
+            <div></div>
+            <span class="badge">6件</span>
+          </div>
+          <div class="body">
+            <p class="title">お気に入り原作</p>
+            <div class="meta">6 件</div>
+          </div>
+        </a>
+
+        <a class="media-card" href="15_mylist_detail.html" style="display:block; color:inherit;">
+          <div class="mylist-cover n3">
+            <div></div>
+            <div></div>
+            <div></div>
+            <span class="badge">4件</span>
+          </div>
+          <div class="body">
+            <p class="title">2026年鑑賞予定</p>
+            <div class="meta">4 件</div>
+          </div>
+        </a>
+
+      </div>
+
+      <!-- 0件時(まだマイリストを作成していない場合)の空状態例。
+           通常はカード一覧かこの空状態のどちらか一方のみが表示される。 -->
+      <!--
+      <div class="empty-state">
+        <h3>マイリストがありません</h3>
+        <p>お気に入りの作品をまとめる、あなただけのリストを作りましょう。</p>
+        <a href="" class="btn btn-accent btn-sm" style="margin-top: 12px;">＋ 新しいマイリストを作成</a>
+      </div>
+      -->
+    </div>
+  </main>
+
+  <!-- 「＋ 新しいマイリスト」押下時のモーダル。POST /mylists { name } に対応。
+       通常時は非表示で、ボタン押下時のみ .modal-overlay を表示する想定 -->
+  <div class="modal-overlay">
+    <div class="modal">
+      <h2>新しいマイリスト</h2>
+      <div class="form-field">
+        <label>マイリスト名<span class="required">必須</span></label>
+        <input type="text" placeholder="例: 積読">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-accent btn-sm">作成する</button>
+        <button class="btn btn-ghost btn-sm">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

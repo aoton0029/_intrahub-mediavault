@@ -33,7 +33,6 @@
 
   /* layout */
   --sidebar-w: 232px;
-  --properties-w: 300px;
   --radius: 6px;
 }
 
@@ -66,10 +65,6 @@ a:hover { text-decoration: underline; }
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
   height: 100vh;
-}
-
-.app-shell.has-properties {
-  grid-template-columns: var(--sidebar-w) 1fr var(--properties-w);
 }
 
 /* ---------- Sidebar ---------- */
@@ -166,13 +161,22 @@ a:hover { text-decoration: underline; }
   padding: 24px 28px 48px;
 }
 
-/* ---------- Filter bar ---------- */
+/* ---------- Filter toolbar (絞り込み ゾーンと 並び替え・検索 ゾーンを役割で分離) ---------- */
+.filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* ---------- Filter bar (絞り込みゾーン: すべて/お気に入り/種別/タグ/カテゴリ) ---------- */
 .filter-bar {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
 }
 
 .chip {
@@ -190,8 +194,44 @@ a:hover { text-decoration: underline; }
 .chip:hover { border-color: var(--accent); color: var(--text-primary); }
 .chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); }
 
+/* 適用中フィルター(.chip.active)ではなく、押すと選択肢を追加できる起点であることを示す修飾子 */
+.chip-add {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-faint);
+}
+.chip-add:hover { border-style: dashed; border-color: var(--accent); color: var(--text-primary); }
+
+/* ---------- Sort + search zone(並び替え・検索ゾーン) ---------- */
+.sort-search-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.sort-select:hover { border-color: var(--accent); color: var(--text-primary); }
+.sort-select .icon { color: var(--text-faint); }
+.sort-select select {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  outline: none;
+}
+
 .search-box {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -213,6 +253,29 @@ a:hover { text-decoration: underline; }
   width: 100%;
 }
 
+/* ---------- Filter select (dropdown-style filter, distinct from chip toggle) ---------- */
+.filter-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.filter-select:hover { border-color: var(--accent); color: var(--text-primary); }
+.filter-select select {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  outline: none;
+}
+.filter-select.active { border-color: var(--accent); color: var(--accent-strong); }
+
 /* ---------- Card grid ---------- */
 .card-grid {
   display: grid;
@@ -229,6 +292,11 @@ a:hover { text-decoration: underline; }
   transition: border-color 0.15s, transform 0.1s;
 }
 .media-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+/* 検索結果カード用: 本文を縦積みにし、取り込みボタンを常にカード下端に固定する */
+.media-card.search-result { display: flex; flex-direction: column; height: 100%; }
+.media-card.search-result .body { display: flex; flex-direction: column; flex: 1; }
+.media-card.search-result .btn { margin-top: auto; }
 
 .media-card .cover {
   aspect-ratio: 2/3;
@@ -282,15 +350,38 @@ a:hover { text-decoration: underline; }
   gap: 6px;
 }
 
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  display: inline-block;
+.media-card .rating {
+  font-family: var(--font-mono);
+  color: var(--favorite);
 }
-.status-dot.done { background: var(--status-done); }
-.status-dot.progress { background: var(--status-progress); }
-.status-dot.none { background: var(--status-none); }
+.media-card .rating .val { color: var(--text-faint); margin-left: 1px; }
+
+/* ---------- Mylist cover collage(マイリスト一覧: 収録作品数に応じた表紙コラージュ) ---------- */
+.mylist-cover {
+  aspect-ratio: 2/3;
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+.mylist-cover > div { background-size: cover; }
+.mylist-cover > div:nth-child(1) { background: linear-gradient(160deg, #33304a, #232323); }
+.mylist-cover > div:nth-child(2) { background: linear-gradient(160deg, #2a3a4a, #1f2323); }
+.mylist-cover > div:nth-child(3) { background: linear-gradient(160deg, #3a2f2a, #231f1f); }
+.mylist-cover > div:nth-child(4) { background: linear-gradient(160deg, #2a3a2f, #1f231f); }
+
+.mylist-cover.n1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.mylist-cover.n2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.mylist-cover.n3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.mylist-cover.n3 > div:nth-child(3) { grid-column: 1 / -1; }
+.mylist-cover.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+.mylist-cover .badge {
+  top: auto;
+  bottom: 6px;
+  left: 6px;
+}
 
 /* ---------- Tag pill (Obsidian #tag style) ---------- */
 .tag-pill {
@@ -305,22 +396,54 @@ a:hover { text-decoration: underline; }
 }
 .tag-pill::before { content: '#'; opacity: 0.7; margin-right: 1px; }
 
-/* ---------- Properties panel (signature element) ---------- */
-.properties {
-  border-left: 1px solid var(--border-soft);
-  background: var(--bg-sidebar);
-  padding: 18px 16px 32px;
-  overflow-y: auto;
+/* ---------- Icons (react-icons/fi 準拠のインラインSVG共通スタイル) ---------- */
+.icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  vertical-align: -3px;
 }
 
-.properties h2 {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
-  margin: 0 0 10px;
+/* ---------- Meta bar (詳細ページ: 状態/評価/お気に入り/日付/登録方法) ---------- */
+.meta-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-soft);
+  max-width: 680px;
 }
 
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.meta-item .icon { color: var(--text-faint); }
+.meta-item.muted { color: var(--text-faint); }
+
+.favorite-toggle .icon { color: var(--text-faint); }
+.favorite-toggle.is-active .icon { color: var(--favorite); fill: var(--favorite); }
+.favorite-toggle.is-active { color: var(--favorite); }
+
+.rating-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.rating-stars .icon { color: var(--border); fill: var(--border); width: 14px; height: 14px; }
+.rating-stars .icon.is-full { color: var(--favorite); fill: var(--favorite); }
+.rating-stars .val {
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* ---------- Property groups (元プロパティパネルの内容をメインコンテンツ内に統合) ---------- */
 .prop-group {
   margin-bottom: 22px;
 }
@@ -390,6 +513,7 @@ a:hover { text-decoration: underline; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 .btn-danger { color: var(--danger); border-color: var(--border); background: var(--bg-surface); }
 .btn-danger:hover { background: rgba(224,97,90,0.12); border-color: var(--danger); }
+.btn[disabled] { opacity: 0.5; cursor: default; pointer-events: none; }
 
 /* ---------- Forms ---------- */
 .form-grid {
@@ -433,6 +557,18 @@ a:hover { text-decoration: underline; }
   font-family: var(--font-mono);
 }
 .field-hint { font-size: 11px; color: var(--text-faint); }
+
+.form-section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin: 28px 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 6px;
+  max-width: 760px;
+}
+.form-section-title:first-of-type { margin-top: 0; }
 
 .form-actions {
   display: flex;
@@ -484,6 +620,58 @@ a:hover { text-decoration: underline; }
 .kv-card .provider { font-weight: 600; font-size: 13.5px; }
 .kv-card .key { font-family: var(--font-mono); color: var(--text-faint); font-size: 12px; margin-top: 2px; }
 
+/* ---------- Load-more sentinel (infinite scroll) ---------- */
+.load-more-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 0 8px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+.load-more-sentinel .spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px 22px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+.modal h2 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+.modal .form-actions {
+  max-width: none;
+  margin-top: 18px;
+  padding-top: 0;
+  border-top: none;
+}
+
 /* ---------- Empty state ---------- */
 .empty-state {
   text-align: center;
@@ -491,6 +679,68 @@ a:hover { text-decoration: underline; }
   color: var(--text-faint);
 }
 .empty-state h3 { font-family: var(--font-display); color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+
+/* ---------- Literature row (学術書・論文など、表紙よりテキスト書誌情報が主役の一覧向け行リスト) ---------- */
+.lit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lit-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  color: inherit;
+  transition: border-color 0.15s;
+}
+.lit-row:hover { border-color: var(--accent); text-decoration: none; }
+
+.lit-row .thumb {
+  width: 44px;
+  height: 60px;
+  border-radius: 4px;
+  background: linear-gradient(160deg, #33304a, #232323);
+  flex-shrink: 0;
+}
+
+.lit-row .info { flex: 1; min-width: 0; }
+.lit-row .info .title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lit-row .info .byline {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+.lit-row .info .byline .sep { color: var(--text-faint); margin: 0 6px; }
+.lit-row .info .doi {
+  font-family: var(--font-mono);
+  color: var(--text-faint);
+}
+.lit-row .info .prop-taglist { margin-top: 6px; }
+
+.lit-row .aside {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.lit-row .fav-mark { color: var(--text-faint); font-size: 15px; }
+.lit-row .fav-mark.is-active { color: var(--favorite); }
 
 /* ---------- Result list (search) ---------- */
 .result-row {
@@ -536,6 +786,9 @@ a:hover { text-decoration: underline; }
 }
 .doc-section { margin-bottom: 28px; max-width: 680px; }
 .doc-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -544,6 +797,7 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--border-soft);
   padding-bottom: 6px;
 }
+.doc-section h3 .icon { color: var(--text-faint); }
 .doc-section p { color: var(--text-primary); line-height: 1.7; }
 
 .group-block {
@@ -571,7 +825,91 @@ a:hover { text-decoration: underline; }
 }
 .episode-row .num { font-family: var(--font-mono); color: var(--text-faint); width: 28px; }
 
+/* ---------- Detail layout (2カラム: アイデンティティ・レール + コンテンツ本文) ---------- */
+.detail-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.detail-rail {
+  position: sticky;
+  top: 0;
+}
+
+.detail-rail .doc-cover { max-width: 100%; }
+
+.detail-rail .doc-title { font-size: 21px; }
+
+.rail-divider {
+  border: none;
+  border-top: 1px solid var(--border-soft);
+  margin: 18px 0;
+}
+
+.rail-section { margin-bottom: 18px; }
+.rail-section:last-child { margin-bottom: 0; }
+.rail-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin: 0 0 10px;
+}
+.rail-section h3 .icon { color: var(--text-faint); width: 14px; height: 14px; }
+
+.rail-facts { display: flex; flex-direction: column; gap: 10px; }
+.rail-facts .meta-item { gap: 8px; }
+.rail-facts .rating-stars { gap: 2px; }
+
+.detail-main { min-width: 0; }
+
+/* ---------- Resource tabs (リンク/ファイル/トレーラー統合、JS不要のCSSのみタブ) ---------- */
+.resource-tabs { max-width: 680px; }
+.resource-tabs input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+
+.resource-tabbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.resource-tabbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.resource-tabbar label:hover { border-color: var(--accent); color: var(--text-primary); }
+
+.resource-panel { display: none; }
+
+#tab-links:checked ~ .resource-tabbar label[for="tab-links"],
+#tab-files:checked ~ .resource-tabbar label[for="tab-files"],
+#tab-trailers:checked ~ .resource-tabbar label[for="tab-trailers"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+#tab-links:checked ~ .resource-panels .resource-panel.panel-links,
+#tab-files:checked ~ .resource-panels .resource-panel.panel-files,
+#tab-trailers:checked ~ .resource-panels .resource-panel.panel-trailers {
+  display: block;
+}
+
 @media (max-width: 980px) {
-  .app-shell, .app-shell.has-properties { grid-template-columns: 1fr; }
-  .sidebar, .properties { display: none; }
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .detail-layout { grid-template-columns: 1fr; }
+  .detail-rail { position: static; }
 }

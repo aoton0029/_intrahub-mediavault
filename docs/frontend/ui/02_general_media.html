@@ -2,21 +2,19 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>MediaVault — 全体一覧</title>
+<title>MediaVault — 一般メディア</title>
 <link rel="stylesheet" href="_shared.css">
 </head>
 <body>
 <div class="app-shell">
 
-  <!-- 「一般メディア」区分および各件数はUI側のみの概念で、GET /items に対応する集計エンドポイントは無い(実装時は個別にmedia_typeでフィルタ集計する必要がある) -->
-  <!-- 「カテゴリ」セクションはCategoryエンティティ(ユーザー定義の自由分類、GET /categories)由来のモック項目 -->
-  <!-- サイドバー -->
+  <!-- サイドバー(01_home.htmlと共通、「一般メディア」をactiveに) -->
   <aside class="sidebar">
     <div class="brand"><span class="dot"></span>MediaVault</div>
 
     <div class="nav-section">
-      <a href="01_home.html" class="nav-item active" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
-      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
+      <a href="02_general_media.html" class="nav-item active" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
       <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
       <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
       <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
@@ -46,7 +44,7 @@
   <!-- メイン -->
   <main class="main">
     <div class="titlebar">
-      <h1>全体一覧</h1>
+      <h1>一般メディア</h1>
       <a href="12_general_media_search.html" class="btn btn-accent">＋ 作品を追加</a>
     </div>
 
@@ -57,7 +55,7 @@
           <div class="chip active">すべて</div>
           <div class="chip">❤ お気に入り</div>
 
-          <!-- media_type クエリパラメータに対応。サイドバーの分類と同一の値セット -->
+          <!-- media_type クエリパラメータに対応。一般メディア6種のみに絞ったサブセット -->
           <div class="filter-select">
             種別
             <select>
@@ -68,8 +66,6 @@
               <option value="manga">漫画</option>
               <option value="novel">小説</option>
               <option value="game">ゲーム</option>
-              <option value="academic_book">学術書・専門書</option>
-              <option value="paper">論文・文献</option>
             </select>
           </div>
 
@@ -83,7 +79,7 @@
 
         <!-- 並び替え・検索ゾーン -->
         <div class="sort-search-group">
-          <!-- ソートは GET /items に対応する sort パラメータが現状無く、UIのみ先行実装(バックエンド実装時に sort クエリパラメータの追加が必要。追加した発売日順・更新日順も同様に未対応) -->
+          <!-- ソートは GET /items に対応する sort パラメータが現状無く、UIのみ先行実装(バックエンド実装時に sort クエリパラメータの追加が必要) -->
           <div class="sort-select">
             <!-- react-icons/fi: FiArrowUpDown 相当 -->
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3v18"></path><path d="M7 21V3"></path><path d="M3 7l4-4 4 4"></path><path d="M21 17l-4 4-4-4"></path></svg>
@@ -173,24 +169,6 @@
         </div>
 
         <div class="media-card">
-          <div class="cover"><span class="badge">専門書</span></div>
-          <div class="body">
-            <p class="title">分散システム設計の原理</p>
-            <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">2026年鑑賞予定</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="media-card">
-          <div class="cover"><span class="badge">論文</span></div>
-          <div class="body">
-            <p class="title">埋め込み空間における意味距離の再評価</p>
-            <div class="meta"><span class="rating">★ 4.7</span></div>
-          </div>
-        </div>
-
-        <div class="media-card">
           <div class="cover"><span class="badge">アニメ</span></div>
           <div class="body">
             <p class="title">緋色の境界、青の余白</p>
@@ -214,8 +192,8 @@
 
       </div>
 
-      <!-- 遅延ローディング領域: ページネーションの代わりに、この要素がビューポートに入った時点で
-           IntersectionObserver等を用いて GET /items?page=(現在値+1)&limit= を追加取得し、
+      <!-- 遅延ローディング領域: この要素がビューポートに入った時点で
+           IntersectionObserver等を用いて GET /items?media_type=...&page=(現在値+1)&limit= を追加取得し、
            card-grid の末尾に結果を追記する想定。全件取得済みの場合はスピナーの代わりに
            「すべて読み込みました」等のテキストのみ表示する終端状態になる。 -->
       <div class="load-more-sentinel">

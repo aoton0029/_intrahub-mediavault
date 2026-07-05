@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — 作品を追加(学術書・専門書)</title>
+<link rel="stylesheet" href="_shared.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- サイドバー(01_home.htmlと共通、「学術書・専門書」をactiveに) -->
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+
+    <div class="nav-section">
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　漫画<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　小説<span class="count">7</span></a>
+      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ゲーム<span class="count">3</span></a>
+      <a href="03_academic_books.html" class="nav-item active" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
+      <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">ライブラリ</div>
+      <a href="06_mylists.html" class="nav-item" style="text-decoration:none;">⭐ マイリスト</a>
+      <a href="07_tags.html" class="nav-item" style="text-decoration:none;">🏷️ タグ</a>
+      <a href="14_categories.html" class="nav-item" style="text-decoration:none;">📁 カテゴリ</a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　積読<span class="count">12</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　お気に入り原作<span class="count">6</span></a>
+      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　2026年鑑賞予定<span class="count">4</span></a>
+      <a href="08_staff.html" class="nav-item" style="text-decoration:none;">👤 スタッフ</a>
+    </div>
+
+    <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-item">⚙️ 設定</div>
+    </div>
+  </aside>
+
+  <!-- メイン -->
+  <main class="main">
+    <div class="titlebar">
+      <h1>作品を追加</h1>
+    </div>
+
+    <div class="content">
+      <!-- POST /items ( media_type: academic_book 固定。種別セレクトは無い )。
+           種別固有情報は details キーにネストして送信する。 -->
+      <form>
+        <div class="form-section-title">基本情報</div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label>タイトル<span class="required">必須</span></label>
+            <input type="text" placeholder="例: 分散システム設計の原理">
+          </div>
+          <div class="form-field">
+            <label>原題</label>
+            <input type="text" placeholder="原著タイトルがある場合に入力">
+          </div>
+          <div class="form-field">
+            <label>発行日</label>
+            <input type="date">
+          </div>
+          <div class="form-field full">
+            <label>概要</label>
+            <textarea placeholder="内容の概要を入力してください"></textarea>
+          </div>
+          <div class="form-field">
+            <label>表紙画像URL</label>
+            <input type="text" placeholder="https://...">
+          </div>
+          <div class="form-field">
+            <label>関連サイトURL</label>
+            <input type="text" placeholder="https://...">
+          </div>
+          <div class="form-field">
+            <label>評価</label>
+            <input type="number" min="0" max="5" step="0.1" placeholder="0.0 〜 5.0">
+          </div>
+          <div class="form-field">
+            <label>読書状態</label>
+            <!-- 実装時は作成後の変更を PATCH /items/{id}/status(status, consumed_date) の別リクエストとして送る -->
+            <select>
+              <option selected>未着手</option>
+              <option>視聴中</option>
+              <option>視聴済</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>お気に入り</label>
+            <select>
+              <option value="false" selected>登録しない</option>
+              <option value="true">お気に入りに登録する</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section-title">種別固有情報</div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label>著者</label>
+            <input type="text" placeholder="例: 宮川 慧">
+          </div>
+          <div class="form-field">
+            <label>出版社</label>
+            <input type="text" placeholder="例: 技術評論社">
+          </div>
+          <div class="form-field">
+            <label>ISBN</label>
+            <input type="text" placeholder="例: 978-4-297-00000-0">
+          </div>
+          <div class="form-field">
+            <label>国立国会図書館ID</label>
+            <input type="text" placeholder="NDL書誌ID">
+          </div>
+          <div class="form-field">
+            <label>Google Books ID</label>
+            <input type="text" placeholder="Google Books の書誌ID">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-accent">保存する</button>
+          <a href="03_academic_books.html" class="btn btn-ghost">キャンセル</a>
+        </div>
+      </form>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>
