@@ -133,6 +133,7 @@
 
 ## カテゴリ別詳細
 
+- [data-model.md](./data-model.md) — レスポンスに登場するstructのフィールド一覧
 - [health.md](./health.md) — Health
 - [items.md](./items.md) — Items
 - [tags.md](./tags.md) — Tags
@@ -148,3 +149,5 @@
 - [settings.md](./settings.md) — Settings
 - [import.md](./import.md) — Import
 - [internal-api.md](./internal-api.md) — 内部API（`/internal/*`）
+
+DBスキーマ・ER図・リクエストDTO・バリデーション・トリガー等の内部実装詳細は [mediavault-model/index.md](../mediavault-model/index.md) を参照。
