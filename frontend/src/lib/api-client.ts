@@ -24,12 +24,21 @@ interface ApiErrorEnvelope {
   error: { code: string; message: string };
 }
 
-async function parseEnvelope<T>(response: Response): Promise<ApiOkEnvelope<T> | PaginatedOkEnvelope<T>> {
+async function parseEnvelope<T>(path: string, response: Response): Promise<ApiOkEnvelope<T> | PaginatedOkEnvelope<T>> {
   let body: ApiOkEnvelope<T> | PaginatedOkEnvelope<T> | ApiErrorEnvelope;
   try {
     body = await response.json();
-  } catch {
+  } catch (e) {
+    if (import.meta.env.DEV) console.error(`[API] ${path} → JSON parse failed`, e);
     throw new ApiClientError('INTERNAL_ERROR', '一覧の取得に失敗しました。再試行してください。');
+  }
+
+  if (import.meta.env.DEV) {
+    if (!response.ok || body.success === false) {
+      console.error(`[API] ${path} → ${response.status}`, body);
+    } else {
+      console.log(`[API] ${path} → ${response.status}`, body);
+    }
   }
 
   if (!response.ok || body.success === false) {
@@ -45,7 +54,7 @@ async function parseEnvelope<T>(response: Response): Promise<ApiOkEnvelope<T> | 
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<{ data: T }> {
   const response = await fetch(`${API_BASE_URL}${path}`, init);
-  const body = await parseEnvelope<T>(response);
+  const body = await parseEnvelope<T>(path, response);
   return { data: body.data };
 }
 
@@ -54,7 +63,7 @@ export async function apiFetchPaginated<T>(
   init?: RequestInit,
 ): Promise<{ data: T; pagination: { limit: number; has_more: boolean; next_after_created_at: string | null; next_after_id: string | null } }> {
   const response = await fetch(`${API_BASE_URL}${path}`, init);
-  const body = await parseEnvelope<T>(response);
+  const body = await parseEnvelope<T>(path, response);
   if (!('pagination' in body)) {
     throw new ApiClientError('INTERNAL_ERROR', 'ページネーション情報が含まれていません');
   }

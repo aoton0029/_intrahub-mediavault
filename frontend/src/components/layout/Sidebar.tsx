@@ -62,9 +62,7 @@ export function Sidebar() {
       </NavSection>
 
       <NavSection className="mt-auto">
-        <div className="flex items-center gap-2 rounded-app px-2 py-1.5 text-[13px] text-text-muted">
-          ⚙️ 設定
-        </div>
+        <NavItem to="/settings" icon="⚙️" label="設定" />
       </NavSection>
     </aside>
   )

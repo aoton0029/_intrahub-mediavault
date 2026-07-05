@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { HomePage } from '@/pages/HomePage'
 import { SearchAddPage } from '@/pages/SearchAddPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 export const router = createBrowserRouter([
   {
@@ -18,7 +19,7 @@ export const router = createBrowserRouter([
       { path: '/staff', element: <PlaceholderPage title="スタッフ" /> },
       { path: '/search-add', element: <SearchAddPage /> },
       { path: '/search-add/manual', element: <PlaceholderPage title="手動で入力する" /> },
-      { path: '/settings', element: <PlaceholderPage title="設定" /> },
+      { path: '/settings', element: <SettingsPage /> },
     ],
   },
 ])
