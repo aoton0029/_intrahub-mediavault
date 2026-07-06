@@ -15,6 +15,26 @@ use crate::models::mylist::{
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::mylist_repository;
 
+/// 【機能概要】: `GET /mylists` ハンドラ。全マイリストを一覧取得する
+/// 🟡 信頼性レベル: handlers::categories::list_categories_handlerと対称
+pub async fn list_mylists_handler(
+    State(state): State<AppState>,
+) -> Result<ApiOk<Vec<Mylist>>, ApiError> {
+    let mylists = mylist_repository::list_mylists(&state.db).await?;
+    Ok(ApiOk::new(mylists))
+}
+
+/// 【機能概要】: `GET /items/:id/mylists` ハンドラ。指定アイテムが所属するマイリストを一覧取得する
+/// 🟡 信頼性レベル: mylist_repository::list_mylists_for_itemの逆引きJOINに対応
+pub async fn list_item_mylists_handler(
+    State(state): State<AppState>,
+    Path(item_id): Path<String>,
+) -> Result<ApiOk<Vec<Mylist>>, ApiError> {
+    let item_id = parse_item_id(&item_id)?;
+    let mylists = mylist_repository::list_mylists_for_item(&state.db, item_id).await?;
+    Ok(ApiOk::new(mylists))
+}
+
 /// 【機能概要】: `POST /mylists` ハンドラ。マイリスト名を受け取りマイリストを作成する
 /// 🔵 信頼性レベル: handlers::categories::create_category_handlerと対称
 pub async fn create_mylist_handler(

@@ -31,6 +31,17 @@ pub async fn create_item_link_handler(
     Ok(created_response(link))
 }
 
+/// 【機能概要】: `GET /items/:id/links` ハンドラ。指定itemに紐づく参考リンクを一覧取得する
+/// 🟡 信頼性レベル: handlers::item_groups::list_item_groups_handlerと対称
+pub async fn list_item_links_handler(
+    State(state): State<AppState>,
+    Path(item_id): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let item_id = parse_item_id(&item_id)?;
+    let links = item_link_repository::list_item_links(&state.db, item_id).await?;
+    Ok(Json(ApiOk::new(links)).into_response())
+}
+
 /// 【機能概要】: `DELETE /items/:id/links/:link_id` ハンドラ。指定リンクを削除する
 /// 🔵 信頼性レベル: api-endpoints.md DELETE /items/:id/links/:link_id・TASK-0021 完了条件2 に直接対応
 pub async fn delete_item_link_handler(

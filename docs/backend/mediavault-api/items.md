@@ -26,6 +26,12 @@
 - **認証**: 不要
 - **成功レスポンス** (200): `ApiOk<MediaTypeCounts>`（`MediaTypeCounts = { anime, movie, drama, manga, novel, game, academic_book, paper, total: number }`）
 
+## GET /items/counts-by-status
+ホームダッシュボード表示用に、進行状況・お気に入りごとのアイテム件数を集計して返す。`/items/{id}` より前にルーティング登録。
+
+- **認証**: 不要
+- **成功レスポンス** (200): `ApiOk<ItemStatusCounts>`（`ItemStatusCounts = { not_started, in_progress, completed, favorite, total: number }`）。`favorite`は`status`の値に関わらず`is_favorite = true`のアイテム数を表す独立した集計値
+
 ## POST /items
 アイテム新規作成。
 

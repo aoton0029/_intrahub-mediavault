@@ -356,6 +356,56 @@ a:hover { text-decoration: underline; }
 }
 .media-card .rating .val { color: var(--text-faint); margin-left: 1px; }
 
+/* ---------- Stat grid (ホームダッシュボード: 集計数タイル) ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.stat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+.stat-card .stat-value {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.stat-card .stat-label {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+.stat-card.is-favorite .stat-value { color: var(--favorite); }
+
+/* ---------- Section header (ホームダッシュボード等のセクション見出し + 「すべて見る」リンク) ---------- */
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin: 32px 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 6px;
+}
+.section-heading:first-of-type { margin-top: 0; }
+.section-heading .see-all {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 12px;
+}
+
 /* ---------- Mylist cover collage(マイリスト一覧: 収録作品数に応じた表紙コラージュ) ---------- */
 .mylist-cover {
   aspect-ratio: 2/3;

@@ -15,7 +15,7 @@ use crate::models::item_file::{
 };
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::item_file_repository;
-use crate::services::file_storage::{self, TokioFileWriter};
+use crate::services::file_storage::{self, StoredFile, TokioFileWriter};
 
 /// 【機能概要】: `POST /items/:id/files` ハンドラ。path(必須)/label(任意)/file_type(必須)を受け取り
 /// ファイルサーバー上の既存パスをitem_filesレコードとして登録する（パス指定方式）
@@ -45,6 +45,50 @@ pub async fn create_item_file_handler(
 /// 🔵 信頼性レベル: handlers::item_links::created_responseと対称
 fn created_response(file: ItemFile) -> axum::response::Response {
     (StatusCode::CREATED, Json(ApiOk::new(file))).into_response()
+}
+
+/// 【機能概要】: `GET /items/:id/files` ハンドラ。指定itemに紐づくファイルを一覧取得する
+/// 🟡 信頼性レベル: handlers::item_groups::list_item_groups_handlerと対称
+pub async fn list_item_files_handler(
+    State(state): State<AppState>,
+    Path(item_id): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let item_id = parse_item_id(&item_id)?;
+    let files = item_file_repository::list_item_files(&state.db, item_id).await?;
+    Ok(Json(ApiOk::new(files)).into_response())
+}
+
+/// 【機能概要】: `DELETE /items/:id/files/:file_id` ハンドラ。指定ファイルのレコードを削除し、
+/// 対応する物理ファイルもクリーンアップする
+/// 🟡 信頼性レベル: handlers::item_links::delete_item_link_handlerと対称、
+/// 物理ファイル削除はupload_item_file_handlerのロールバック処理（file_storage::cleanup_file）を再利用
+pub async fn delete_item_file_handler(
+    State(state): State<AppState>,
+    Path((item_id, file_id)): Path<(String, String)>,
+) -> Result<axum::response::Response, ApiError> {
+    let item_id = parse_item_id(&item_id)?;
+    let file_id = parse_file_id(&file_id)?;
+
+    let deleted = item_file_repository::delete_item_file(&state.db, item_id, file_id).await?;
+    let file = deleted.ok_or_else(|| {
+        ApiError::new(ApiErrorCode::FileNotFound, "指定されたファイルが見つかりません")
+    })?;
+
+    let base_dir = file_storage::resolve_base_dir(file.file_type);
+    let absolute_path = base_dir.join(&file.path);
+    let writer = TokioFileWriter;
+    if let Err(err) = file_storage::cleanup_file(
+        &writer,
+        &StoredFile {
+            base_dir,
+            absolute_path,
+            relative_path: file.path.clone(),
+        },
+    ) {
+        tracing::error!("file cleanup failed after item_files delete: {err}");
+    }
+
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 /// 【機能概要】: multipartの`file_type`フィールド文字列をFileType enumへ変換する。

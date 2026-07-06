@@ -2,15 +2,13 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>MediaVault — 全体一覧</title>
+<title>MediaVault — ホーム</title>
 <link rel="stylesheet" href="_shared.css">
 </head>
 <body>
 <div class="app-shell">
 
-  <!-- 「一般メディア」区分および各件数はUI側のみの概念で、GET /items に対応する集計エンドポイントは無い(実装時は個別にmedia_typeでフィルタ集計する必要がある) -->
-  <!-- 「カテゴリ」セクションはCategoryエンティティ(ユーザー定義の自由分類、GET /categories)由来のモック項目 -->
-  <!-- サイドバー -->
+  <!-- サイドバー(他ページと共通、「全体一覧」をactiveに) -->
   <aside class="sidebar">
     <div class="brand"><span class="dot"></span>MediaVault</div>
 
@@ -46,61 +44,38 @@
   <!-- メイン -->
   <main class="main">
     <div class="titlebar">
-      <h1>全体一覧</h1>
-      <a href="12_general_media_search.html" class="btn btn-accent">＋ 作品を追加</a>
+      <h1>ホーム</h1>
     </div>
 
     <div class="content">
-      <div class="filter-toolbar">
-        <!-- is_favorite / media_type / tag_id / category_id クエリパラメータに対応(絞り込みゾーン) -->
-        <div class="filter-bar">
-          <div class="chip active">すべて</div>
-          <div class="chip">❤ お気に入り</div>
 
-          <!-- media_type クエリパラメータに対応。サイドバーの分類と同一の値セット -->
-          <div class="filter-select">
-            種別
-            <select>
-              <option value="">すべて</option>
-              <option value="anime">アニメ</option>
-              <option value="movie">映画</option>
-              <option value="drama">ドラマ</option>
-              <option value="manga">漫画</option>
-              <option value="novel">小説</option>
-              <option value="game">ゲーム</option>
-              <option value="academic_book">学術書・専門書</option>
-              <option value="paper">論文・文献</option>
-            </select>
-          </div>
-
-          <!-- tag_id クエリパラメータに対応(モックでは1件選択済みの状態のみ表示) -->
-          <div class="chip active">🏷️ 続編待ち ×</div>
-          <div class="chip chip-add">+ タグ</div>
-
-          <!-- category_id クエリパラメータに対応(モックでは1件選択済みの状態のみ表示) -->
-          <div class="chip chip-add">+ カテゴリ</div>
+      <!-- 集計タイル: 総件数は GET /items/counts-by-media-type の total、
+           進行中/読了/お気に入りは GET /items/counts-by-status (新設、実装時に追加が必要) の
+           in_progress / completed / favorite に対応 -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-value">128</div>
+          <div class="stat-label">総件数</div>
         </div>
-
-        <!-- 並び替え・検索ゾーン -->
-        <div class="sort-search-group">
-          <!-- ソートは GET /items に対応する sort パラメータが現状無く、UIのみ先行実装(バックエンド実装時に sort クエリパラメータの追加が必要。追加した発売日順・更新日順も同様に未対応) -->
-          <div class="sort-select">
-            <!-- react-icons/fi: FiArrowUpDown 相当 -->
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3v18"></path><path d="M7 21V3"></path><path d="M3 7l4-4 4 4"></path><path d="M21 17l-4 4-4-4"></path></svg>
-            <select>
-              <option>追加日順</option>
-              <option>更新日順</option>
-              <option>評価順</option>
-              <option>タイトル順</option>
-              <option>発売日順</option>
-            </select>
-          </div>
-
-          <!-- title クエリパラメータに対応(部分一致検索) -->
-          <div class="search-box">🔍 <input type="text" placeholder="タイトルで検索…"></div>
+        <div class="stat-card">
+          <div class="stat-value">17</div>
+          <div class="stat-label">進行中</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">94</div>
+          <div class="stat-label">読了・視聴済み</div>
+        </div>
+        <div class="stat-card is-favorite">
+          <div class="stat-value">22</div>
+          <div class="stat-label">❤ お気に入り</div>
         </div>
       </div>
 
+      <!-- 最近追加した作品: GET /items?limit=6 (sort未実装のため、既定の並び=作成日時降順であることに暗黙的に依存) -->
+      <div class="section-heading">
+        最近追加した作品
+        <a href="02_general_media.html" class="see-all">すべて見る →</a>
+      </div>
       <div class="card-grid">
 
         <a class="media-card" href="16_item_detail.html" style="display:block;color:inherit;">
@@ -111,10 +86,6 @@
           <div class="body">
             <p class="title">星屑のシンフォニア</p>
             <div class="meta"><span class="rating">★ 4.5</span></div>
-            <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">神作画</span>
-              <span class="tag-pill">続編待ち</span>
-            </div>
           </div>
         </a>
 
@@ -123,9 +94,6 @@
           <div class="body">
             <p class="title">夜明けの境界線</p>
             <div class="meta"><span class="rating">★ 3.8</span></div>
-            <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">サスペンス</span>
-            </div>
           </div>
         </div>
 
@@ -137,9 +105,6 @@
           <div class="body">
             <p class="title">紙の上の庭園 第4巻</p>
             <div class="meta"><span class="rating">★ 4.9</span></div>
-            <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">お気に入り原作</span>
-            </div>
           </div>
         </div>
 
@@ -147,9 +112,6 @@
           <div class="cover"><span class="badge">小説</span></div>
           <div class="body">
             <p class="title">塩の記憶</p>
-            <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">積読</span>
-            </div>
           </div>
         </div>
 
@@ -166,8 +128,44 @@
           <div class="body">
             <p class="title">第七区の灯</p>
             <div class="meta"><span class="rating">★ 3.5</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 進行中: GET /items?status=in_progress&limit=6 に対応 -->
+      <div class="section-heading">
+        進行中
+        <a href="02_general_media.html" class="see-all">すべて見る →</a>
+      </div>
+      <div class="card-grid">
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">アニメ</span></div>
+          <div class="body">
+            <p class="title">緋色の境界、青の余白</p>
             <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">社会派</span>
+              <span class="tag-pill" style="color: var(--status-progress);">視聴中</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">漫画</span></div>
+          <div class="body">
+            <p class="title">砂上の楽団 第9巻</p>
+            <div class="prop-taglist" style="margin-top:6px;">
+              <span class="tag-pill" style="color: var(--status-progress);">読書中</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="media-card">
+          <div class="cover"><span class="badge">ゲーム</span></div>
+          <div class="body">
+            <p class="title">アズールホライズン</p>
+            <div class="prop-taglist" style="margin-top:6px;">
+              <span class="tag-pill" style="color: var(--status-progress);">プレイ中</span>
             </div>
           </div>
         </div>
@@ -177,51 +175,39 @@
           <div class="body">
             <p class="title">分散システム設計の原理</p>
             <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">2026年鑑賞予定</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="media-card">
-          <div class="cover"><span class="badge">論文</span></div>
-          <div class="body">
-            <p class="title">埋め込み空間における意味距離の再評価</p>
-            <div class="meta"><span class="rating">★ 4.7</span></div>
-          </div>
-        </div>
-
-        <div class="media-card">
-          <div class="cover"><span class="badge">アニメ</span></div>
-          <div class="body">
-            <p class="title">緋色の境界、青の余白</p>
-            <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">続編待ち</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="media-card">
-          <div class="cover"><span class="badge">映画</span><span class="fav">❤</span></div>
-          <div class="body">
-            <p class="title">最後のフィルム</p>
-            <div class="meta"><span class="rating">★ 5.0</span></div>
-            <div class="prop-taglist" style="margin-top:6px;">
-              <span class="tag-pill">傑作</span>
-              <span class="tag-pill">泣ける</span>
+              <span class="tag-pill" style="color: var(--status-progress);">読書中</span>
             </div>
           </div>
         </div>
 
       </div>
 
-      <!-- 遅延ローディング領域: ページネーションの代わりに、この要素がビューポートに入った時点で
-           IntersectionObserver等を用いて GET /items?page=(現在値+1)&limit= を追加取得し、
-           card-grid の末尾に結果を追記する想定。全件取得済みの場合はスピナーの代わりに
-           「すべて読み込みました」等のテキストのみ表示する終端状態になる。 -->
-      <div class="load-more-sentinel">
-        <span class="spinner"></span>
-        読み込み中…
+      <!-- タグ・カテゴリ: GET /tags(item_count降順で上位8件) / GET /categories(item_count降順で上位6件) -->
+      <div class="section-heading">タグ・カテゴリ</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div>
+          <div style="font-size:12px; color:var(--text-faint); margin-bottom:10px;">よく使うタグ</div>
+          <div class="prop-taglist">
+            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">続編待ち<span style="margin-left:4px; opacity:0.6;">18</span></a>
+            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">神作画<span style="margin-left:4px; opacity:0.6;">12</span></a>
+            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">傑作<span style="margin-left:4px; opacity:0.6;">9</span></a>
+            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">泣ける<span style="margin-left:4px; opacity:0.6;">8</span></a>
+            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">サスペンス<span style="margin-left:4px; opacity:0.6;">7</span></a>
+            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">社会派<span style="margin-left:4px; opacity:0.6;">5</span></a>
+            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">お気に入り原作<span style="margin-left:4px; opacity:0.6;">4</span></a>
+            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">積読<span style="margin-left:4px; opacity:0.6;">3</span></a>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--text-faint); margin-bottom:10px;">カテゴリ</div>
+          <div class="prop-taglist">
+            <a href="14_categories.html" class="tag-pill" style="text-decoration:none;">積読<span style="margin-left:4px; opacity:0.6;">12</span></a>
+            <a href="14_categories.html" class="tag-pill" style="text-decoration:none;">お気に入り原作<span style="margin-left:4px; opacity:0.6;">6</span></a>
+            <a href="14_categories.html" class="tag-pill" style="text-decoration:none;">2026年鑑賞予定<span style="margin-left:4px; opacity:0.6;">4</span></a>
+          </div>
+        </div>
       </div>
+
     </div>
   </main>
 

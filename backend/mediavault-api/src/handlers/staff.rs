@@ -73,6 +73,17 @@ pub async fn create_item_staff_handler(
     Ok(created_item_staff_response(item_staff))
 }
 
+/// 【機能概要】: `GET /items/:id/staff` ハンドラ。指定itemに紐づくスタッフ紐付けを一覧取得する
+/// 🟡 信頼性レベル: handlers::item_groups::list_item_groups_handlerと対称
+pub async fn list_item_staff_handler(
+    State(state): State<AppState>,
+    Path(item_id): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let item_id = parse_item_id(&item_id)?;
+    let staff = staff_repository::list_item_staff(&state.db, item_id).await?;
+    Ok(Json(ApiOk::new(staff)).into_response())
+}
+
 /// 【機能概要】: `DELETE /items/:id/staff/:item_staff_id` ハンドラ。指定item_staff_idの紐付けを削除する
 /// 【実装方針】: parse_item_id × 2 → repository::unlink_staff → 204応答（false時は404）
 /// 【設計判断】: 404時のエラーコードはITEM_NOT_FOUNDを採用している。これは「指定item_idに属する

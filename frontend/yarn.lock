@@ -3510,6 +3510,10 @@ react-hook-form@^7.80.0:
   version "7.80.0"
   resolved "https://registry.yarnpkg.com/react-hook-form/-/react-hook-form-7.80.0.tgz#028e142324d592239599ab7cf1c0d82167696194"
 
+react-icons@^5.7.0:
+  version "5.7.0"
+  resolved "https://registry.yarnpkg.com/react-icons/-/react-icons-5.7.0.tgz#8969db00968ffdfc57fdc2ec9dd1ed88e35b3de9"
+
 react-is@^17.0.1:
   version "17.0.2"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-17.0.2.tgz#e691d4a8e9c789365655539ab372762b0efb54f0"

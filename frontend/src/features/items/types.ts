@@ -96,6 +96,7 @@ export interface ExternalSearchResult {
   title: string;
   external_id: string;
   provider: ExternalProvider;
+  thumbnail_url?: string | null;
   raw_data: Record<string, unknown>;
 }
 

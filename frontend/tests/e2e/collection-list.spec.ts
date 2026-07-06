@@ -1,7 +1,7 @@
 /**
- * TASK-0023: E2Eテスト（一覧系） - HomePage collection browsing
+ * TASK-0023: E2Eテスト（一覧系） - GeneralMediaPage collection browsing
  *
- * 対象: frontend/src/pages/HomePage/index.tsx（ルート `/`）
+ * 対象: frontend/src/pages/GeneralMediaPage/index.tsx（ルート `/general-media`）
  * 参照:
  *   - docs/implements/collection-browsing/TASK-0023/requirements.md
  *   - docs/implements/collection-browsing/TASK-0023/testcases.md
@@ -31,17 +31,17 @@ import {
 // 🟡 信頼性レベル: green-phase.md §7の申し送りに基づく妥当な整理（挙動・値は変更なし）
 const RETRY_EXHAUST_TIMEOUT_MS = 15000;
 
-test.describe('collection-browsing HomePage E2E', () => {
+test.describe('collection-browsing GeneralMediaPage E2E', () => {
   // ==============================
   // 1. 正常系テストケース
   // ==============================
 
   test('TC-001-01: 一覧表示で複数アイテムがカード描画される', async ({ page }) => {
-    // 【テスト目的】: page.goto('/') で GET /api/v1/items が発火し、返却された Item 配列が
+    // 【テスト目的】: page.goto('/general-media') で GET /api/v1/items が発火し、返却された Item 配列が
     //   .media-card として描画されることを確認する
     // 【テスト内容】: 20件のItemを返すモックを登録し、初期表示のカード件数を検証する
     // 【期待される動作】: page=1・limit=20 のリクエストが送られ、20件のカードが描画される
-    // 🔵 信頼性レベル: testcases.md TC-001-01 準拠（実コード HomePage/index.tsx 照合済み）
+    // 🔵 信頼性レベル: testcases.md TC-001-01 準拠（実コード GeneralMediaPage/index.tsx 照合済み）
 
     // 【テストデータ準備】: 20件のItemを含む成功レスポンスを route で注入する
     // 【初期条件設定】: page.route は goto より前に登録し確実にインターセプトする
@@ -49,7 +49,7 @@ test.describe('collection-browsing HomePage E2E', () => {
 
     // 【実際の処理実行】: 一覧画面へ遷移し items リクエスト完了を待つ
     const resP = page.waitForResponse((r) => r.url().includes('/api/v1/items'));
-    await page.goto('/');
+    await page.goto('/general-media');
     await resP;
 
     // 【結果検証】: カード件数が20件であること
@@ -70,7 +70,7 @@ test.describe('collection-browsing HomePage E2E', () => {
 
     // 【実際の処理実行】: 一覧画面へ遷移しレスポンスを待つ
     const resP = page.waitForResponse((r) => r.url().includes('/api/v1/items'));
-    await page.goto('/');
+    await page.goto('/general-media');
     await resP;
 
     // 【結果検証】: .fav（★）の件数が3件であること
@@ -94,7 +94,7 @@ test.describe('collection-browsing HomePage E2E', () => {
       return null;
     });
 
-    await page.goto('/');
+    await page.goto('/general-media');
 
     // 【実際の処理実行】: 「⭐ お気に入り」チップと「#SF」チップを順にクリックする
     const favResP = page.waitForResponse((r) => r.url().includes('/api/v1/items'));
@@ -130,7 +130,7 @@ test.describe('collection-browsing HomePage E2E', () => {
       return null;
     });
 
-    await page.goto('/');
+    await page.goto('/general-media');
 
     // 【実際の処理実行】: 検索ボックスに「星屑」を入力する（送信ボタンはクリックしない）
     const resP = page.waitForResponse((r) => r.url().includes('/api/v1/items') && r.url().includes('title'));
@@ -165,7 +165,7 @@ test.describe('collection-browsing HomePage E2E', () => {
 
     // 【実際の処理実行】: 初期表示（page=1、20件）を待つ
     const page1ResP = page.waitForResponse((r) => r.url().includes('/api/v1/items'));
-    await page.goto('/');
+    await page.goto('/general-media');
     await page1ResP;
     await expect(page.locator('.media-card')).toHaveCount(20);
 
@@ -181,7 +181,7 @@ test.describe('collection-browsing HomePage E2E', () => {
   });
 
   test('TC-301-01: URLクエリ直接アクセスでフィルタが復元されAPIクエリに反映される', async ({ page }) => {
-    // 【テスト目的】: page.goto('/?media_type=anime&is_favorite=true') で初期フィルタがURLから
+    // 【テスト目的】: page.goto('/general-media?media_type=anime&is_favorite=true') で初期フィルタがURLから
     //   復元され、APIクエリへ反映されることを確認する
     // 【テスト内容】: 初回GETのクエリにmedia_type=anime, is_favorite=trueが含まれ、
     //   お気に入りチップが選択状態(aria-pressed=true)になることを検証する
@@ -193,7 +193,7 @@ test.describe('collection-browsing HomePage E2E', () => {
 
     // 【実際の処理実行】: クエリ付きURLへ直接アクセスする
     const resP = page.waitForResponse((r) => r.url().includes('/api/v1/items'));
-    await page.goto('/?media_type=anime&is_favorite=true');
+    await page.goto('/general-media?media_type=anime&is_favorite=true');
     await resP;
 
     // 【結果検証】: 初回APIクエリにmedia_type=anime, is_favorite=trueが含まれること
@@ -229,7 +229,7 @@ test.describe('collection-browsing HomePage E2E', () => {
     // 【実際の処理実行】: 一覧画面へ遷移する
     // 【補足】: TanStack Query既定のリトライ(3回・指数バックオフ)によりisError確定まで
     //   数秒かかるため、待機タイムアウトを延長する
-    await page.goto('/');
+    await page.goto('/general-media');
 
     // 【結果検証】: エラーメッセージと再試行ボタンが表示されること
     await expect(
@@ -262,7 +262,7 @@ test.describe('collection-browsing HomePage E2E', () => {
     // 【実際の処理実行】: 一覧画面へ遷移し、エラー表示を確認後に再試行をクリックする
     // 【補足】: TanStack Query既定のリトライ(3回・指数バックオフ)によりisError確定まで
     //   数秒かかるため、待機タイムアウトを延長する
-    await page.goto('/');
+    await page.goto('/general-media');
     await expect(page.getByRole('button', { name: '再試行' })).toBeVisible({ timeout: RETRY_EXHAUST_TIMEOUT_MS });
 
     const retryResP = page.waitForResponse((r) => r.url().includes('/api/v1/items'));
@@ -295,7 +295,7 @@ test.describe('collection-browsing HomePage E2E', () => {
       return mockItems;
     });
 
-    await page.goto('/');
+    await page.goto('/general-media');
     await expect(page.locator('.media-card')).toHaveCount(20);
 
     // 【実際の処理実行】: 存在しない検索語を入力する
@@ -328,7 +328,7 @@ test.describe('collection-browsing HomePage E2E', () => {
 
     // 【実際の処理実行】: 一覧画面へ遷移し応答を待つ
     const resP = page.waitForResponse((r) => r.url().includes('/api/v1/items'));
-    await page.goto('/');
+    await page.goto('/general-media');
     await resP;
 
     // 【結果検証】: カードが0件、空状態メッセージと追加導線が表示されること
@@ -356,7 +356,7 @@ test.describe('collection-browsing HomePage E2E', () => {
 
     // 【実際の処理実行】: 初期表示（page=1）を待ち、下端スクロールでpage=2を取得する
     const page1ResP = page.waitForResponse((r) => r.url().includes('/api/v1/items'));
-    await page.goto('/');
+    await page.goto('/general-media');
     await page1ResP;
 
     const page2ResP = page.waitForResponse(
@@ -393,7 +393,7 @@ test.describe('collection-browsing HomePage E2E', () => {
       return mockItems;
     });
 
-    await page.goto('/');
+    await page.goto('/general-media');
 
     // 【実際の処理実行】: 検索ボックスに「星屑」を入力する
     const fillResP = page.waitForResponse(

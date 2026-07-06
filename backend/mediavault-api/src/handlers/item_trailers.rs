@@ -37,6 +37,17 @@ pub async fn create_item_trailer_handler(
     Ok(created_response(trailer))
 }
 
+/// 【機能概要】: `GET /items/:id/trailers` ハンドラ。指定itemに紐づくトレーラーを一覧取得する
+/// 🟡 信頼性レベル: handlers::item_groups::list_item_groups_handlerと対称
+pub async fn list_item_trailers_handler(
+    State(state): State<AppState>,
+    Path(item_id): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let item_id = parse_item_id(&item_id)?;
+    let trailers = item_trailer_repository::list_item_trailers(&state.db, item_id).await?;
+    Ok(Json(ApiOk::new(trailers)).into_response())
+}
+
 /// 【機能概要】: `DELETE /items/:id/trailers/:trailer_id` ハンドラ。指定トレーラーを削除する
 /// 🔵 信頼性レベル: api-endpoints.md DELETE /items/:id/trailers/:trailer_id・TASK-0021 完了条件4 に直接対応
 pub async fn delete_item_trailer_handler(

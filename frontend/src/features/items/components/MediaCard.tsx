@@ -1,9 +1,12 @@
+import { Link } from 'react-router-dom';
 import type { Item } from '../types';
 import { mediaTypeLabels } from '../types';
 
 export function MediaCard({ item }: { item: Item }) {
   return (
-    <div className="media-card overflow-hidden rounded-app border border-border-soft bg-bg-surface transition-[border-color,transform] hover:-translate-y-0.5 hover:border-accent">
+    <Link
+      to={`/items/${item.id}`}
+      className="media-card block overflow-hidden rounded-app border border-border-soft bg-bg-surface no-underline transition-[border-color,transform] hover:-translate-y-0.5 hover:border-accent">
       <div
         className="relative flex aspect-[2/3] items-end justify-end bg-[linear-gradient(160deg,#33304a,#232323)] p-1.5"
         style={
@@ -43,6 +46,6 @@ export function MediaCard({ item }: { item: Item }) {
           </div>
         )}
       </div>
-    </div>
+    </Link>
   );
 }

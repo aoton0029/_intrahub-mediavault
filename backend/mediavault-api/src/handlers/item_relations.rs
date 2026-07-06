@@ -35,6 +35,17 @@ pub async fn create_item_relation_handler(
     Ok(created_response(relation))
 }
 
+/// 【機能概要】: `GET /items/:id/relations` ハンドラ。指定itemを起点とする関連付けを一覧取得する
+/// 🟡 信頼性レベル: handlers::item_groups::list_item_groups_handlerと対称
+pub async fn list_item_relations_handler(
+    State(state): State<AppState>,
+    Path(item_id): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let item_id = parse_item_id(&item_id)?;
+    let relations = item_relation_repository::list_item_relations(&state.db, item_id).await?;
+    Ok(Json(ApiOk::new(relations)).into_response())
+}
+
 /// 【機能概要】: `DELETE /item-relations/:id` ハンドラ。指定IDの関連付けを削除する
 /// 🔵 信頼性レベル: api-endpoints.md POST/DELETE /item-relations/:id より
 pub async fn delete_item_relation_handler(

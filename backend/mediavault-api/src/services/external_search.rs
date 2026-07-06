@@ -23,9 +23,6 @@ use api_client_lib::clients::jikan::requests::{
 use api_client_lib::clients::ndl::NdlClient;
 use api_client_lib::clients::ndl::models::NdlModel;
 use api_client_lib::clients::ndl::requests::{NdlRequest, NdlSearchRequest};
-use api_client_lib::clients::openlibrary::OpenLibraryClient;
-use api_client_lib::clients::openlibrary::models::OlModel;
-use api_client_lib::clients::openlibrary::requests::{OlRequest, OlSearchRequest};
 use api_client_lib::clients::tmdb::TmdbClient;
 use api_client_lib::clients::tmdb::models::TmdbModel;
 use api_client_lib::clients::tmdb::requests::{SearchMovieRequest, SearchTvRequest, TmdbRequest};
@@ -69,6 +66,15 @@ fn raw_data_to_value(raw: &api_client_lib::response::RawData) -> serde_json::Val
         }
         api_client_lib::response::RawData::Xml(text) => serde_json::json!({ "xml": text }),
     }
+}
+
+/// TMDbの`poster_path`（相対パス）を完全な画像URLへ変換する
+///
+/// 🟡 信頼性レベル: フロントエンド既存実装（w342サイズ）との整合を取るための実装上の補完
+fn tmdb_poster_url(poster_path: &Option<String>) -> Option<String> {
+    poster_path
+        .as_ref()
+        .map(|p| format!("https://image.tmdb.org/t/p/w342{p}"))
 }
 
 /// 一覧系レスポンスのraw JSONから、指定キー配下の`index`番目の要素を取り出す
@@ -143,7 +149,6 @@ impl ApiCredentialLookup {
 struct TestBaseUrls {
     jikan: Option<String>,
     tmdb: Option<String>,
-    openlibrary: Option<String>,
     ndl: Option<String>,
     igdb: Option<(String, String)>,
 }
@@ -206,7 +211,7 @@ impl ExternalSearchService {
             MediaType::Manga => self.dispatch_jikan_manga(query).await,
             MediaType::Movie => self.dispatch_tmdb_movie(query).await,
             MediaType::Drama => self.dispatch_tmdb_drama(query).await,
-            MediaType::Novel => self.dispatch_openlibrary(query).await,
+            MediaType::Novel => self.dispatch_ndl_for(query, MediaType::Novel).await,
             MediaType::Game => self.dispatch_igdb(query).await,
             MediaType::AcademicBook => self.dispatch_ndl_for(query, MediaType::AcademicBook).await,
             MediaType::Paper => self.dispatch_ndl_for(query, MediaType::Paper).await,
@@ -232,16 +237,6 @@ impl ExternalSearchService {
         }
         TmdbClient::new(AuthStrategy::ApiKey(api_key))
             .map_err(ExternalSearchError::ExternalApiError)
-    }
-
-    /// OpenLibraryクライアントを構築する（テスト時はベースURL差し替え可能） 🔵
-    fn build_openlibrary_client(&self) -> Result<OpenLibraryClient, ExternalSearchError> {
-        #[cfg(test)]
-        if let Some(base_url) = &self.test_base_urls.openlibrary {
-            return OpenLibraryClient::new_with_base_url(base_url.clone())
-                .map_err(ExternalSearchError::ExternalApiError);
-        }
-        OpenLibraryClient::new().map_err(ExternalSearchError::ExternalApiError)
     }
 
     /// NDLクライアントを構築する（テスト時はベースURL差し替え可能） 🔵
@@ -303,7 +298,12 @@ impl ExternalSearchService {
                 media_type: MediaType::Anime,
                 provider: None,
                 external_id: m.mal_id.to_string(),
-                title: m.title.clone().unwrap_or_default(),
+                title: m
+                    .title_japanese
+                    .clone()
+                    .or_else(|| m.title.clone())
+                    .unwrap_or_default(),
+                thumbnail_url: m.image_url.clone(),
                 raw_data,
             }
         }))
@@ -336,7 +336,12 @@ impl ExternalSearchService {
                 media_type: MediaType::Manga,
                 provider: None,
                 external_id: m.mal_id.to_string(),
-                title: m.title.clone().unwrap_or_default(),
+                title: m
+                    .title_japanese
+                    .clone()
+                    .or_else(|| m.title.clone())
+                    .unwrap_or_default(),
+                thumbnail_url: m.image_url.clone(),
                 raw_data,
             }
         }))
@@ -372,7 +377,12 @@ impl ExternalSearchService {
                 media_type: MediaType::Movie,
                 provider: Some(ApiProvider::Tmdb),
                 external_id: m.id.to_string(),
-                title: m.title.clone().unwrap_or_default(),
+                title: m
+                    .original_title
+                    .clone()
+                    .or_else(|| m.title.clone())
+                    .unwrap_or_default(),
+                thumbnail_url: tmdb_poster_url(&m.poster_path),
                 raw_data,
             },
         ))
@@ -408,45 +418,15 @@ impl ExternalSearchService {
                 media_type: MediaType::Drama,
                 provider: Some(ApiProvider::Tmdb),
                 external_id: m.id.to_string(),
-                title: m.name.clone().unwrap_or_default(),
+                title: m
+                    .original_name
+                    .clone()
+                    .or_else(|| m.name.clone())
+                    .unwrap_or_default(),
+                thumbnail_url: tmdb_poster_url(&m.poster_path),
                 raw_data,
             },
         ))
-    }
-
-    /// OpenLibrary（novel）へディスパッチする。
-    /// 🔵 信頼性レベル: 要件定義書 REQ-0023-05より
-    async fn dispatch_openlibrary(
-        &self,
-        query: &str,
-    ) -> Result<Vec<ExternalSearchResult>, ExternalSearchError> {
-        // 【キー取得】: OpenLibraryはAuthStrategyを取らないクライアントだが、要件上キー必須プロバイダ
-        // として扱う（REQ-0023-05・ensure_keyで存在確認のみ行う） 🔵
-        self.ensure_key(ApiProvider::OpenLibrary).await?;
-        let client = self.build_openlibrary_client()?;
-        let request = OlRequest::Search(OlSearchRequest {
-            q: query.to_string(),
-            page: None,
-            limit: None,
-        });
-        let response = client
-            .execute(request)
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
-        let raw_data = raw_data_to_value(&response.raw);
-        let OlModel::SearchResults(models) = response.model else {
-            return Ok(Vec::new());
-        };
-        // 【アダプタ変換】: OlModelをExternalSearchResultへ変換する 🔵
-        Ok(collect_results(&raw_data, "docs", models, |m, raw_data| {
-            ExternalSearchResult {
-                media_type: MediaType::Novel,
-                provider: Some(ApiProvider::OpenLibrary),
-                external_id: m.key.clone().unwrap_or_default(),
-                title: m.title.clone().unwrap_or_default(),
-                raw_data,
-            }
-        }))
     }
 
     /// IGDB（game、設計判断B：Steamは対象外）へディスパッチする。
@@ -466,8 +446,9 @@ impl ExternalSearchService {
             None => (api_key.clone(), api_key),
         };
         let client = self.build_igdb_client(client_id, client_secret)?;
+        let escaped_query = query.replace('"', "\\\"");
         let request = IgdbRequest::Search(IgdbSearchRequest {
-            query: query.to_string(),
+            query: format!(r#"search "{escaped_query}"; fields id,name,cover.url; limit 20;"#),
         });
         let response = client
             .execute(request)
@@ -487,11 +468,19 @@ impl ExternalSearchService {
                     .and_then(|n| n.as_str())
                     .unwrap_or_default()
                     .to_string();
+                // 【サムネイル抽出】: IGDBのcover.urlは"//images.igdb.com/.../t_thumb/....jpg"形式のため、
+                // t_thumbをt_cover_bigへ置換し"https:"を前置して完全URLへ変換する 🟡
+                let thumbnail_url = v
+                    .get("cover")
+                    .and_then(|c| c.get("url"))
+                    .and_then(|u| u.as_str())
+                    .map(|u| format!("https:{}", u.replace("t_thumb", "t_cover_big")));
                 ExternalSearchResult {
                     media_type: MediaType::Game,
                     provider: Some(ApiProvider::Igdb),
                     external_id,
                     title,
+                    thumbnail_url,
                     raw_data: v,
                 }
             })
@@ -529,6 +518,7 @@ impl ExternalSearchService {
                 provider: Some(ApiProvider::Ndl),
                 external_id: m.isbn.clone().unwrap_or_default(),
                 title: m.title.clone().unwrap_or_default(),
+                thumbnail_url: m.thumbnail_url.clone(),
                 raw_data: raw_data.clone(),
             })
             .collect())
@@ -725,28 +715,29 @@ mod tests {
         assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: Jikanモックへの到達回数が1であることを確認する 🟡
     }
 
-    /// TC-002-NOVEL: media_type=Novel → OpenLibraryへディスパッチ（ユニット・HTTPモック）
-    /// 🔵 信頼性レベル: 要件定義書 マッピング表 L39・REQ-0023-05より
+    /// TC-002-NOVEL: media_type=Novel → NDLへディスパッチ（ユニット・HTTPモック）
+    /// 🔵 信頼性レベル: 要件定義書 マッピング表 L39より
     #[tokio::test]
-    async fn search_novel_dispatches_to_openlibrary_only() {
-        // 【テスト目的】: MediaType::NovelがOpenLibraryへ写像されるかを確認する
-        // 【テスト内容】: OpenLibraryキーをDBへ事前投入した状態でsearch(Novel, "タイトル")を呼ぶ
-        // 【期待される動作】: OpenLibraryモック受信==1、他==0
-        // 🔵 信頼性レベル: 要件定義書 マッピング表 L39・REQ-0023-05より
+    async fn search_novel_dispatches_to_ndl_only() {
+        // 【テスト目的】: MediaType::NovelがNDLへ写像されるかを確認する
+        // 【テスト内容】: NDLキーをDBへ事前投入した状態でsearch(Novel, "タイトル")を呼ぶ
+        // 【期待される動作】: NDLモック受信==1、他==0
 
-        let ol_mock = MockServer::start().await;
+        let ndl_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"docs": []})))
-            .mount(&ol_mock)
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string("<rss><channel></channel></rss>"),
+            )
+            .mount(&ndl_mock)
             .await;
 
-        let service = service_with_single_key(ApiProvider::OpenLibrary, "test-ol-key")
-            .with_test_base_urls(|u| u.openlibrary = Some(ol_mock.uri()));
+        let service = service_with_single_key(ApiProvider::Ndl, "test-ndl-key")
+            .with_test_base_urls(|u| u.ndl = Some(ndl_mock.uri()));
 
         let result = service.search(MediaType::Novel, "タイトル").await;
 
         assert!(result.is_ok()); // 【確認内容】: Green実装後はOkが返ることを確認する 🔵
-        assert_eq!(ol_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: OpenLibraryモックへの到達回数が1であることを確認する 🔵
+        assert_eq!(ndl_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: NDLモックへの到達回数が1であることを確認する 🔵
     }
 
     /// TC-002-GAME: media_type=Game → IGDBへディスパッチ（Steam非到達・ユニット）
@@ -917,9 +908,9 @@ mod tests {
     /// 🔵 信頼性レベル: 要件定義書 REQ-0023-101（キー必須プロバイダ列挙）より
     #[tokio::test]
     async fn search_returns_api_key_not_configured_for_each_key_required_provider() {
-        // 【テスト目的】: IGDB/NDL/OpenLibraryそれぞれでキー未登録時にApiKeyNotConfigured(該当provider)を返すかを確認する
-        // 【テスト内容】: (Game,None)→Igdb、(Paper,None)→Ndl、(Novel,None)→OpenLibraryの3組をキー未設定resolverで検証する
-        // 【期待される動作】: それぞれErr(ApiKeyNotConfigured(Igdb))/(Ndl)/(OpenLibrary)を返す
+        // 【テスト目的】: IGDB/NDLそれぞれでキー未登録時にApiKeyNotConfigured(該当provider)を返すかを確認する
+        // 【テスト内容】: (Game,None)→Igdb、(Paper,None)→Ndl、(Novel,None)→Ndlの3組をキー未設定resolverで検証する
+        // 【期待される動作】: それぞれErr(ApiKeyNotConfigured(Igdb))/(Ndl)/(Ndl)を返す
         // 🔵 信頼性レベル: 要件定義書 REQ-0023-101・マッピング表・設計判断Bより
 
         let service = service_with_no_keys();
@@ -927,7 +918,7 @@ mod tests {
         let cases = [
             (MediaType::Game, ApiProvider::Igdb),
             (MediaType::Paper, ApiProvider::Ndl),
-            (MediaType::Novel, ApiProvider::OpenLibrary),
+            (MediaType::Novel, ApiProvider::Ndl),
         ];
 
         for (media_type, expected_provider) in cases {
@@ -1068,7 +1059,7 @@ mod tests {
     #[tokio::test]
     async fn search_maps_all_eight_media_type_variants_to_exactly_one_provider() {
         // 【テスト目的】: 8 variant全てが第2章マッピング表どおり単一プロバイダへ写像されるかを確認する
-        // 【テスト内容】: [(Anime,Jikan),(Movie,Tmdb),(Drama,Tmdb),(Manga,Jikan),(Novel,OpenLibrary),
+        // 【テスト内容】: [(Anime,Jikan),(Movie,Tmdb),(Drama,Tmdb),(Manga,Jikan),(Novel,Ndl),
         //   (Game,Igdb),(AcademicBook,Ndl),(Paper,Ndl)] の対応表を網羅検証する
         // 【期待される動作】: 各variantで期待provider「のみ」にリクエストが到達し、他provider到達==0
         // 🔵 信頼性レベル: 要件定義書 第2章 マッピング表・REQ-0023-01・REQ-0023-501・REQ-0023-402より
@@ -1095,10 +1086,10 @@ mod tests {
     /// TC-002-B04: 隣接enum variant誤ディスパッチ検証（Manga/Novel・AcademicBook/Paper・Anime/Movie 非混同・ユニット）
     /// 🔵 信頼性レベル: 要件定義書 REQ-0023-402・設計判断A/B・マッピング表より
     #[tokio::test]
-    async fn search_manga_does_not_reach_openlibrary_or_ndl_mock() {
-        // 【テスト目的】: Manga→Jikanであって、隣接providerであるOpenLibrary/NDLへ誤到達しないかを確認する
-        // 【テスト内容】: Jikan/OpenLibrary/NDLの3モックサーバーを用意しsearch(Manga, query)を呼ぶ
-        // 【期待される動作】: Jikanモック受信==1、OpenLibrary/NDLモック受信==0
+    async fn search_manga_does_not_reach_ndl_mock() {
+        // 【テスト目的】: Manga→Jikanであって、隣接providerであるNDLへ誤到達しないかを確認する
+        // 【テスト内容】: Jikan/NDLの2モックサーバーを用意しsearch(Manga, query)を呼ぶ
+        // 【期待される動作】: Jikanモック受信==1、NDLモック受信==0
         // 🔵 信頼性レベル: 要件定義書 REQ-0023-402・設計判断A・マッピング表より
 
         let jikan_mock = MockServer::start().await;
@@ -1106,12 +1097,10 @@ mod tests {
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
             .mount(&jikan_mock)
             .await;
-        let openlibrary_mock = MockServer::start().await;
         let ndl_mock = MockServer::start().await;
 
         let service = service_with_no_keys().with_test_base_urls(|u| {
             u.jikan = Some(jikan_mock.uri());
-            u.openlibrary = Some(openlibrary_mock.uri());
             u.ndl = Some(ndl_mock.uri());
         });
 
@@ -1119,7 +1108,6 @@ mod tests {
 
         assert!(result.is_ok()); // 【確認内容】: Manga検索がOkで成功することを確認する 🔵
         assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: Jikanモックへの到達回数が1であることを確認する 🔵
-        assert_eq!(openlibrary_mock.received_requests().await.unwrap().len(), 0); // 【確認内容】: OpenLibraryモックへ誤到達しないことを確認する（最重要） 🔵
         assert_eq!(ndl_mock.received_requests().await.unwrap().len(), 0); // 【確認内容】: NDLモックへ誤到達しないことを確認する 🔵
     }
 

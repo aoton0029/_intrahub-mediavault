@@ -56,6 +56,21 @@ pub async fn create_item_relation(
     })
 }
 
+/// 【機能概要】: 指定item_idを起点とする関連付けを一覧取得する（`GET /items/:id/relations`）
+/// 🟡 信頼性レベル: item_group_repository::list_item_groupsと対称のリスト取得パターン
+pub async fn list_item_relations(pool: &PgPool, item_id: Uuid) -> Result<Vec<ItemRelation>, ApiError> {
+    sqlx::query_as(
+        "SELECT id, item_id, related_item_id, relation_type, created_at
+         FROM item_relations
+         WHERE item_id = $1
+         ORDER BY created_at",
+    )
+    .bind(item_id)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)
+}
+
 /// 【機能概要】: item_relationsから指定IDのレコードをDELETEする
 /// 🔵 信頼性レベル: タスク仕様テストケース4に直接対応
 pub async fn delete_item_relation(pool: &PgPool, id: Uuid) -> Result<bool, ApiError> {

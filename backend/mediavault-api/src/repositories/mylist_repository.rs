@@ -29,6 +29,30 @@ pub async fn create_mylist(pool: &PgPool, name: String) -> Result<Mylist, ApiErr
         .map_err(db_error)
 }
 
+/// 【機能概要】: 全マイリストを作成日時順に一覧取得する（`GET /mylists`）
+/// 🟡 信頼性レベル: category_repository::list_categories_with_countsと対称なリスト取得パターン
+pub async fn list_mylists(pool: &PgPool) -> Result<Vec<Mylist>, ApiError> {
+    sqlx::query_as("SELECT id, name, created_at FROM mylists ORDER BY created_at")
+        .fetch_all(pool)
+        .await
+        .map_err(db_error)
+}
+
+/// 【機能概要】: 指定したitem_idが所属する全マイリストを一覧取得する（`GET /items/:id/mylists`）
+/// 🟡 信頼性レベル: mylist_itemsの複合PK(mylist_id, item_id)からのJOINによる逆引き
+pub async fn list_mylists_for_item(pool: &PgPool, item_id: Uuid) -> Result<Vec<Mylist>, ApiError> {
+    sqlx::query_as(
+        "SELECT m.id, m.name, m.created_at FROM mylists m
+         JOIN mylist_items mi ON mi.mylist_id = m.id
+         WHERE mi.item_id = $1
+         ORDER BY m.created_at",
+    )
+    .bind(item_id)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)
+}
+
 /// 【機能概要】: 指定したmylist_idがmylistsテーブルに存在するか確認する
 /// 🟡 信頼性レベル: タスク仕様「事前に存在チェックを行いMYLIST_NOT_FOUNDを返す」に対応
 pub async fn mylist_exists(pool: &PgPool, mylist_id: Uuid) -> Result<bool, ApiError> {

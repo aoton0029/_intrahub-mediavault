@@ -120,6 +120,20 @@ pub async fn link_staff(
     .map_err(db_error)
 }
 
+/// 【機能概要】: 指定item_idに紐づくスタッフ紐付けを一覧取得する（`GET /items/:id/staff`）
+/// 🟡 信頼性レベル: item_relation_repository::list_item_relationsと対称のリスト取得パターン
+pub async fn list_item_staff(pool: &PgPool, item_id: Uuid) -> Result<Vec<ItemStaff>, ApiError> {
+    sqlx::query_as(
+        "SELECT id, item_id, staff_id, role, character_name
+         FROM item_staff
+         WHERE item_id = $1",
+    )
+    .bind(item_id)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)
+}
+
 /// 【機能概要】: item_staffから指定idのレコードをDELETEする（item_idとの整合性チェック含む）
 /// 【実装方針】: item_staff.id == item_staff_id AND item_staff.item_id == item_id の条件でDELETEし、
 /// 影響行が0件ならfalseを返す（呼び出し側で404にマッピングする）

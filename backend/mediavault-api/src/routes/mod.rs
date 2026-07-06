@@ -19,23 +19,32 @@ use crate::handlers::import_booklog::import_booklog_handler;
 use crate::handlers::import_steam::import_steam_handler;
 use crate::handlers::item_episodes::{create_item_episode_handler, list_item_episodes_handler};
 use crate::handlers::item_files::{
-    create_item_file_handler, update_calibre_link_handler, upload_item_file_handler,
+    create_item_file_handler, delete_item_file_handler, list_item_files_handler,
+    update_calibre_link_handler, upload_item_file_handler,
 };
 use crate::handlers::item_groups::{create_item_group_handler, list_item_groups_handler};
-use crate::handlers::item_links::{create_item_link_handler, delete_item_link_handler};
-use crate::handlers::item_relations::{create_item_relation_handler, delete_item_relation_handler};
-use crate::handlers::item_trailers::{create_item_trailer_handler, delete_item_trailer_handler};
+use crate::handlers::item_links::{
+    create_item_link_handler, delete_item_link_handler, list_item_links_handler,
+};
+use crate::handlers::item_relations::{
+    create_item_relation_handler, delete_item_relation_handler, list_item_relations_handler,
+};
+use crate::handlers::item_trailers::{
+    create_item_trailer_handler, delete_item_trailer_handler, list_item_trailers_handler,
+};
 use crate::handlers::items::{
     count_items_by_media_type_handler, create_item_handler, delete_item_handler, get_item_handler,
     import_item_handler, list_items_handler, search_items_handler, update_item_handler,
     update_item_status_handler,
 };
 use crate::handlers::mylists::{
-    add_mylist_item_handler, create_mylist_handler, remove_mylist_item_handler,
+    add_mylist_item_handler, create_mylist_handler, list_item_mylists_handler,
+    list_mylists_handler, remove_mylist_item_handler,
 };
 use crate::handlers::settings::update_api_key_handler;
 use crate::handlers::staff::{
     create_item_staff_handler, create_staff_handler, delete_item_staff_handler,
+    list_item_staff_handler,
 };
 use crate::handlers::tags::{
     attach_tag_handler, create_tag_handler, delete_tag_handler, detach_tag_handler,
@@ -97,7 +106,11 @@ pub fn build_router(state: AppState) -> Router {
             axum::routing::post(attach_category_handler).delete(detach_category_handler),
         )
         // 【TASK-0016】: マイリストCRUD・itemの追加・削除 🔵
-        .route("/mylists", axum::routing::post(create_mylist_handler))
+        // GET /mylists（一覧）を追加
+        .route(
+            "/mylists",
+            get(list_mylists_handler).post(create_mylist_handler),
+        )
         .route(
             "/mylists/{id}/items",
             axum::routing::post(add_mylist_item_handler),
@@ -106,6 +119,8 @@ pub fn build_router(state: AppState) -> Router {
             "/mylists/{id}/items/{item_id}",
             axum::routing::delete(remove_mylist_item_handler),
         )
+        // GET /items/{id}/mylists（指定アイテムが所属するマイリストの逆引き一覧）を追加
+        .route("/items/{id}/mylists", get(list_item_mylists_handler))
         // 【TASK-0017】: item_relations（関連付け・DLC）CRUD 🔵
         .route(
             "/item-relations",
@@ -115,6 +130,8 @@ pub fn build_router(state: AppState) -> Router {
             "/item-relations/{id}",
             axum::routing::delete(delete_item_relation_handler),
         )
+        // GET /items/{id}/relations（指定itemを起点とする関連付け一覧）を追加
+        .route("/items/{id}/relations", get(list_item_relations_handler))
         // 【TASK-0018】: item_groups（シーズン/巻/章）CRUD 🔵🟡
         .route(
             "/items/{id}/groups",
@@ -129,16 +146,17 @@ pub fn build_router(state: AppState) -> Router {
         .route("/staff", axum::routing::post(create_staff_handler))
         .route(
             "/items/{id}/staff",
-            axum::routing::post(create_item_staff_handler),
+            axum::routing::post(create_item_staff_handler).get(list_item_staff_handler),
         )
         .route(
             "/items/{id}/staff/{item_staff_id}",
             axum::routing::delete(delete_item_staff_handler),
         )
         // 【TASK-0026】: item_files（パス指定方式）登録 🔵
+        // GET /items/{id}/files（一覧）を同一パスに追加
         .route(
             "/items/{id}/files",
-            axum::routing::post(create_item_file_handler),
+            axum::routing::post(create_item_file_handler).get(list_item_files_handler),
         )
         // 【TASK-0027】: POST /items/{id}/files/upload（multipart/form-dataバイナリ直接アップロード）。
         // DefaultBodyLimitのデフォルト（2MB）はPDF等の大容量ファイルには不足するため、
@@ -154,19 +172,26 @@ pub fn build_router(state: AppState) -> Router {
             "/items/{id}/files/{file_id}/calibre-link",
             axum::routing::patch(update_calibre_link_handler),
         )
+        // DELETE /items/{id}/files/{file_id}（ファイルレコード・物理ファイル削除）を追加
+        .route(
+            "/items/{id}/files/{file_id}",
+            axum::routing::delete(delete_item_file_handler),
+        )
         // 【TASK-0021】: item_links（参考リンク）CRUD 🔵🟡
+        // GET /items/{id}/links（一覧）を同一パスに追加
         .route(
             "/items/{id}/links",
-            axum::routing::post(create_item_link_handler),
+            axum::routing::post(create_item_link_handler).get(list_item_links_handler),
         )
         .route(
             "/items/{id}/links/{link_id}",
             axum::routing::delete(delete_item_link_handler),
         )
         // 【TASK-0021】: item_trailers（トレーラー動画リンク）CRUD 🔵🟡
+        // GET /items/{id}/trailers（一覧）を同一パスに追加
         .route(
             "/items/{id}/trailers",
-            axum::routing::post(create_item_trailer_handler),
+            axum::routing::post(create_item_trailer_handler).get(list_item_trailers_handler),
         )
         .route(
             "/items/{id}/trailers/{trailer_id}",

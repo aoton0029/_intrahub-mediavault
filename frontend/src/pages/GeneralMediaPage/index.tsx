@@ -12,7 +12,7 @@ import type { Item } from '@/features/items/types';
 
 type SortKey = 'created_at' | 'title' | 'rating';
 
-export function HomePage() {
+export function GeneralMediaPage() {
   const { filters, toggleFavorite, setMediaType, toggleTag, toggleCategory, setTitle } =
     useItemFilters();
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
@@ -46,7 +46,7 @@ export function HomePage() {
   }, !query.isLoading && !query.isError);
 
   useSetTitlebar({
-    title: '全体一覧',
+    title: '一般メディア',
     action: (
       <a
         href="/search-add"

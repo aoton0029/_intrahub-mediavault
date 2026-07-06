@@ -29,17 +29,18 @@ async function parseEnvelope<T>(path: string, response: Response): Promise<ApiOk
   try {
     body = await response.json();
   } catch (e) {
-    if (import.meta.env.DEV) console.error(`[API] ${path} → JSON parse failed`, e);
+    // if (import.meta.env.DEV) console.error(`[API] ${path} → JSON parse failed`, e);
+    console.error(`[API] ${path} → JSON parse failed`, e);
     throw new ApiClientError('INTERNAL_ERROR', '一覧の取得に失敗しました。再試行してください。');
   }
 
-  if (import.meta.env.DEV) {
+  // if (import.meta.env.DEV) {
     if (!response.ok || body.success === false) {
       console.error(`[API] ${path} → ${response.status}`, body);
     } else {
       console.log(`[API] ${path} → ${response.status}`, body);
     }
-  }
+  // }
 
   if (!response.ok || body.success === false) {
     const errorBody = (body as ApiErrorEnvelope).error;

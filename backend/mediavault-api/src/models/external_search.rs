@@ -23,6 +23,8 @@ pub struct ExternalSearchResult {
     /// プロバイダ固有ID（jikan_id/tmdb_id等の元値）
     pub external_id: String,
     pub title: String,
+    /// サムネイル画像の完全URL（プロバイダ側に無い/取得できない場合は`None`）
+    pub thumbnail_url: Option<String>,
     /// プロバイダ固有の生データ（`ApiResponse.raw` 由来）
     pub raw_data: serde_json::Value,
 }
@@ -75,6 +77,7 @@ mod tests {
             provider: Some(ApiProvider::Tmdb),
             external_id: "603".to_string(),
             title: "The Matrix".to_string(),
+            thumbnail_url: Some("https://image.tmdb.org/t/p/w342/poster.jpg".to_string()),
             raw_data: serde_json::json!({"id": 603, "title": "The Matrix"}),
         };
 
@@ -99,6 +102,7 @@ mod tests {
             provider: None,
             external_id: "16498".to_string(),
             title: "進撃の巨人".to_string(),
+            thumbnail_url: None,
             raw_data: serde_json::json!({"mal_id": 16498}),
         };
 

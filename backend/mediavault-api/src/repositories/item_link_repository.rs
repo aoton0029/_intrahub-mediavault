@@ -58,6 +58,21 @@ pub async fn create_item_link(
     .map_err(db_error)
 }
 
+/// 【機能概要】: 指定item_idに紐づく参考リンクを一覧取得する（`GET /items/:id/links`）
+/// 🟡 信頼性レベル: item_group_repository::list_item_groupsと対称のリスト取得パターン
+pub async fn list_item_links(pool: &PgPool, item_id: Uuid) -> Result<Vec<ItemLink>, ApiError> {
+    sqlx::query_as(
+        "SELECT id, item_id, url, label, created_at
+         FROM item_links
+         WHERE item_id = $1
+         ORDER BY created_at",
+    )
+    .bind(item_id)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)
+}
+
 /// 【機能概要】: item_linksから指定idのレコードをDELETEする（item_idとの整合性チェック含む）
 /// 🟡 信頼性レベル: staff_repository::unlink_staffと対称
 pub async fn delete_item_link(

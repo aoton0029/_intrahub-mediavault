@@ -7,7 +7,7 @@ const GENERAL_MEDIA_TYPES: MediaType[] = ['anime', 'movie', 'drama', 'manga', 'n
 
 export function Sidebar() {
   // 【失敗許容】: タグ/カテゴリ・件数取得の失敗はサイドバー内で局所的に握りつぶし、
-  // 一覧本体（HomePage）の描画・E2E契約には影響させない
+  // 一覧本体（GeneralMediaPage）の描画・E2E契約には影響させない
   const countsQuery = useMediaTypeCountsQuery()
   const categoriesQuery = useCategoriesQuery()
 

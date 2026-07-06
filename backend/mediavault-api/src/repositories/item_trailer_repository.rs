@@ -58,6 +58,21 @@ pub async fn create_item_trailer(
     .map_err(db_error)
 }
 
+/// 【機能概要】: 指定item_idに紐づくトレーラーを一覧取得する（`GET /items/:id/trailers`）
+/// 🟡 信頼性レベル: item_group_repository::list_item_groupsと対称のリスト取得パターン
+pub async fn list_item_trailers(pool: &PgPool, item_id: Uuid) -> Result<Vec<ItemTrailer>, ApiError> {
+    sqlx::query_as(
+        "SELECT id, item_id, url, label, created_at
+         FROM item_trailers
+         WHERE item_id = $1
+         ORDER BY created_at",
+    )
+    .bind(item_id)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)
+}
+
 /// 【機能概要】: item_trailersから指定idのレコードをDELETEする（item_idとの整合性チェック含む）
 /// 🟡 信頼性レベル: item_link_repository::delete_item_linkと対称
 pub async fn delete_item_trailer(

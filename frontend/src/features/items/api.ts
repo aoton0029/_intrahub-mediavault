@@ -6,6 +6,7 @@ import type {
   GeneralMediaType,
   ImportItemRequest,
   Item,
+  ItemStatus,
   MediaType,
   TagRef,
 } from './types';
@@ -15,6 +16,7 @@ export interface ListItemsParams {
   tag_id?: string;
   category_id?: string;
   is_favorite?: boolean;
+  status?: ItemStatus;
   title?: string;
   limit?: number;
   after_created_at?: string;
@@ -27,6 +29,7 @@ function buildItemsQueryString(params: ListItemsParams): string {
   if (params.tag_id) search.set('tag_id', params.tag_id);
   if (params.category_id) search.set('category_id', params.category_id);
   if (params.is_favorite) search.set('is_favorite', 'true');
+  if (params.status) search.set('status', params.status);
   // 空文字titleはパラメータ自体を省略する（TC-101-B02）
   if (params.title) search.set('title', params.title);
   if (params.after_created_at) search.set('after_created_at', params.after_created_at);
@@ -111,6 +114,22 @@ export function useMediaTypeCountsQuery() {
   return useQuery({
     queryKey: ['items-counts-by-media-type'],
     queryFn: async () => (await apiFetch<MediaTypeCounts>('/items/counts-by-media-type')).data,
+    retry: false,
+  });
+}
+
+export interface ItemStatusCounts {
+  not_started: number;
+  in_progress: number;
+  completed: number;
+  favorite: number;
+  total: number;
+}
+
+export function useItemStatusCountsQuery() {
+  return useQuery({
+    queryKey: ['items-counts-by-status'],
+    queryFn: async () => (await apiFetch<ItemStatusCounts>('/items/counts-by-status')).data,
     retry: false,
   });
 }

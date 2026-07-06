@@ -32,29 +32,7 @@ export function getOriginalTitle(result: ExternalSearchResult): string | undefin
 }
 
 export function getCoverImageUrl(result: ExternalSearchResult): string | undefined {
-  const raw = result.raw_data;
-  switch (result.provider) {
-    case 'jikan': {
-      const images = asRecord(raw.images);
-      const jpg = asRecord(images?.jpg);
-      return asString(jpg?.image_url);
-    }
-    case 'tmdb': {
-      const posterPath = asString(raw.poster_path);
-      return posterPath ? `https://image.tmdb.org/t/p/w342${posterPath}` : undefined;
-    }
-    case 'open_library': {
-      const coverId = raw.cover_i;
-      return typeof coverId === 'number' ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` : undefined;
-    }
-    case 'igdb': {
-      const cover = asRecord(raw.cover);
-      const url = asString(cover?.url);
-      return url ? `https:${url.replace('t_thumb', 't_cover_big')}` : undefined;
-    }
-    default:
-      return undefined;
-  }
+  return result.thumbnail_url ?? undefined;
 }
 
 export function getReleaseYear(result: ExternalSearchResult): string | undefined {

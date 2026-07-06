@@ -3,11 +3,11 @@
 //! TASK-0022: api_credentials（外部APIキー管理）CRUD実装
 //!
 //! 【信頼性レベル】: 🔵 要件定義書 第2章・note.md L13-15・database-schema.sql L348-353より
-//! DB上のenum値は `'openlibrary'`/`'anilist'`（アンダースコアなし、実マイグレーション確認済み）だが、
-//! テストケース定義書TC-015-01-A等ではAPI/Rust側の文字列表現を`open_library`/`ani_list`と定める。
-//! そのため`OpenLibrary`/`AniList`バリアントのみ`#[sqlx(rename = ...)]`でDB側の実値に、
-//! serde側は`rename_all = "snake_case"`デフォルト（`open_library`/`ani_list`）のままとし、
-//! API文字列とDB格納値の対応を分離する。
+//! DB上のenum値は全バリアントとも小文字（`'tmdb'`/`'igdb'`/`'ndl'`/`'steam'`/`'openlibrary'`/`'anilist'`、
+//! 実マイグレーション確認済み）。`#[serde(rename_all = "snake_case")]`はJSON側（API文字列表現）にのみ
+//! 効きsqlx::Typeのderiveには適用されないため、DBエンコード用に全バリアントへ明示的に
+//! `#[sqlx(rename = ...)]`を付与し、DB格納値と一致させる。
+//! API文字列表現（`open_library`/`ani_list`等）はserde側の設定のみで定まり、DB格納値とは独立している。
 
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
@@ -20,9 +20,13 @@ use serde::{Deserialize, Serialize};
 #[sqlx(type_name = "api_provider")]
 #[serde(rename_all = "snake_case")]
 pub enum ApiProvider {
+    #[sqlx(rename = "tmdb")]
     Tmdb,
+    #[sqlx(rename = "igdb")]
     Igdb,
+    #[sqlx(rename = "ndl")]
     Ndl,
+    #[sqlx(rename = "steam")]
     Steam,
     #[sqlx(rename = "openlibrary")]
     OpenLibrary,

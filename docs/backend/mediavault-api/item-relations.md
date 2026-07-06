@@ -2,6 +2,10 @@
 
 # Item Relations API
 
+## GET /items/{id}/relations
+指定アイテムを起点とする関連付け（参照・DLC）を作成日時昇順で一覧取得する。
+- **成功レスポンス** (200): `ApiOk<ItemRelation[]>`
+
 ## POST /item-relations
 アイテム間の関連（参照・DLCなど）を作成。
 
