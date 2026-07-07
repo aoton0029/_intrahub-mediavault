@@ -7,6 +7,7 @@ import type {
   CreateItemLinkRequest,
   CreateItemRelationRequest,
   CreateItemStaffRequest,
+  CreateItemStreamingLinkRequest,
   CreateItemTrailerRequest,
   ItemDetail,
   ItemEpisode,
@@ -15,6 +16,7 @@ import type {
   ItemLink,
   ItemRelation,
   ItemStaff,
+  ItemStreamingLink,
   ItemTrailer,
   Mylist,
   Staff,
@@ -262,6 +264,41 @@ export function useRemoveItemLinkMutation(itemId: string) {
     mutationFn: (linkId: string) =>
       apiFetch(`/items/${itemId}/links/${linkId}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['item', itemId, 'links'] }),
+  });
+}
+
+// --- 配信URL ---
+
+export function useItemStreamingLinksQuery(itemId: string) {
+  return useQuery({
+    queryKey: ['item', itemId, 'streaming-links'],
+    queryFn: async () =>
+      (await apiFetch<ItemStreamingLink[]>(`/items/${itemId}/streaming-links`)).data,
+    enabled: Boolean(itemId),
+  });
+}
+
+export function useCreateItemStreamingLinkMutation(itemId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateItemStreamingLinkRequest) =>
+      apiFetch<ItemStreamingLink>(`/items/${itemId}/streaming-links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['item', itemId, 'streaming-links'] }),
+  });
+}
+
+export function useRemoveItemStreamingLinkMutation(itemId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (linkId: string) =>
+      apiFetch(`/items/${itemId}/streaming-links/${linkId}`, { method: 'DELETE' }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['item', itemId, 'streaming-links'] }),
   });
 }
 

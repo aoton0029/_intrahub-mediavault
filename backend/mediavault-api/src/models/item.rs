@@ -273,6 +273,9 @@ pub struct ItemDetail {
     /// 🟡 信頼性レベル: TASK-0028 calibre-link-requirements.md 2.3 L77・タスク定義書 L58-64より新規追加
     #[serde(default)]
     pub calibre_links: Vec<crate::models::item_file::CalibreWebLinkInfo>,
+    /// 配信サービスURL一覧(Netflix/AmazonPrime/DisneyPlus/DmmTv/AppleTv)
+    #[serde(default)]
+    pub streaming_links: Vec<crate::models::item_streaming_link::ItemStreamingLink>,
 }
 
 impl ItemDetail {
@@ -295,6 +298,18 @@ impl ItemDetail {
         categories: Vec<CategoryRef>,
         calibre_links: Vec<crate::models::item_file::CalibreWebLinkInfo>,
     ) -> Self {
+        Self::from_parts_full(item, detail, tags, categories, calibre_links, Vec::new())
+    }
+
+    /// itemの基本情報 + 詳細/タグ/カテゴリ + Calibre-Web遷移情報 + 配信URL一覧を合成してItemDetailを構築する
+    pub fn from_parts_full(
+        item: Item,
+        detail: Option<serde_json::Value>,
+        tags: Vec<TagRef>,
+        categories: Vec<CategoryRef>,
+        calibre_links: Vec<crate::models::item_file::CalibreWebLinkInfo>,
+        streaming_links: Vec<crate::models::item_streaming_link::ItemStreamingLink>,
+    ) -> Self {
         Self {
             id: item.id,
             media_type: item.media_type,
@@ -316,6 +331,7 @@ impl ItemDetail {
             tags,
             categories,
             calibre_links,
+            streaming_links,
         }
     }
 }

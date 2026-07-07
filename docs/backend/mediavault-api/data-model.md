@@ -34,6 +34,7 @@
 | tags | TagRef[]（`{ id, name }`） |
 | categories | CategoryRef[]（`{ id, name }`） |
 | calibre_links | CalibreWebLinkInfo[]（`{ file_id, calibre_book_id }`。calibre_book_id設定済みPDFのみ） |
+| streaming_links | ItemStreamingLink[]（配信サービスURL。詳細は下記「ItemStreamingLink」参照） |
 
 ## Tag / Category / Mylist
 
@@ -77,6 +78,18 @@
 | ItemLink | id: UUID, item_id: UUID, url: string, label: string, created_at: datetime |
 | ItemTrailer | id: UUID, item_id: UUID, url: string, label: string \| null, created_at: datetime |
 | ItemFile | id: UUID, item_id: UUID, path: string, label: string \| null, file_type: FileType（pdf/image/other）, calibre_book_id: string \| null, created_at: datetime |
+
+## ItemStreamingLink
+
+`GET/POST /items/{id}/streaming-links`のレスポンス。詳細: [mediavault-model/item-streaming-links.md](../mediavault-model/item-streaming-links.md)
+
+| フィールド | 型 |
+|---|---|
+| id | UUID |
+| item_id | UUID |
+| platform | StreamingPlatform（netflix/amazon_prime/disney_plus/dmm_tv/apple_tv） |
+| url | string |
+| created_at | datetime |
 
 ## ItemGroup / ItemEpisode
 

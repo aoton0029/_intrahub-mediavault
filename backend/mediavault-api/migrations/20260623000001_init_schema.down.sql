@@ -37,3 +37,9 @@ DROP TYPE IF EXISTS group_type;
 DROP TYPE IF EXISTS item_source;
 DROP TYPE IF EXISTS item_status;
 DROP TYPE IF EXISTS media_type;
+-- ========================================
+-- item_streaming_links migration (down)
+-- ========================================
+
+DROP TABLE IF EXISTS item_streaming_links;
+DROP TYPE IF EXISTS streaming_platform;

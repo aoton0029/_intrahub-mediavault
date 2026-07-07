@@ -221,6 +221,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ========================================
+-- item_streaming_links migration (up)
+-- ========================================
+
+CREATE TYPE streaming_platform AS ENUM (
+    'netflix', 'amazon_prime', 'disney_plus', 'dmm_tv', 'apple_tv'
+);
+
+CREATE TABLE item_streaming_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    platform streaming_platform NOT NULL,
+    url VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_item_streaming_links UNIQUE (item_id, platform)
+);
+
+CREATE INDEX idx_item_streaming_links_item_id ON item_streaming_links(item_id);
+
 CREATE TRIGGER trg_items_updated_at BEFORE UPDATE ON items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_item_groups_updated_at BEFORE UPDATE ON item_groups

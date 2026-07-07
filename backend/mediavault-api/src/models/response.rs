@@ -108,6 +108,8 @@ pub enum ApiErrorCode {
     /// Steam APIキー未設定・無効（TASK-0031のPOST /import/steam時401、TC-017-E01）
     /// 🔵 信頼性レベル: TASK-0031.md「テストケース2（TC-017-E01）」・steam-import-requirements.md 3章「STEAM_API_KEY_INVALID（401）」に直接対応
     SteamApiKeyInvalid,
+    /// 配信URLの一意制約違反（同一(item_id, platform)が既に登録済み）
+    DuplicateStreamingLink,
 }
 
 impl ApiErrorCode {
@@ -150,6 +152,9 @@ impl ApiErrorCode {
             ),
             ApiErrorCode::FileNotFound => ("FILE_NOT_FOUND", StatusCode::NOT_FOUND),
             ApiErrorCode::SteamApiKeyInvalid => ("STEAM_API_KEY_INVALID", StatusCode::UNAUTHORIZED),
+            ApiErrorCode::DuplicateStreamingLink => {
+                ("DUPLICATE_STREAMING_LINK", StatusCode::CONFLICT)
+            }
         }
     }
 

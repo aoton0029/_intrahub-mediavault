@@ -29,6 +29,10 @@ use crate::handlers::item_links::{
 use crate::handlers::item_relations::{
     create_item_relation_handler, delete_item_relation_handler, list_item_relations_handler,
 };
+use crate::handlers::item_streaming_links::{
+    create_item_streaming_link_handler, delete_item_streaming_link_handler,
+    list_item_streaming_links_handler,
+};
 use crate::handlers::item_trailers::{
     create_item_trailer_handler, delete_item_trailer_handler, list_item_trailers_handler,
 };
@@ -186,6 +190,16 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/items/{id}/links/{link_id}",
             axum::routing::delete(delete_item_link_handler),
+        )
+        // item_streaming_links（配信サービスURL: Netflix/AmazonPrime/DisneyPlus/DmmTv/AppleTv）CRUD
+        .route(
+            "/items/{id}/streaming-links",
+            axum::routing::post(create_item_streaming_link_handler)
+                .get(list_item_streaming_links_handler),
+        )
+        .route(
+            "/items/{id}/streaming-links/{link_id}",
+            axum::routing::delete(delete_item_streaming_link_handler),
         )
         // 【TASK-0021】: item_trailers（トレーラー動画リンク）CRUD 🔵🟡
         // GET /items/{id}/trailers（一覧）を同一パスに追加

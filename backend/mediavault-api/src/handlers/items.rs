@@ -19,6 +19,7 @@ use crate::models::item_search::ItemSearchQuery;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk, PaginatedOk, Pagination};
 use crate::repositories::item_file_repository;
 use crate::repositories::item_repository;
+use crate::repositories::item_streaming_link_repository;
 use crate::services::external_search::ExternalSearchService;
 
 /// 【機能概要】: `POST /items` ハンドラ。フォーム入力によるアイテム手動作成を行う
@@ -192,12 +193,17 @@ pub async fn get_item_handler(
     // 【Calibre-Web遷移情報取得】: calibre_book_id設定済みPDFについて遷移情報を付加する（TASK-0028 TC-020-02） 🟡
     let calibre_links = item_file_repository::get_item_calibre_links(&state.db, id).await?;
 
-    Ok(ApiOk::new(ItemDetail::from_parts_with_calibre_links(
+    // 【配信URL取得】: Netflix/AmazonPrime/DisneyPlus/DmmTv/AppleTvの登録済みURLを付加する
+    let streaming_links =
+        item_streaming_link_repository::list_item_streaming_links(&state.db, id).await?;
+
+    Ok(ApiOk::new(ItemDetail::from_parts_full(
         item,
         detail,
         tags,
         categories,
         calibre_links,
+        streaming_links,
     )))
 }
 

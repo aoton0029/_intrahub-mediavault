@@ -10,6 +10,7 @@ export type ItemSource = 'api' | 'manual';
 export type GroupType = 'season' | 'volume' | 'chapter';
 export type RelationType = 'reference' | 'dlc';
 export type FileType = 'pdf' | 'image' | 'other';
+export type StreamingPlatform = 'netflix' | 'amazon_prime' | 'disney_plus' | 'dmm_tv' | 'apple_tv';
 
 export interface CalibreWebLinkInfo {
   file_id: string;
@@ -41,6 +42,7 @@ export interface ItemDetail {
   tags: TagRef[];
   categories: CategoryRef[];
   calibre_links: CalibreWebLinkInfo[];
+  streaming_links: ItemStreamingLink[];
 }
 
 export interface ItemGroup {
@@ -96,6 +98,14 @@ export interface ItemLink {
   item_id: string;
   url: string;
   label: string;
+  created_at: string;
+}
+
+export interface ItemStreamingLink {
+  id: string;
+  item_id: string;
+  platform: StreamingPlatform;
+  url: string;
   created_at: string;
 }
 
@@ -174,6 +184,11 @@ export interface CreateItemRelationRequest {
 export interface CreateItemLinkRequest {
   url: string;
   label: string;
+}
+
+export interface CreateItemStreamingLinkRequest {
+  platform: StreamingPlatform;
+  url: string;
 }
 
 export interface CreateItemTrailerRequest {

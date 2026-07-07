@@ -11,6 +11,7 @@ pub mod item_import;
 pub mod item_link;
 pub mod item_relation;
 pub mod item_search;
+pub mod item_streaming_link;
 pub mod item_trailer;
 pub mod mylist;
 pub mod response;

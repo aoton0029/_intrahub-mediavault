@@ -130,6 +130,9 @@
 | PATCH | /items/{id}/files/{file_id}/calibre-link | Calibre連携ID更新 | [item-files.md](./item-files.md) |
 | POST | /items/{id}/links | 外部リンク追加 | [item-links.md](./item-links.md) |
 | DELETE | /items/{id}/links/{link_id} | 外部リンク削除 | [item-links.md](./item-links.md) |
+| POST | /items/{id}/streaming-links | 配信URL追加（Netflix/AmazonPrime/DisneyPlus/DmmTv/AppleTv） | [item-streaming-links.md](./item-streaming-links.md) |
+| GET | /items/{id}/streaming-links | 配信URL一覧取得 | [item-streaming-links.md](./item-streaming-links.md) |
+| DELETE | /items/{id}/streaming-links/{link_id} | 配信URL削除 | [item-streaming-links.md](./item-streaming-links.md) |
 | POST | /items/{id}/trailers | 予告編リンク追加 | [item-trailers.md](./item-trailers.md) |
 | DELETE | /items/{id}/trailers/{trailer_id} | 予告編リンク削除 | [item-trailers.md](./item-trailers.md) |
 | PUT | /settings/api-keys/{provider} | 外部APIキー登録・更新 | [settings.md](./settings.md) |
@@ -152,6 +155,7 @@
 - [staff.md](./staff.md) — Staff
 - [item-files.md](./item-files.md) — Item Files
 - [item-links.md](./item-links.md) — Item Links
+- [item-streaming-links.md](./item-streaming-links.md) — Item Streaming Links
 - [item-trailers.md](./item-trailers.md) — Item Trailers
 - [settings.md](./settings.md) — Settings
 - [import.md](./import.md) — Import

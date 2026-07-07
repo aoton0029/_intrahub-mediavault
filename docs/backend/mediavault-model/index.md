@@ -35,6 +35,7 @@ erDiagram
     ITEMS ||--o{ MYLIST_ITEMS : ""
 
     ITEMS ||--o{ ITEM_LINKS : ""
+    ITEMS ||--o{ ITEM_STREAMING_LINKS : ""
     ITEMS ||--o{ ITEM_FILES : ""
     ITEMS ||--o{ ITEM_TRAILERS : ""
 
@@ -57,7 +58,7 @@ erDiagram
 - `items` (M) — `tags` (M) : `item_tags`
 - `items` (M) — `categories` (M) : `item_categories`
 - `mylists` (M) — `items` (M) : `mylist_items`
-- `items` (1) — `item_links` / `item_files` / `item_trailers` (N) : 単純な1:N
+- `items` (1) — `item_links` / `item_streaming_links` / `item_files` / `item_trailers` (N) : 単純な1:N（`item_streaming_links`のみ`UNIQUE(item_id, platform)`で1プラットフォーム1件までに制限）
 - `items` (M) — `items` (M) : `item_relations`（自己参照、`relation_type`: reference/dlc）
 - `items` (1) — `item_groups` (N) : season/volume/chapter。`item_groups.parent_item_id`は別の`items.id`を参照し階層グルーピングに使う
 - `item_groups` (1) — `item_episodes` (N) : `group_type=volume`のグループへのepisode追加はDBトリガーで禁止
@@ -74,6 +75,7 @@ erDiagram
 | `group_type` | season, volume, chapter | `item_group::GroupType` |
 | `relation_type` | reference, dlc | `item_relation::RelationType` |
 | `file_type` | pdf, image, other | `item_file::FileType` |
+| `streaming_platform` | netflix, amazon_prime, disney_plus, dmm_tv, apple_tv | `item_streaming_link::StreamingPlatform` |
 | `api_provider` | tmdb, igdb, ndl, steam, openlibrary, anilist | `api_credential::ApiProvider`（`OpenLibrary`/`AniList`のみ`#[sqlx(rename=...)]`でDB値と対応。serde側は`open_library`/`ani_list`。Jikanはキー不要のため対象外） |
 
 ## カテゴリ別詳細
@@ -87,6 +89,7 @@ erDiagram
 - [item-episodes.md](./item-episodes.md) — エピソード
 - [item-files.md](./item-files.md) — ファイル（Calibre連携含む）
 - [item-links.md](./item-links.md) — 外部リンク
+- [item-streaming-links.md](./item-streaming-links.md) — 配信サービスURL（Netflix/AmazonPrime/DisneyPlus/DmmTv/AppleTv）
 - [item-trailers.md](./item-trailers.md) — トレーラー
 - [staff.md](./staff.md) — スタッフ
 - [api-credentials.md](./api-credentials.md) — 外部APIキー管理

@@ -7,6 +7,7 @@ pub mod item_group_repository;
 pub mod item_link_repository;
 pub mod item_relation_repository;
 pub mod item_repository;
+pub mod item_streaming_link_repository;
 pub mod item_trailer_repository;
 pub mod mylist_repository;
 pub mod staff_repository;
