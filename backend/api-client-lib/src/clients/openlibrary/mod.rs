@@ -71,6 +71,7 @@ impl OpenLibraryClient {
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
         tracing::trace!(status, latency_ms, "OpenLibrary response received");
+        tracing::debug!(body = %text, "OpenLibrary response body");
         Ok((status, text, latency_ms))
     }
 

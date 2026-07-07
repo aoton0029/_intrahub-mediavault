@@ -184,6 +184,7 @@ impl IgdbClient {
             response_len = text.len(),
             "IGDB response received"
         );
+        tracing::debug!(body = %text, "IGDB response body");
         let model: T = serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
 
         Ok((status, text, latency_ms, model))

@@ -88,6 +88,7 @@ impl JikanClient {
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
         tracing::trace!(status, latency_ms, "Jikan response received");
+        tracing::debug!(body = %text, "Jikan response body");
         Ok((status, text, latency_ms))
     }
 

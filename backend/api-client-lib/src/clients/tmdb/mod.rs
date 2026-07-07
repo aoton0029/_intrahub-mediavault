@@ -104,6 +104,7 @@ impl TmdbClient {
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
         tracing::trace!(status, latency_ms, "TMDb response received");
+        tracing::debug!(body = %text, "TMDb response body");
         Ok((status, text, latency_ms))
     }
 

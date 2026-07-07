@@ -106,6 +106,7 @@ impl NdlClient {
             .map_err(|e| ApiError::Network(e.to_string()))?;
 
         tracing::trace!(response_len = xml_text.len(), "NDL parsing XML");
+        tracing::debug!(body = %xml_text, "NDL response body");
         let model = parse_ndl_xml(&xml_text)?;
 
         tracing::debug!(status, latency_ms, count = model.len(), "NDL search OK");

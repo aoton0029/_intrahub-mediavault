@@ -156,6 +156,7 @@ impl AniListClient {
             response_len = text.len(),
             "AniList response received"
         );
+        tracing::debug!(body = %text, "AniList response body");
 
         Ok((status, text, latency_ms))
     }

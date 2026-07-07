@@ -11,8 +11,6 @@ export function Sidebar() {
   const countsQuery = useMediaTypeCountsQuery()
   const categoriesQuery = useCategoriesQuery()
 
-  // 「一般メディア」件数はUI側のみの概念で対応する集計エンドポイントが無いため、
-  // 各 media_type の件数をクライアント側で合算する
   const generalMediaCount = countsQuery.data
     ? GENERAL_MEDIA_TYPES.reduce((sum, mediaType) => sum + (countsQuery.data?.[mediaType] ?? 0), 0)
     : undefined
@@ -30,7 +28,7 @@ export function Sidebar() {
         {GENERAL_MEDIA_TYPES.map((mediaType) => (
           <NavItem
             key={mediaType}
-            to="/general-media"
+            to={`/general-media?media_type=${mediaType}`}
             label={mediaTypeLabels[mediaType]}
             count={countsQuery.data?.[mediaType]}
             indent
@@ -52,7 +50,7 @@ export function Sidebar() {
         {(categoriesQuery.data ?? []).map((category) => (
           <NavItem
             key={category.id}
-            to="/categories"
+            to={`/categories?category_id=${category.id}`}
             label={category.name}
             count={category.item_count}
             indent

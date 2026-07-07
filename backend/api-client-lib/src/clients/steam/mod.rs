@@ -95,6 +95,7 @@ impl SteamClient {
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
         tracing::trace!(status, latency_ms, "Steam response received");
+        tracing::debug!(body = %text, "Steam response body");
         Ok((status, text, latency_ms))
     }
 

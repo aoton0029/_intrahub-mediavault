@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 
 export interface NavItemProps {
@@ -10,17 +10,20 @@ export interface NavItemProps {
 }
 
 export function NavItem({ to, icon, label, count, indent }: NavItemProps) {
+  const location = useLocation()
+  const currentPath = location.pathname + location.search
+  const targetPath = to.startsWith('/') ? to : `/${to}`
+  const isActive = currentPath === targetPath
+
   return (
     <NavLink
       to={to}
-      className={({ isActive }) =>
-        [
-          'flex items-center gap-2 rounded-app px-2 py-1.5 text-[13px] text-text-muted whitespace-nowrap',
-          'hover:bg-bg-surface-hover hover:text-text-primary',
-          indent ? 'pl-[22px]' : '',
-          isActive ? 'bg-accent-soft text-accent-strong hover:bg-accent-soft hover:text-accent-strong' : '',
-        ].join(' ')
-      }
+      className={[
+        'flex items-center gap-2 rounded-app px-2 py-1.5 text-[13px] text-text-muted whitespace-nowrap',
+        'hover:bg-bg-surface-hover hover:text-text-primary',
+        indent ? 'pl-[22px]' : '',
+        isActive ? 'bg-accent-soft text-accent-strong hover:bg-accent-soft hover:text-accent-strong' : '',
+      ].join(' ')}
     >
       {icon}
       <span>{label}</span>
