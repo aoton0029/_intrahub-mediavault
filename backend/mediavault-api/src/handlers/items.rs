@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
 use crate::AppState;
-use crate::models::external_search::ExternalSearchResult;
+use crate::models::domain::MediaDetails;
 use crate::models::item::{
     Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaTypeCounts, UpdateItemRequest,
     UpdateStatusRequest, deserialize_request, parse_create_item_request, parse_item_id,
@@ -37,11 +37,38 @@ pub async fn create_item_handler(
         Err(err) => return Err(err),
     };
 
-    // 【DB登録】: items + 詳細テーブルへ同一トランザクションでINSERTする 🔵
+    // 【details検証】: 指定された場合はMediaDetails形式かつmedia_type一致であることを検証する
+    validate_create_details(&request)?;
+
+    // 【DB登録】: itemsテーブル（details JSONB含む）へINSERTする 🔵
     let item = item_repository::create_item(&state.db, request).await?;
 
     // 【成功レスポンス】: 作成済みitemを201で返す 🔵
     Ok(created_response(item))
+}
+
+/// 【機能概要】: 手動作成リクエストのdetailsがMediaDetails形式として妥当かを検証する
+/// 【実装方針】: detailsはインポート経路では正規化済みMediaDetailsが入る前提のため、
+/// 手動作成経路でも同一スキーマへデシリアライズ可能で、かつ内側のmedia_typeが
+/// リクエスト本体のmedia_typeと一致する場合のみ受理する（不一致・不正形式は400）
+fn validate_create_details(
+    request: &crate::models::item::CreateItemRequest,
+) -> Result<(), ApiError> {
+    let Some(details) = &request.details else {
+        return Ok(());
+    };
+
+    let parsed: MediaDetails = serde_json::from_value(details.clone())
+        .map_err(|_| ApiError::new(ApiErrorCode::ValidationError, "detailsの形式が不正です"))?;
+
+    if parsed.core().media_type != request.media_type {
+        return Err(ApiError::new(
+            ApiErrorCode::ValidationError,
+            "detailsのmedia_typeがリクエストのmedia_typeと一致しません",
+        ));
+    }
+
+    Ok(())
 }
 
 /// 【機能概要】: 作成済みitemをHTTP 201・統一レスポンス形式で返すためのレスポンスを構築する
@@ -157,8 +184,8 @@ pub async fn get_item_handler(
         .await?
         .ok_or_else(|| ApiError::new(ApiErrorCode::ItemNotFound, "アイテムが見つかりません"))?;
 
-    // 【関連データ取得】: メディア別詳細テーブル・タグ・カテゴリを合成する 🟡
-    let detail = item_repository::get_item_detail(&state.db, item.media_type, id).await?;
+    // 【関連データ取得】: items.details（正規化済みMediaDetails JSON）・タグ・カテゴリを合成する 🟡
+    let detail = item_repository::get_item_detail(&state.db, id).await?;
     let tags = item_repository::get_item_tags(&state.db, id).await?;
     let categories = item_repository::get_item_categories(&state.db, id).await?;
 
@@ -245,8 +272,8 @@ pub async fn update_item_status_handler(
     Ok(ApiOk::new(item))
 }
 
-/// 【機能概要】: `GET /items/search` ハンドラ。外部API（Jikan/TMDb/NDL/OpenLibrary/Steam/IGDB/AniList）
-/// を検索し、未登録アイテムの候補一覧を返す
+/// 【機能概要】: `GET /items/search` ハンドラ。外部API（Jikan/TMDb/NDL/IGDB）を検索し、
+/// ノーマライズ済み`MediaDetails`（media_typeが判別子）の候補一覧を返す
 /// 【実装方針】: AppStateはExternalSearchServiceを保持しないため、ハンドラ内で都度構築する。
 /// `?`演算子で`ExternalSearchError`を`From`実装経由で`ApiError`へ自動変換し、422/502へ伝播させる
 /// 【テスト対応】: TC-0024-N01相当（200成功）、TC-0024-E01相当（422 APIキー未設定）に対応
@@ -254,7 +281,7 @@ pub async fn update_item_status_handler(
 pub async fn search_items_handler(
     State(state): State<AppState>,
     Query(query): Query<ItemSearchQuery>,
-) -> Result<ApiOk<Vec<ExternalSearchResult>>, ApiError> {
+) -> Result<ApiOk<Vec<MediaDetails>>, ApiError> {
     // 【サービス構築】: AppStateはPgPoolのみ保持するため、ハンドラ内で都度ExternalSearchServiceを構築する 🔵
     let service = ExternalSearchService::new(state.db.clone());
 
@@ -554,10 +581,10 @@ mod tests {
 
     /// TC-0024-N01相当（ハンドラ単体呼び出し）: search_items_handlerがanime検索で200を返す（実DB+外部API必要）
     /// 【テスト目的】: まだ実装されていないsearch_items_handlerが、ItemSearchQueryを受け取り
-    /// ExternalSearchService経由で200・ApiOk<Vec<ExternalSearchResult>>を返すことを確認する
+    /// ExternalSearchService経由で200・ApiOk<Vec<MediaDetails>>を返すことを確認する
     /// 【テスト内容】: ItemSearchQuery { media_type: Anime, q: "鬼滅" } を渡してsearch_items_handlerを呼ぶ
     /// 【期待される動作】: ハンドラ呼び出し自体がコンパイルエラーとなる想定（Red状態）。
-    /// Green実装後はHTTPステータス200、ApiOk<Vec<ExternalSearchResult>>形式で返る
+    /// Green実装後はHTTPステータス200、ApiOk<Vec<MediaDetails>>形式で返る
     /// 🔵 信頼性レベル: 要件 4.1 TC-002-01・external_search.rs L18-28・dataflow.md（機能1正常系）より
     #[tokio::test]
     #[ignore] // 実DB・外部API（wiremock）が必要。Greenフェーズでwiremock注入経路を確定し#[ignore]解除またはユニット化する
@@ -573,8 +600,8 @@ mod tests {
         // 【処理内容】: ExternalSearchService::new(state.db.clone()).search(Anime, "鬼滅")への委譲を期待する
         let result = search_items_handler(State(state), Query(query)).await;
 
-        // 【結果検証】: 200・ApiOk<Vec<ExternalSearchResult>>が返ることを確認する（Green phaseで検証予定）
-        assert!(result.is_ok()); // 【確認内容】: Green実装後はOk(ApiOk<Vec<ExternalSearchResult>>)が返ることを確認する 🔵
+        // 【結果検証】: 200・ApiOk<Vec<MediaDetails>>が返ることを確認する（Green phaseで検証予定）
+        assert!(result.is_ok()); // 【確認内容】: Green実装後はOk(ApiOk<Vec<MediaDetails>>)が返ることを確認する 🔵
     }
 
     /// TC-0024-E01相当（ハンドラ単体呼び出し）: search_items_handlerがAPIキー未設定で422を返す（実DB+外部API必要）

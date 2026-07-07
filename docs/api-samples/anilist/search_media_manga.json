@@ -1,0 +1,130 @@
+{
+  "data": {
+    "Page": {
+      "media": [
+        {
+          "averageScore": 92,
+          "chapters": null,
+          "coverImage": {
+            "large": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30002-Cul4OeN7bYtn.jpg"
+          },
+          "episodes": null,
+          "genres": [
+            "Action",
+            "Adventure",
+            "Drama",
+            "Fantasy",
+            "Horror",
+            "Psychological"
+          ],
+          "id": 30002,
+          "season": null,
+          "seasonYear": null,
+          "status": "RELEASING",
+          "title": {
+            "english": "Berserk",
+            "native": "ベルセルク",
+            "romaji": "Berserk"
+          },
+          "type": "MANGA"
+        },
+        {
+          "averageScore": 66,
+          "chapters": null,
+          "coverImage": {
+            "large": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx101625-kmxzdK6xnkUU.jpg"
+          },
+          "episodes": null,
+          "genres": [
+            "Action",
+            "Adventure",
+            "Drama",
+            "Fantasy",
+            "Romance"
+          ],
+          "id": 101625,
+          "season": null,
+          "seasonYear": null,
+          "status": "RELEASING",
+          "title": {
+            "english": "Berserk of Gluttony",
+            "native": "暴食のベルセルク～俺だけレベルという概念を突破する～ THE COMIC",
+            "romaji": "Boushoku no Berserk: Ore Dake Level to Iu Gainen wo Toppa Suru THE COMIC"
+          },
+          "type": "MANGA"
+        },
+        {
+          "averageScore": 72,
+          "chapters": 1,
+          "coverImage": {
+            "large": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx36408-RXe0JkIEUDv8.jpg"
+          },
+          "episodes": null,
+          "genres": [
+            "Action",
+            "Adventure",
+            "Fantasy",
+            "Horror"
+          ],
+          "id": 36408,
+          "season": null,
+          "seasonYear": null,
+          "status": "FINISHED",
+          "title": {
+            "english": "Berserk: The Prototype",
+            "native": "BERSERK THE PROTOTYPE",
+            "romaji": "BERSERK THE PROTOTYPE"
+          },
+          "type": "MANGA"
+        },
+        {
+          "averageScore": 68,
+          "chapters": 239,
+          "coverImage": {
+            "large": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx100687-P42ISaAwGVw7.jpg"
+          },
+          "episodes": null,
+          "genres": [
+            "Action",
+            "Adventure",
+            "Drama",
+            "Fantasy",
+            "Romance"
+          ],
+          "id": 100687,
+          "season": null,
+          "seasonYear": null,
+          "status": "FINISHED",
+          "title": {
+            "english": "Berserk of Gluttony",
+            "native": "暴食のベルセルク　～俺だけレベルという概念を突破する～",
+            "romaji": "Boushoku no Berserk: Ore Dake Reberu to Iu Gainen wo Toppa Suru"
+          },
+          "type": "MANGA"
+        },
+        {
+          "averageScore": null,
+          "chapters": 33,
+          "coverImage": {
+            "large": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx120937-N1tmtLy49o0d.png"
+          },
+          "episodes": null,
+          "genres": [
+            "Action",
+            "Fantasy"
+          ],
+          "id": 120937,
+          "season": null,
+          "seasonYear": null,
+          "status": "FINISHED",
+          "title": {
+            "english": null,
+            "native": "異世界ギルドの英雄師弟",
+            "romaji": "Isekai Guild no Berserk"
+          },
+          "type": "MANGA"
+        }
+      ]
+    }
+  }
+}

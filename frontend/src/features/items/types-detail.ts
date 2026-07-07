@@ -4,7 +4,7 @@
  * ItemDetail 及び配下リソース（groups/episodes/staff/relations/links/files/trailers/mylists）
  * のバックエンド仕様（docs/backend/mediavault-api/data-model.md）に忠実な型をここに定義する。
  */
-import type { CategoryRef, ItemStatus, MediaType, TagRef } from './types';
+import type { CategoryRef, ItemStatus, MediaDetails, MediaType, TagRef } from './types';
 
 export type ItemSource = 'api' | 'manual';
 export type GroupType = 'season' | 'volume' | 'chapter';
@@ -33,8 +33,11 @@ export interface ItemDetail {
   external_id: string | null;
   created_at: string;
   updated_at: string;
-  /** メディア別詳細（media_typeに応じたキー集合）。本ページのv1では専用UIを持たないため緩い型に留める */
-  detail: Record<string, unknown> | null;
+  /**
+   * メディア別詳細。GET /items/search の要素・POST /items/import のボディと同形の
+   * 正規化済み MediaDetails（media_type が判別子）。手動作成・移行前インポートでは null。
+   */
+  detail: MediaDetails | null;
   tags: TagRef[];
   categories: CategoryRef[];
   calibre_links: CalibreWebLinkInfo[];

@@ -1,0 +1,181 @@
+{
+  "items": [
+    {
+      "controller_support": "full",
+      "id": 620,
+      "metascore": "95",
+      "name": "Portal 2",
+      "platforms": {
+        "linux": true,
+        "mac": false,
+        "windows": true
+      },
+      "price": {
+        "currency": "JPY",
+        "final": 24000,
+        "initial": 120000
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/620/capsule_231x87.jpg?t=1745363004",
+      "type": "app"
+    },
+    {
+      "controller_support": "full",
+      "id": 400,
+      "metascore": "90",
+      "name": "Portal",
+      "platforms": {
+        "linux": true,
+        "mac": false,
+        "windows": true
+      },
+      "price": {
+        "currency": "JPY",
+        "final": 24000,
+        "initial": 120000
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/400/capsule_231x87.jpg?t=1745368554",
+      "type": "app"
+    },
+    {
+      "id": 374040,
+      "metascore": "72",
+      "name": "Portal Knights",
+      "platforms": {
+        "linux": false,
+        "mac": false,
+        "windows": true
+      },
+      "price": {
+        "currency": "JPY",
+        "final": 29700,
+        "initial": 198000
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/374040/capsule_231x87.jpg?t=1696604379",
+      "type": "app"
+    },
+    {
+      "controller_support": "full",
+      "id": 1679220,
+      "metascore": "",
+      "name": "Portal Dungeon",
+      "platforms": {
+        "linux": false,
+        "mac": false,
+        "windows": true
+      },
+      "price": {
+        "currency": "JPY",
+        "final": 85000,
+        "initial": 170000
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1679220/capsule_231x87.jpg?t=1765534420",
+      "type": "app"
+    },
+    {
+      "controller_support": "full",
+      "id": 1113550,
+      "metascore": "",
+      "name": "Bridge Constructor Portal - Portal Proficiency",
+      "platforms": {
+        "linux": true,
+        "mac": true,
+        "windows": true
+      },
+      "price": {
+        "currency": "JPY",
+        "final": 11700,
+        "initial": 47000
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1113550/capsule_231x87.jpg?t=1717674841",
+      "type": "app"
+    },
+    {
+      "id": 4266000,
+      "metascore": "",
+      "name": "PortalVR Motion",
+      "platforms": {
+        "linux": false,
+        "mac": false,
+        "windows": true
+      },
+      "price": {
+        "currency": "JPY",
+        "final": 127300,
+        "initial": 190000
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4266000/eade6687b9c683fcff50c4ecbb0f43b0c8565e9a/capsule_231x87.jpg?t=1783091690",
+      "type": "app"
+    },
+    {
+      "id": 1255980,
+      "metascore": "",
+      "name": "Portal Reloaded",
+      "platforms": {
+        "linux": true,
+        "mac": true,
+        "windows": true
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1255980/adfcc8b3d04456d391b99cb01372b321cdb987f4/capsule_231x87.jpg?t=1732736194",
+      "type": "app"
+    },
+    {
+      "controller_support": "full",
+      "id": 684410,
+      "metascore": "77",
+      "name": "Bridge Constructor Portal",
+      "platforms": {
+        "linux": true,
+        "mac": true,
+        "windows": true
+      },
+      "price": {
+        "currency": "JPY",
+        "final": 12000,
+        "initial": 120000
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/684410/capsule_231x87.jpg?t=1717674640",
+      "type": "app"
+    },
+    {
+      "controller_support": "full",
+      "id": 601360,
+      "metascore": "",
+      "name": "Portal: Revolution",
+      "platforms": {
+        "linux": true,
+        "mac": false,
+        "windows": true
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/601360/072c9e764f4e3c1d7a9b832741e4eda033665860/capsule_231x87.jpg?t=1764365933",
+      "type": "app"
+    },
+    {
+      "id": 617090,
+      "metascore": "",
+      "name": "Portal Knights - Portal Pioneer Pack",
+      "platforms": {
+        "linux": false,
+        "mac": false,
+        "windows": true
+      },
+      "price": {
+        "currency": "JPY",
+        "final": 14900,
+        "initial": 29800
+      },
+      "streamingvideo": false,
+      "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/617090/capsule_231x87.jpg?t=1683299099",
+      "type": "app"
+    }
+  ],
+  "total": 10
+}

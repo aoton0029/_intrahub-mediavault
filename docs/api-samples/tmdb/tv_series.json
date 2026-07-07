@@ -1,0 +1,181 @@
+{
+  "adult": false,
+  "backdrop_path": "/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+  "created_by": [
+    {
+      "credit_id": "52542286760ee31328001a7b",
+      "gender": 2,
+      "id": 66633,
+      "name": "ヴィンス・ギリガン",
+      "original_name": "Vince Gilligan",
+      "profile_path": "/wJIxATESjzsjSgvRhVavOmdamXc.jpg"
+    }
+  ],
+  "episode_run_time": [],
+  "first_air_date": "2008-01-20",
+  "genres": [
+    {
+      "id": 18,
+      "name": "ドラマ"
+    },
+    {
+      "id": 80,
+      "name": "犯罪"
+    }
+  ],
+  "homepage": "https://www.sonypictures.com/tv/breakingbad",
+  "id": 1396,
+  "in_production": false,
+  "languages": [
+    "en",
+    "de",
+    "es"
+  ],
+  "last_air_date": "2013-09-29",
+  "last_episode_to_air": {
+    "air_date": "2013-09-29",
+    "episode_number": 16,
+    "episode_type": "finale",
+    "id": 62161,
+    "name": "フェリーナ",
+    "overview": "シリーズが劇的な結末を迎える!",
+    "production_code": "",
+    "runtime": 56,
+    "season_number": 5,
+    "show_id": 1396,
+    "still_path": "/pA0YwyhvdDXP3BEGL2grrIhq8aM.jpg",
+    "vote_average": 9.273,
+    "vote_count": 297
+  },
+  "name": "ブレイキング・バッド",
+  "networks": [
+    {
+      "id": 174,
+      "logo_path": "/pmvRmATOCaDykE6JrVoeYxlFHw3.png",
+      "name": "AMC",
+      "origin_country": "US"
+    }
+  ],
+  "next_episode_to_air": null,
+  "number_of_episodes": 62,
+  "number_of_seasons": 5,
+  "origin_country": [
+    "US"
+  ],
+  "original_language": "en",
+  "original_name": "Breaking Bad",
+  "overview": "家族に金を残したい―。ガンで余命宣告された冴えない高校の化学教師が、元教え子と組みドラッグ精製と売買に手を染める。",
+  "popularity": 143.6587,
+  "poster_path": "/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
+  "production_companies": [
+    {
+      "id": 11073,
+      "logo_path": "/wHs44fktdoj6c378ZbSWfzKsM2Z.png",
+      "name": "Sony Pictures Television",
+      "origin_country": "US"
+    },
+    {
+      "id": 33742,
+      "logo_path": "/2jdh2sEa0R6y6uT0F7g0IgA2WO8.png",
+      "name": "High Bridge Productions",
+      "origin_country": "US"
+    },
+    {
+      "id": 2605,
+      "logo_path": null,
+      "name": "Gran Via Productions",
+      "origin_country": "US"
+    }
+  ],
+  "production_countries": [
+    {
+      "iso_3166_1": "US",
+      "name": "United States of America"
+    }
+  ],
+  "seasons": [
+    {
+      "air_date": "2009-02-17",
+      "episode_count": 9,
+      "id": 3577,
+      "name": "特別編",
+      "overview": "",
+      "poster_path": "/4RaIvSQgHHHPfaI1jFqaMR8UJWM.jpg",
+      "season_number": 0,
+      "vote_average": 0.0
+    },
+    {
+      "air_date": "2008-01-20",
+      "episode_count": 7,
+      "id": 3572,
+      "name": "シーズン1",
+      "overview": "ベテランプロデューサー、ヴィンス・ギリガンとマーク・ジョンソンの制作によるドラマ。主人公のウォルターは冴えない高校の化学教師だが、自身が末期がんに冒されていることを知った後、新しい人生に目覚める。かつては成功を嘱望される化学者だったウォルターだが、今はやる気のない高校生に授業を行うかたわら、洗車のアルバイトをして家計を助ける身。妻のスカイラーは、eBayでの売買でほどほどの稼ぎを得ていた。息子のウォルター・ジュニアは17才。意志の強い若者だったが、脳性まひに苦しんでいた。家族に残せるものがほとんどないことに気がついたウォルターは、新しい人生の目的に目覚め、愛する家族に財産を残すため犯罪に手を染めていく。",
+      "poster_path": "/1BP4xYv9ZG4ZVHkL7ocOziBbSYH.jpg",
+      "season_number": 1,
+      "vote_average": 8.3
+    },
+    {
+      "air_date": "2009-03-08",
+      "episode_count": 13,
+      "id": 3573,
+      "name": "シーズン2",
+      "overview": "第2シーズンでは、ウォルターの下した決断が次々と連鎖反応を引き起こす。その対応に追われるウォルターは、ジェシーともどもシビアな事態に巻き込まれていく。膨らむ疑惑、高まる危険。さらなる自暴自棄に追いやられるウォルター。賭け金はどこまでつり上がるのか。家族を守るため、ウォルターはどこまで深入りするのか。彼の壮大な計画は、果たして制御不能に陥ってしまうのか？",
+      "poster_path": "/e3oGYpoTUhOFK0BJfloru5ZmGV.jpg",
+      "season_number": 2,
+      "vote_average": 8.4
+    },
+    {
+      "air_date": "2010-03-21",
+      "episode_count": 13,
+      "id": 3575,
+      "name": "シーズン3",
+      "overview": "反省のない“どこにでもいる男”、しかし「ハイゼンバーグ」を名乗るようになって大物の貫禄を身につけたウォルター（ブライアン・クランストン）。自暴自棄な夫、家族に財産を残そうとしている父親、アルバカーキのドラッグ取引の重要人物。いくつもの人格の裏側で葛藤するウォルター。崩壊寸前の家族。情け容赦ないドラッグカルテル。危険がエスカレートしていく一方で、その複雑な世界から彼はますます抜け出せなくなっていく。",
+      "poster_path": "/ffP8Q8ew048YofHRnFVM18B2fPG.jpg",
+      "season_number": 3,
+      "vote_average": 8.4
+    },
+    {
+      "air_date": "2011-07-17",
+      "episode_count": 13,
+      "id": 3576,
+      "name": "シーズン4",
+      "overview": "第3シーズンの終盤で、ジェシーは姿をくらまし、マイクに追われることになった。ウォルターはウォルターで、ガスに見逃してもらうため一世一代の交渉に出た。死を免れるため必死のウォルターは、自分とジェシーを救う案を思いつく。昔、研究所の助手だったゲイルの殺害である。この案によって、ジェスは銃を片手に持ってゲイルの家に向かうことになるが、一方のウォルターはスーパーラボで人質になる。第4シーズンでは、ウォルターとジェシーは、プライベートと仕事の両方で予期せぬ事態への対処を余儀なくされる。緊張が高まるなか、ウォルターは雇い主であるガスと対決することになる。どちらも引き下がるつもりはないし、双方とも後戻りはできない。また、ウォルターは妻のスカイラーとも新しい関係を築かなければならない。スカイラーはウォルターとの関係修復を模索する一方、彼の金をクリーンにするためマネーロンダリングに執着するようになる。",
+      "poster_path": "/5ewrnKp4TboU4hTLT5cWO350mHj.jpg",
+      "season_number": 4,
+      "vote_average": 8.6
+    },
+    {
+      "air_date": "2012-07-15",
+      "episode_count": 16,
+      "id": 3578,
+      "name": "ファイナルシーズン",
+      "overview": "ガスが残した証拠を消すためにウォルター、ジェシー、マイクは新たな協力関係を築く。ソウルのコネで隠れ工場を拠点にメス精製を再開する。一方で、ガスとウォルターのビジネスを知る９人の所在を突き止めるためリディアを脅迫する。リディアは自らの命を守るためにメスの原料を提供する。大きなオペレーションを運営するため、隠れ精製工場を提供するトッドを新たな仲間に加えるが、トッドとその叔父であるジャックがウォルター達の運命を大きく左右することに。スカイラーは家族の身の危険を感じ子どもたちをハンクとマリーに預ける。",
+      "poster_path": "/r3z70vunihrAkjILQKWHX0G2xzO.jpg",
+      "season_number": 5,
+      "vote_average": 8.9
+    }
+  ],
+  "softcore": false,
+  "spoken_languages": [
+    {
+      "english_name": "English",
+      "iso_639_1": "en",
+      "name": "English"
+    },
+    {
+      "english_name": "German",
+      "iso_639_1": "de",
+      "name": "Deutsch"
+    },
+    {
+      "english_name": "Spanish",
+      "iso_639_1": "es",
+      "name": "Español"
+    }
+  ],
+  "status": "Ended",
+  "tagline": "私の名は…",
+  "type": "Scripted",
+  "vote_average": 8.947,
+  "vote_count": 18056
+}

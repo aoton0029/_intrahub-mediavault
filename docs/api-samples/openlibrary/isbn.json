@@ -1,0 +1,40 @@
+{
+  "covers": [
+    12013118
+  ],
+  "created": {
+    "type": "/type/datetime",
+    "value": "2021-09-28T08:58:51.996939"
+  },
+  "isbn_10": [
+    "0261103253"
+  ],
+  "key": "/books/OL33912545M",
+  "last_modified": {
+    "type": "/type/datetime",
+    "value": "2023-02-16T14:24:34.866266"
+  },
+  "latest_revision": 5,
+  "lc_classifications": [
+    "PR6039.O32"
+  ],
+  "number_of_pages": 1031,
+  "physical_format": "Paperback",
+  "publish_date": "2004",
+  "publishers": [
+    "HarperCollins"
+  ],
+  "revision": 5,
+  "source_records": [
+    "bwb:9780261103252"
+  ],
+  "title": "The Lord of the Rings",
+  "type": {
+    "key": "/type/edition"
+  },
+  "works": [
+    {
+      "key": "/works/OL27448W"
+    }
+  ]
+}

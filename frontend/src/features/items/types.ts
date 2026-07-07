@@ -62,54 +62,124 @@ export const statusLabels: Record<ItemStatus, string> = {
 export type GeneralMediaType = 'anime' | 'movie' | 'drama' | 'manga' | 'novel' | 'game';
 
 /**
- * api_provider enum（docs/backend/mediavault-api/index.md）のうち、jikanを含めた
- * 一般メディア検索で実際に使われるプロバイダのみ。jikanはAPIキー不要のため
- * PUT /settings/api-keys/{provider} の対象一覧には含まれない。
+ * api_provider enum（バックエンド ApiProvider の serde 表現）。
+ * jikan はAPIキー不要のため enum に含まれず、ワイヤ上は provider: null で表現される。
  */
-export type ExternalProvider = 'jikan' | 'tmdb' | 'open_library' | 'igdb';
+export type ExternalProvider = 'tmdb' | 'igdb' | 'ndl' | 'steam' | 'open_library' | 'ani_list';
 
 export const externalProviderLabels: Record<ExternalProvider, string> = {
-  jikan: 'Jikan',
   tmdb: 'TMDB',
-  open_library: 'OpenLibrary',
   igdb: 'IGDB',
+  ndl: 'NDL',
+  steam: 'Steam',
+  open_library: 'OpenLibrary',
+  ani_list: 'AniList',
 };
 
-/** media_type ごとに使用される検索プロバイダ（12_general_media_search.htmlのコメントより） */
-export const mediaTypeProvider: Record<GeneralMediaType, ExternalProvider> = {
-  anime: 'jikan',
-  manga: 'jikan',
+/** provider の表示名（null = Jikan：キー不要プロバイダ） */
+export function providerLabel(provider: ExternalProvider | null): string {
+  return provider ? externalProviderLabels[provider] : 'Jikan';
+}
+
+/** media_type ごとに使用される検索プロバイダ（null = Jikan、キー不要） */
+export const mediaTypeProvider: Record<GeneralMediaType, ExternalProvider | null> = {
+  anime: null,
+  manga: null,
   movie: 'tmdb',
   drama: 'tmdb',
-  novel: 'open_library',
+  novel: 'ndl',
   game: 'igdb',
 };
 
 /**
- * GET /items/search のレスポンス要素。
- * 【ドキュメント未確定】docs/backend/mediavault-api/items.md にエンドポイント定義はあるが、
- * ExternalSearchResult のフィールド一覧は本文中に無い（mediavault-model/items.md にも未記載）。
- * 12_general_media_search.html のHTMLコメント（実装者向け注記）を一次情報として、
- * 正規化フィールドを持たない title・external_id・provider・raw_data のみの形で定義する。
+ * ノーマライズ済みドメインモデル（docs/backend/mediavault-api/items.md「MediaDetails」）。
+ * GET /items/search のレスポンス要素・POST /items/import のリクエストボディの両方に使う。
+ * ワイヤ上はフラットな1オブジェクトで、media_type が判別子。
  */
-export interface ExternalSearchResult {
-  title: string;
+export interface MediaCore {
+  media_type: MediaType;
+  provider: ExternalProvider | null;
   external_id: string;
-  provider: ExternalProvider;
-  thumbnail_url?: string | null;
-  raw_data: Record<string, unknown>;
+  title: string;
+  original_title: string | null;
+  alternative_titles: string[];
+  description: string | null;
+  release_date: string | null;
+  image_url: string | null;
+  genres: string[];
+  rating: number | null;
+  url: string | null;
 }
 
-/**
- * POST /items/import のリクエストボディ。
- * 【ドキュメント未確定】ExternalSearchResult同様、バックエンド側の型がまだ
- * ドキュメント化されていないため、12_general_media_search.htmlのコメントに基づく
- * 最小契約として定義する。実装時にレスポンス実体で要検証。
- */
-export interface ImportItemRequest {
-  media_type: GeneralMediaType;
-  external_id: string;
-  title: string;
-  provider: ExternalProvider;
-  raw_data?: Record<string, unknown>;
+export interface AnimeDetails extends MediaCore {
+  media_type: 'anime';
+  episodes: number | null;
+  status: string | null;
+  season: string | null;
+  year: number | null;
+  studios: string[];
+  source: string | null;
+  duration: string | null;
+  trailer_url: string | null;
 }
+
+export interface MangaDetails extends MediaCore {
+  media_type: 'manga';
+  chapters: number | null;
+  volumes: number | null;
+  status: string | null;
+  authors: string[];
+  serializations: string[];
+}
+
+export interface MovieDetails extends MediaCore {
+  media_type: 'movie';
+  runtime_minutes: number | null;
+  original_language: string | null;
+  vote_count: number | null;
+  collection: string | null;
+  production_companies: string[];
+}
+
+export interface DramaDetails extends MediaCore {
+  media_type: 'drama';
+  number_of_seasons: number | null;
+  number_of_episodes: number | null;
+  networks: string[];
+  status: string | null;
+  original_language: string | null;
+  first_air_date: string | null;
+  last_air_date: string | null;
+}
+
+export interface GameDetails extends MediaCore {
+  media_type: 'game';
+  platforms: string[];
+  developers: string[];
+  publishers: string[];
+  screenshots: string[];
+  metacritic: number | null;
+  steam_appid: number | null;
+  storyline: string | null;
+}
+
+/** 小説・学術書・論文は書誌形状を共有する */
+export interface NovelDetails extends MediaCore {
+  media_type: 'novel' | 'academic_book' | 'paper';
+  authors: string[];
+  publisher: string | null;
+  isbn: string | null;
+  page_count: number | null;
+  physical_format: string | null;
+}
+
+export type MediaDetails =
+  | AnimeDetails
+  | MangaDetails
+  | MovieDetails
+  | DramaDetails
+  | GameDetails
+  | NovelDetails;
+
+/** POST /items/import のリクエストボディは検索結果要素（MediaDetails）そのもの */
+export type ImportItemRequest = MediaDetails;

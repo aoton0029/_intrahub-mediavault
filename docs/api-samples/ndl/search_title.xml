@@ -1,0 +1,172 @@
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:openSearch="http://a9.com/-/spec/opensearchrss/1.0/" xmlns:dcndl="http://ndl.go.jp/dcndl/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" version="2.0">
+  <channel>
+    <title>吾輩は猫である - 国立国会図書館サーチ OpenSearch</title>
+    <link>https://ios-v2-prod-eks-alb.ndlsearch.ndl.go.jp/api/opensearch?title=%E5%90%BE%E8%BC%A9%E3%81%AF%E7%8C%AB%E3%81%A7%E3%81%82%E3%82%8B&amp;cnt=3</link>
+    <description>Search results for title=吾輩は猫である cnt=3</description>
+    <language>ja</language>
+    <openSearch:totalResults>1284</openSearch:totalResults>
+    <openSearch:startIndex>1</openSearch:startIndex>
+    <openSearch:itemsPerPage>3</openSearch:itemsPerPage>
+    <item>
+      <title>赤い実 : ほか</title>
+      <link>https://ndlsearch.ndl.go.jp/books/R100000002-I000008036046</link>
+      <description><![CDATA[<p>光村図書出版,2005,4-89528-369-0<p><ul><li>タイトル：赤い実 : ほか</li><li>タイトル（読み）：アカイ ミ : ホカ</li><li>責任表示：井上靖, 三木卓, 安岡章太郎, F=ムンテヤーヌ, 山本周五郎, 三浦哲郎, 夏目漱石 著,直野敦 訳</li><li>シリーズ名：光村ライブラリー ; 中学校編 第1巻</li><li>シリーズ名（読み）：ミツムラ ライブラリー ; チュウガッコウヘン ダイ 1カン</li><li>NDC(9)：913.68</li></ul>]]></description>
+      <author>井上, 靖, 1907-1991,三木, 卓, 1935-2023,安岡, 章太郎, 1920-2013,直野, 敦, 1929-,井上靖, 三木卓, 安岡章太郎, F=ムンテヤーヌ, 山本周五郎, 三浦哲郎, 夏目漱石 著,直野敦 訳</author>
+      <category>図書</category>
+      <category>紙</category>
+      <guid isPermaLink="true">https://ndlsearch.ndl.go.jp/books/R100000002-I000008036046</guid>
+      <pubDate>Sat, 3 Feb 2024 00:31:30 +0900</pubDate>
+      <dc:title>赤い実 : ほか</dc:title>
+      <dcndl:titleTranscription>アカイ ミ : ホカ</dcndl:titleTranscription>
+      <dc:creator>井上, 靖, 1907-1991</dc:creator>
+      <dc:creator>三木, 卓, 1935-2023</dc:creator>
+      <dc:creator>安岡, 章太郎, 1920-2013</dc:creator>
+      <dc:creator>直野, 敦, 1929-</dc:creator>
+      <dcndl:creatorTranscription>イノウエ, ヤスシ, 1907-1991</dcndl:creatorTranscription>
+      <dcndl:creatorTranscription>ミキ, タク, 1935-2023</dcndl:creatorTranscription>
+      <dcndl:creatorTranscription>ヤスオカ, ショウタロウ, 1920-2013</dcndl:creatorTranscription>
+      <dcndl:creatorTranscription>ナオノ, アツシ, 1929-</dcndl:creatorTranscription>
+      <dcndl:seriesTitle>光村ライブラリー ; 中学校編 第1巻</dcndl:seriesTitle>
+      <dcndl:seriesTitleTranscription>ミツムラ ライブラリー ; チュウガッコウヘン ダイ 1カン</dcndl:seriesTitleTranscription>
+      <dc:publisher>光村図書出版</dc:publisher>
+      <dcndl:publicationPlace>JP</dcndl:publicationPlace>
+      <dc:date xsi:type="dcterms:W3CDTF">2005</dc:date>
+      <dcterms:issued>2005.11</dcterms:issued>
+      <dcndl:price>1000円</dcndl:price>
+      <dc:extent>117p</dc:extent>
+      <dc:identifier xsi:type="dcndl:ISBN">4-89528-369-0</dc:identifier>
+      <dc:identifier xsi:type="dcndl:ISBN13">4-89528-369-0</dc:identifier>
+      <dc:identifier xsi:type="dcndl:NDLBibID">000008036046</dc:identifier>
+      <dc:identifier xsi:type="dcndl:JPNO">20963910</dc:identifier>
+      <dcndl:genre>児童図書</dcndl:genre>
+      <dcndl:genreTranscription>ジドウ トショ</dcndl:genreTranscription>
+      <dc:subject xsi:type="dcndl:NDLC">Y8</dc:subject>
+      <dc:subject xsi:type="dcndl:NDC9">913.68</dc:subject>
+      <dc:description>挿画: 鈴木登良次ほか</dc:description>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.hokkaido.jp/wo/opc_srh/"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.sapporo.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1006500279192"/>
+      <rdfs:seeAlso rdf:resource="https://www.plib.pref.aomori.lg.jp/winj/opac/switch-detail-iccap.do?bibid=1102690754"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.iwate.jp/opac/advanced-search"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.miyagi.jp/wo/opc_srh/srh_detail/1000494528/"/>
+      <rdfs:seeAlso rdf:resource="https://www.apl.pref.akita.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1000000016957"/>
+      <rdfs:seeAlso rdf:resource="https://opac.lib.pref.yamagata.jp/winj/opac/switch-detail-iccap.do?bibid=1101495067"/>
+      <rdfs:seeAlso rdf:resource="https://opac.library.fcs.ed.jp/winj/opac/switch-detail-iccap.do?bibid=1102233228"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.pref.ibaraki.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1001001277532"/>
+      <rdfs:seeAlso rdf:resource="https://www1.library.pref.gunma.jp/winj/opac/switch-detail-iccap.do?bibid=1100468484"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.pref.saitama.jp/winj/opac/switch-detail-iccap.do?bibid=1197512435"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.city.saitama.jp/bookdetail?num=1714073&amp;ctg=1"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.chiba.lg.jp//licsxp-iopac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1000000702194"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.chiba.jp/licsxp-opac/WOpacTifSchCmpdDispAction.do"/>
+      <rdfs:seeAlso rdf:resource="https://catalog.library.metro.tokyo.lg.jp/winj/opac/switch-detail-iccap.do?bibid=1106710367"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.kawasaki.jp/bookdetail?num=443621&amp;ctg=1"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.sagamihara.kanagawa.jp/TOSHOW/asp/WwShousaiKen.aspx?FCode=1200712"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.ishikawa.lg.jp/wo/opc_srh/srh_detail/1009910684617/"/>
+      <rdfs:seeAlso rdf:resource="https://www.library-archives.pref.fukui.lg.jp/wo/opc_srh/srh_detail/1104557596/"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.pref.yamanashi.jp/licsxp-opac/WOpacMnuTopInitAction.do"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.nagano.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1001100297292"/>
+      <rdfs:seeAlso rdf:resource="https://www.tosyokan.pref.shizuoka.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1000510199965"/>
+      <rdfs:seeAlso rdf:resource="https://www.toshokan.city.shizuoka.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1001100494821"/>
+      <rdfs:seeAlso rdf:resource="http://websv.aichi-pref-library.jp/winj/opac/switch-detail-iccap.do?bibid=1160666396"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.nagoya.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1009915059685"/>
+      <rdfs:seeAlso rdf:resource="http://opac1.library.pref.mie.lg.jp/winj/opac/switch-detail-iccap.do?bibid=1102371292"/>
+      <rdfs:seeAlso rdf:resource="https://www.shiga-pref-library.jp/wo/opc_srh/srh_detail/1896031/"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.osaka.jp/bib/?B12068533"/>
+      <rdfs:seeAlso rdf:resource="https://www.oml.city.osaka.lg.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1000011099998"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib-sakai.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1000500111748"/>
+      <rdfs:seeAlso rdf:resource="https://opacsvr01.library.pref.nara.jp/opac/volume/561654"/>
+      <rdfs:seeAlso rdf:resource="http://www.lib.wakayama-c.ed.jp/winj/opac/switch-detail-iccap.do?bibid=1100490370"/>
+      <rdfs:seeAlso rdf:resource="http://www.library.pref.tottori.jp/winj/opac/switch-detail-iccap.do?bibid=1101316787"/>
+      <rdfs:seeAlso rdf:resource="https://www2.library.pref.shimane.lg.jp/opac/switch-detail-iccap.do?bibid=1100984315"/>
+      <rdfs:seeAlso rdf:resource="https://opac.libnet.pref.okayama.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1009810808342"/>
+      <rdfs:seeAlso rdf:resource="https://www2.hplibra.pref.hiroshima.jp/bib/?B11963168"/>
+      <rdfs:seeAlso rdf:resource="http://www.library.city.hiroshima.jp/winj/opac/switch-detail-iccap.do?bibid=1102740184"/>
+      <rdfs:seeAlso rdf:resource="https://library.pref.yamaguchi.lg.jp//wo/opc_srh/srh_detail/1000279449/"/>
+      <rdfs:seeAlso rdf:resource="https://alislibopac.bunmori.tokushima.jp/winj/opac/switch-detail-iccap.do?bibid=1102203756"/>
+      <rdfs:seeAlso rdf:resource="https://www.ehimetosyokan.jp/winj/opac/switch-detail-iccap.do?bibid=1100535855"/>
+      <rdfs:seeAlso rdf:resource="https://opac.library.kochi.jp/winj/opac/switch-detail-iccap.do?bibid=1108865971"/>
+      <rdfs:seeAlso rdf:resource="http://www.lib.pref.fukuoka.jp/winj/opac/switch-detail-iccap.do?bibid=1106247093"/>
+      <rdfs:seeAlso rdf:resource="https://opac.toshokan.city.fukuoka.lg.jp/licsxp-opac/WOpacTifSchCmpdDispAction.do"/>
+      <rdfs:seeAlso rdf:resource="https://www2.tosyo-saga.jp/kentosyo2/opac/switch-detail-iccap.do?bibid=1100769696"/>
+      <rdfs:seeAlso rdf:resource="https://opac.miraionlibrary.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1009810858475"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.kumamoto.jp/winj/opac/switch-detail-iccap.do?bibid=1117562203"/>
+      <rdfs:seeAlso rdf:resource="https://library.pref.oita.jp/winj/opac/switch-detail-iccap.do?bibid=1100086878"/>
+      <rdfs:seeAlso rdf:resource="https://www2.library.pref.kagoshima.jp/kento/opac/switch-detail-iccap.do?bibid=1105065392"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.okinawa.jp/winj/opac/switch-detail-iccap.do?bibid=1100190082"/>
+      <rdfs:seeAlso rdf:resource="https://ndlsearch.ndl.go.jp/books/R100000002-I000008036046"/>
+      <rdfs:seeAlso rdf:resource="https://library.sapie.or.jp/cgi-bin/CN1MN1?S00101=J00DTL04&amp;S00222=1100612"/>
+      <rdfs:seeAlso rdf:resource="https://library.sapie.or.jp/cgi-bin/CN1MN1?S00101=J00DTL04&amp;S00222=1786747"/>
+      <rdfs:seeAlso rdf:resource="https://library.sapie.or.jp/cgi-bin/CN1MN1?S00101=J00DTL04&amp;S00222=4664091"/>
+      <rdfs:seeAlso rdf:resource="https://library.sapie.or.jp/cgi-bin/CN1MN1?S00101=J00DTL04&amp;S00222=4855318"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.osaka.jp/bibj/?B16451541"/>
+      <rdfs:seeAlso rdf:resource="https://ci.nii.ac.jp/ncid/BA76014811"/>
+      <rdfs:seeAlso rdf:resource="https://www.books.or.jp/book-details/9784895283694"/>
+      <dc:description> 2005</dc:description>
+    </item>
+    <item>
+      <title>頭のいい子を育てる日本のおはなし : ハンディタイプ : おでかけに最適!軽くて持ち運びやすい</title>
+      <link>https://ndlsearch.ndl.go.jp/books/R100000002-I025552390</link>
+      <description><![CDATA[<p>主婦の友社,2014,978-4-07-296696-9<p><ul><li>タイトル：頭のいい子を育てる日本のおはなし : ハンディタイプ : おでかけに最適!軽くて持ち運びやすい</li><li>タイトル（読み）：アタマ ノ イイ コ オ ソダテル ニホン ノ オハナシ : ハンディ タイプ : オデカケ ニ サイテキ カルクテ モチハコビヤスイ</li><li>責任表示：主婦の友社 編</li><li>シリーズ名：頭のいい子を育てるおはなし366ベストセレクト90</li><li>シリーズ名（読み）：アタマ ノ イイ コ オ ソダテル オハナシ サンビャクロクジュウロク ベスト セレクト キュウジュウ</li><li>NDC(9)：913.68</li></ul>]]></description>
+      <author>主婦の友社,主婦の友社 編</author>
+      <category>図書</category>
+      <category>紙</category>
+      <guid isPermaLink="true">https://ndlsearch.ndl.go.jp/books/R100000002-I025552390</guid>
+      <pubDate>Mon, 13 Jun 2022 18:25:20 +0900</pubDate>
+      <dc:title>頭のいい子を育てる日本のおはなし : ハンディタイプ : おでかけに最適!軽くて持ち運びやすい</dc:title>
+      <dcndl:titleTranscription>アタマ ノ イイ コ オ ソダテル ニホン ノ オハナシ : ハンディ タイプ : オデカケ ニ サイテキ カルクテ モチハコビヤスイ</dcndl:titleTranscription>
+      <dc:creator>主婦の友社</dc:creator>
+      <dcndl:creatorTranscription>シュフ ノ トモシャ</dcndl:creatorTranscription>
+      <dcndl:seriesTitle>頭のいい子を育てるおはなし366ベストセレクト90</dcndl:seriesTitle>
+      <dcndl:seriesTitleTranscription>アタマ ノ イイ コ オ ソダテル オハナシ サンビャクロクジュウロク ベスト セレクト キュウジュウ</dcndl:seriesTitleTranscription>
+      <dc:publisher>主婦の友社</dc:publisher>
+      <dcndl:publicationPlace>JP</dcndl:publicationPlace>
+      <dc:date xsi:type="dcterms:W3CDTF">2014</dc:date>
+      <dcterms:issued>2014.8</dcterms:issued>
+      <dcndl:price>1000円</dcndl:price>
+      <dc:extent>191p</dc:extent>
+      <dc:identifier xsi:type="dcndl:ISBN">978-4-07-296696-9</dc:identifier>
+      <dc:identifier xsi:type="dcndl:NDLBibID">025552390</dc:identifier>
+      <dc:identifier xsi:type="dcndl:JPNO">22435275</dc:identifier>
+      <dc:identifier xsi:type="dcndl:TOHANMARCNO">33122825</dc:identifier>
+      <dc:subject>日本小説--小説集</dc:subject>
+      <dcndl:genre>児童図書</dcndl:genre>
+      <dcndl:genreTranscription>ジドウ トショ</dcndl:genreTranscription>
+      <dc:subject xsi:type="dcndl:NDLC">Y8</dc:subject>
+      <dc:subject xsi:type="dcndl:NDC9">913.68</dc:subject>
+      <dc:description>索引あり</dc:description>
+      <rdfs:seeAlso rdf:resource="https://www.apl.pref.akita.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1009920202425"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.chiba.jp/licsxp-opac/WOpacTifSchCmpdDispAction.do"/>
+      <rdfs:seeAlso rdf:resource="https://www.tosyokan.pref.shizuoka.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1002000451900"/>
+      <rdfs:seeAlso rdf:resource="https://opac.libnet.pref.okayama.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1009811808252"/>
+      <rdfs:seeAlso rdf:resource="https://opac.miraionlibrary.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1000002278321"/>
+      <rdfs:seeAlso rdf:resource="https://www2.library.pref.kagoshima.jp/kento/opac/switch-detail-iccap.do?bibid=1111373438"/>
+      <rdfs:seeAlso rdf:resource="https://ndlsearch.ndl.go.jp/books/R100000002-I025552390"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.osaka.jp/bibj/?B13055244"/>
+      <rdfs:seeAlso rdf:resource="https://www.books.or.jp/book-details/07296696000000000005"/>
+      <rdfs:seeAlso rdf:resource="https://www.books.or.jp/book-details/9784072966969"/>
+      <dc:description> 2014</dc:description>
+    </item>
+    <item>
+      <title>ある瞬間 5||吾輩は猫である||住宅難を解消してよ : 秋田魁新報</title>
+      <link>https://ndlsearch.ndl.go.jp/books/R100000094-I932551</link>
+      <description><![CDATA[<p>1967-05-12,<p><ul><li>タイトル：ある瞬間 5||吾輩は猫である||住宅難を解消してよ : 秋田魁新報</li><li>タイトル（読み）：アルシュンカン 5||ワガワイハネコデアル||ジュウタクナンオカイショウシテヨ : あきたさきがけしんぽう</li></ul>]]></description>
+      <author/>
+      <category>記事</category>
+      <category>新聞</category>
+      <category>紙</category>
+      <guid isPermaLink="true">https://ndlsearch.ndl.go.jp/books/R100000094-I932551</guid>
+      <pubDate>Thu, 13 Nov 2025 19:58:14 +0900</pubDate>
+      <dc:title>ある瞬間 5||吾輩は猫である||住宅難を解消してよ : 秋田魁新報</dc:title>
+      <dcndl:titleTranscription>アルシュンカン 5||ワガワイハネコデアル||ジュウタクナンオカイショウシテヨ : あきたさきがけしんぽう</dcndl:titleTranscription>
+      <dc:date xsi:type="dcterms:W3CDTF">1967-05-12</dc:date>
+      <dcterms:issued>1967年5月12日 夕刊 3面（1967-05-12）</dcterms:issued>
+      <dc:subject>動物||ジャコーネコ||飼育環境</dc:subject>
+      <dc:description>新聞</dc:description>
+      <dc:description>索引</dc:description>
+      <dc:description>秋田魁新報記事見出し検索</dc:description>
+      <dc:description>掲載誌：『秋田魁新報』1967年5月12日 夕刊 3面</dc:description>
+      <dc:description>デジタルコンテンツなし</dc:description>
+      <rdfs:seeAlso rdf:resource="https://adeac.jp/akita-pref/catalog/01-ref-C-300219"/>
+      <dc:description> 1967-05-12</dc:description>
+    </item>
+  </channel>
+</rss>

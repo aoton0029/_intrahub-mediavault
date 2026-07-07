@@ -1,10 +1,10 @@
 use std::future::Future;
 
-use api_client_lib::error::ApiError;
 use api_client_lib::clients::openlibrary::requests::{
     OlIsbnRequest, OlSearchRequest, OlWorksRequest,
 };
 use api_client_lib::clients::openlibrary::OpenLibraryClient;
+use api_client_lib::error::ApiError;
 
 /// OpenLibrary の実 API は共有インフラ上でのレスポンスタイムが不安定なため、
 /// クライアント側の固定 3 秒タイムアウトに対してまれに間に合わないことがある。

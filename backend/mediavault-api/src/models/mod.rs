@@ -1,5 +1,6 @@
 pub mod api_credential;
 pub mod category;
+pub mod domain;
 pub mod external_search;
 pub mod import;
 pub mod item;

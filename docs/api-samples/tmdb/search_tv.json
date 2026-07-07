@@ -1,0 +1,117 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+      "first_air_date": "2008-01-20",
+      "genre_ids": [
+        18,
+        80
+      ],
+      "id": 1396,
+      "name": "ブレイキング・バッド",
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Breaking Bad",
+      "overview": "家族に金を残したい―。ガンで余命宣告された冴えない高校の化学教師が、元教え子と組みドラッグ精製と売買に手を染める。",
+      "popularity": 133.526,
+      "poster_path": "/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
+      "softcore": false,
+      "vote_average": 8.947,
+      "vote_count": 18059
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "first_air_date": "2009-02-17",
+      "genre_ids": [
+        35,
+        80,
+        18
+      ],
+      "id": 297997,
+      "name": "Breaking Bad: Original Minisodes",
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Breaking Bad: Original Minisodes",
+      "overview": "",
+      "popularity": 0.6681,
+      "poster_path": "/fFNbRUleJQ9GkCfJunU4yXuNbma.jpg",
+      "softcore": false,
+      "vote_average": 6.0,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "first_air_date": "2025-06-08",
+      "genre_ids": [],
+      "id": 326283,
+      "name": "Breaking the Deal with My Hockey Bad Boy",
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Breaking the Deal with My Hockey Bad Boy",
+      "overview": "",
+      "popularity": 0.2371,
+      "poster_path": "/cjvq9nh9oVMC2ike0s6L9f72pZF.jpg",
+      "softcore": false,
+      "vote_average": 0.0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "first_air_date": "2016-04-11",
+      "genre_ids": [
+        18,
+        9648
+      ],
+      "id": 232533,
+      "name": "绝命卦师",
+      "origin_country": [
+        "CN"
+      ],
+      "original_language": "zh",
+      "original_name": "绝命卦师",
+      "overview": "",
+      "popularity": 1.2828,
+      "poster_path": "/n8dKkbPkdEPFCFmjNvrUl1gUAYr.jpg",
+      "softcore": false,
+      "vote_average": 7.5,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/pXdkJvhBcPf8oEj831ASMkLPXKT.jpg",
+      "first_air_date": "2025-11-06",
+      "genre_ids": [
+        16,
+        80,
+        35,
+        10751
+      ],
+      "id": 302540,
+      "name": "バッドガイズ: いざ侵入",
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "The Bad Guys: The Series",
+      "overview": "そもそも、バッドガイズはいかにしてワルの世界に足を踏み入れたのか? 人気映画シリーズでは語られなかった原点を描く、とにかく笑える前日譚アニメシリーズ。",
+      "popularity": 12.7518,
+      "poster_path": "/1F19BFivPc2N3sXJ4461cWsrK33.jpg",
+      "softcore": false,
+      "vote_average": 6.8,
+      "vote_count": 39
+    }
+  ],
+  "total_pages": 1,
+  "total_results": 5
+}

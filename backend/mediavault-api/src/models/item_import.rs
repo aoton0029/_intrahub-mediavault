@@ -5,17 +5,17 @@
 //! 【信頼性レベル】: 🔵 item-import-requirements.md 第2章・item-import-testcases.md TC-0025-N01より
 
 use chrono::NaiveDate;
-use serde::Deserialize;
 
+use crate::models::domain::MediaDetails;
 use crate::models::item::{CreateItemRequest, validate_title};
 use crate::models::response::{ApiError, ApiErrorCode};
 
-/// `POST /items/import` リクエストDTO
+/// `POST /items/import` の内部中間表現
 ///
-/// 【機能概要】: 外部API検索結果（GET /items/search）から選択した1件をインポートするためのDTO。
+/// 【機能概要】: リクエストボディ（[`MediaDetails`]）をリポジトリ層が扱う形へ落とした中間DTO。
+/// ワイヤ形式はMediaDetailsに一本化されたため、本構造体はデシリアライズ対象ではない。
 /// `external_id`はAPI起源アイテムの必須項目（DB CHECK制約 chk_items_source_external_id対象）。
-/// 🔵 信頼性レベル: item-import-requirements.md 2.1 入力仕様表に直接対応
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ImportItemRequest {
     pub media_type: crate::models::item::MediaType,
     /// 外部API上の一意ID。空文字・欠落は400 VALIDATION_ERROR対象（必須・非Option）
@@ -26,10 +26,43 @@ pub struct ImportItemRequest {
     pub cover_image_url: Option<String>,
     pub release_date: Option<NaiveDate>,
     pub homepage_url: Option<String>,
-    /// メディア別詳細テーブル用データ。現状はitem_idのみINSERTするため保持のみ。
-    /// 🟡 信頼性レベル: 要件2.1「Option化を推奨」に基づく
-    #[serde(default)]
+    /// ノーマライズ済みMediaDetailsのJSON表現。メディア別詳細テーブル用に保持する。
     pub details: Option<serde_json::Value>,
+}
+
+/// MediaCoreの`release_date`（精度がプロバイダごとに異なる文字列）を`NaiveDate`へ変換する。
+///
+/// "YYYY-MM-DD" を優先し、年のみ（"2003"等）は1月1日へフォールバック。
+/// 解釈できない形式はNoneとし、インポート自体は拒否しない。
+fn parse_release_date(raw: &str) -> Option<NaiveDate> {
+    let trimmed = raw.trim();
+    NaiveDate::parse_from_str(trimmed, "%Y-%m-%d")
+        .ok()
+        .or_else(|| {
+            trimmed
+                .parse::<i32>()
+                .ok()
+                .and_then(|year| NaiveDate::from_ymd_opt(year, 1, 1))
+        })
+}
+
+impl From<MediaDetails> for ImportItemRequest {
+    fn from(details: MediaDetails) -> Self {
+        // 詳細テーブル用にノーマライズ済みJSONを丸ごと保持する（シリアライズは自前型のため失敗しない）
+        let details_json = serde_json::to_value(&details).ok();
+        let core = details.core().clone();
+        ImportItemRequest {
+            media_type: core.media_type,
+            external_id: core.external_id,
+            title: core.title,
+            original_title: core.original_title,
+            description: core.description,
+            cover_image_url: core.image_url,
+            release_date: core.release_date.as_deref().and_then(parse_release_date),
+            homepage_url: core.url,
+            details: details_json,
+        }
+    }
 }
 
 /// `ImportItemRequest`を`create_item_with_source`が受け取る`CreateItemRequest`へ変換する。
@@ -82,26 +115,24 @@ pub fn validate_external_id(external_id: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// JSON値を`ImportItemRequest`へデシリアライズし、バリデーションを行う。
+/// JSON値を`MediaDetails`としてデシリアライズし、バリデーション後に中間DTOへ変換する。
 ///
-/// 【機能概要】: `parse_create_item_request`相当の役割。media_type/external_id/titleの
-/// デシリアライズ失敗・空文字を400 VALIDATION_ERRORへ変換する。
-/// 【実装方針】: `deserialize_request` → `validate_external_id` → `validate_title`の順に
-/// 検証する。デシリアライズ失敗は`?`演算子経由でVALIDATION_ERRORへ変換される。
+/// 【機能概要】: リクエストボディはGET /items/searchが返す`MediaDetails`と同形。
+/// media_type不正・external_id/title欠落や空文字は400 VALIDATION_ERRORへ変換する。
 /// 🔵 信頼性レベル: item-import-requirements.md 2.3データフロー、
 /// item-import-testcases.md TC-0025-N01・E01〜E05より
 pub fn parse_import_item_request(value: serde_json::Value) -> Result<ImportItemRequest, ApiError> {
-    // 【デシリアライズ】: media_type/external_id/title等をImportItemRequestへ変換する。
+    // 【デシリアライズ】: media_typeを判別子としてMediaDetailsへ変換する。
     // デシリアライズ失敗（media_type不正値・external_id欠落等）はVALIDATION_ERRORへ変換される 🔵
-    let request: ImportItemRequest = crate::models::item::deserialize_request(value)?;
+    let details: MediaDetails = crate::models::item::deserialize_request(value)?;
 
     // 【external_idバリデーション】: 空文字・空白のみを400 VALIDATION_ERRORとして拒否する 🔵
-    validate_external_id(&request.external_id)?;
+    validate_external_id(&details.core().external_id)?;
     // 【titleバリデーション】: 既存CreateItemRequest用validate_titleを再利用し、
     // 空文字・空白のみのtitleを拒否する 🟡
-    validate_title(&request.title)?;
+    validate_title(&details.core().title)?;
 
-    Ok(request)
+    Ok(ImportItemRequest::from(details))
 }
 
 #[cfg(test)]
@@ -250,27 +281,50 @@ mod tests {
         assert_eq!(err.status, StatusCode::BAD_REQUEST); // 【確認内容】: HTTPステータスが400であることを確認 🟡
     }
 
-    /// TC-0025-B02: detailsフィールド省略時に#[serde(default)]でNone扱いとなりデシリアライズが成功する
-    /// 【テスト目的】: detailsのOption化・default挙動を確認する
-    /// 【テスト内容】: detailsキーを含まないJSONをparse_import_item_requestへ渡す
-    /// 【期待される動作】: Ok(request)が返り、request.details == None
-    /// 🟡 信頼性レベル: 要件2.1 L49-51（detailsのOption化推奨・範囲外明記）、
-    /// 既存CreateItemRequest.detailsより
+    /// MediaDetailsのコア項目がImportItemRequestの各カラムへマッピングされる
+    /// 【テスト目的】: image_url→cover_image_url、url→homepage_url、release_date文字列→NaiveDate、
+    /// ノーマライズ済みJSONのdetails保持を確認する
     #[test]
-    fn import_item_request_omitted_details_defaults_to_none() {
-        // 【テストデータ準備】: detailsキーを含まない最小構成（必須3項目のみ）
-        // 【初期条件設定】: 詳細データを送らないシンプルなインポートを再現
+    fn import_item_request_maps_media_details_core_fields() {
+        // 【テストデータ準備】: 検索結果（MediaDetails）と同形の代表的リクエストボディ
         let value = serde_json::json!({
-            "media_type": "anime",
-            "external_id": "1",
-            "title": "A"
+            "media_type": "movie",
+            "provider": "tmdb",
+            "external_id": "603",
+            "title": "マトリックス",
+            "original_title": "The Matrix",
+            "description": "あらすじ",
+            "release_date": "1999-03-31",
+            "image_url": "https://image.tmdb.org/t/p/w342/poster.jpg",
+            "url": "https://example.com",
+            "rating": 8.2
         });
 
-        // 【実際の処理実行】: parse_import_item_requestを呼び出す
-        let result = parse_import_item_request(value);
+        let request = parse_import_item_request(value).unwrap();
 
-        // 【結果検証】: デシリアライズが成功し、detailsがNoneであることを確認
-        let request = result.unwrap();
-        assert_eq!(request.details, None); // 【確認内容】: details省略時に#[serde(default)]でNoneになることを確認 🟡
+        assert_eq!(request.media_type, MediaType::Movie); // 【確認内容】: media_typeのマッピング 🔵
+        assert_eq!(request.original_title.as_deref(), Some("The Matrix"));
+        assert_eq!(request.description.as_deref(), Some("あらすじ"));
+        assert_eq!(
+            request.cover_image_url.as_deref(),
+            Some("https://image.tmdb.org/t/p/w342/poster.jpg")
+        ); // 【確認内容】: image_url→cover_image_url 🔵
+        assert_eq!(request.release_date, NaiveDate::from_ymd_opt(1999, 3, 31)); // 【確認内容】: "YYYY-MM-DD"文字列→NaiveDate 🔵
+        assert_eq!(request.homepage_url.as_deref(), Some("https://example.com")); // 【確認内容】: url→homepage_url 🔵
+        let details = request
+            .details
+            .expect("ノーマライズ済みJSONが保持されるはず");
+        assert_eq!(details["media_type"], "movie"); // 【確認内容】: detailsにMediaDetails全体が保持される 🟡
+    }
+
+    /// release_dateが年のみ・不正形式の場合のフォールバックを確認する
+    #[test]
+    fn parse_release_date_handles_year_only_and_invalid_values() {
+        assert_eq!(
+            parse_release_date("2003"),
+            NaiveDate::from_ymd_opt(2003, 1, 1)
+        ); // 【確認内容】: 年のみは1月1日へフォールバック 🟡
+        assert_eq!(parse_release_date("June 2, 2005"), None); // 【確認内容】: 解釈不能な形式はNone（拒否しない） 🟡
+        assert_eq!(parse_release_date(""), None);
     }
 }

@@ -14,24 +14,6 @@ use crate::models::item::{
 use crate::models::item_import::ImportItemRequest;
 use crate::models::response::{ApiError, ApiErrorCode};
 
-/// 【機能概要】: `media_type`に対応する詳細テーブル名を返す
-/// 【実装方針】: database-schema.sqlで定義された8つの詳細テーブルへmatch式で振り分ける
-/// 【テスト対応】: detail_table_name_for_* の8テストケースを通すための実装
-/// 🔵 信頼性レベル: database-schema.sqlのテーブル定義に直接対応
-pub fn detail_table_name(media_type: MediaType) -> &'static str {
-    // 【振り分け処理】: media_typeのバリアントごとに対応する詳細テーブル名を返す 🔵
-    match media_type {
-        MediaType::Anime => "anime_details",
-        MediaType::Movie => "movie_details",
-        MediaType::Drama => "drama_details",
-        MediaType::Manga => "manga_details",
-        MediaType::Novel => "novel_details",
-        MediaType::Game => "game_details",
-        MediaType::AcademicBook => "academic_book_details",
-        MediaType::Paper => "paper_details",
-    }
-}
-
 /// 【機能概要】: sqlxのDBエラーを統一エラー型（INTERNAL_ERROR）へ変換する
 /// 【改善内容】: 元のSQLエラー詳細（テーブル構造・制約名等の内部情報）をクライアントへの
 /// レスポンスに含めず、サーバーログにのみ出力するよう変更した
@@ -80,11 +62,13 @@ pub async fn create_item_with_source(
     // 【items本体INSERT】: source/external_idを$10/$11としてbindし、ハードコードを撤廃する。
     // 【TASK-0030拡張】: consumed_dateを$12としてbindし、ブクログCSVの「読了日」をDB永続化可能にする
     // （設計判断#1：作成パスを拡張する。TC-N-05・TC-DB-01対応） 🔵
+    // 【詳細情報】: detailsは正規化済みMediaDetails JSONをそのままJSONB($13)へ保存する
     let item: Item = sqlx::query_as(
         "INSERT INTO items (
             media_type, title, original_title, description, cover_image_url,
-            release_date, homepage_url, rating, is_favorite, source, external_id, consumed_date
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            release_date, homepage_url, rating, is_favorite, source, external_id, consumed_date,
+            details
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING id, media_type, title, original_title, description, cover_image_url,
             release_date, homepage_url, status, consumed_date, rating, is_favorite,
             source, external_id, created_at, updated_at",
@@ -101,23 +85,11 @@ pub async fn create_item_with_source(
     .bind(source)
     .bind(&external_id)
     .bind(request.consumed_date)
+    .bind(&request.details)
     .fetch_one(&mut *tx)
     .await
     .map_err(db_error)?;
 
-    // 【詳細テーブルINSERT】: media_typeに応じたテーブルへitem_idのみでINSERTする。
-    // 【注意事項】: テーブル名はdetail_table_name()のmatch式で解決した固定文字列のみのため、
-    // SQLインジェクションの危険はない（外部入力を直接埋め込んでいない）。
-    // detailsの個別カラムへの反映はRefactorフェーズで対応する。 🟡
-    let table = detail_table_name(request.media_type);
-    let insert_detail_sql = format!("INSERT INTO {table} (item_id) VALUES ($1)");
-    sqlx::query(&insert_detail_sql)
-        .bind(item.id)
-        .execute(&mut *tx)
-        .await
-        .map_err(db_error)?;
-
-    // 【コミット】: 両方のINSERTが成功した場合のみ確定する 🔵
     tx.commit().await.map_err(db_error)?;
 
     Ok(item)
@@ -323,92 +295,21 @@ pub async fn get_item_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Item>, Api
     Ok(item)
 }
 
-/// 【機能概要】: media_typeに対応する詳細テーブルからitem_idに紐づく1件をJSON値として取得する
-/// 【実装方針】: detail_table_nameで解決した固定テーブル名（外部入力非依存のためSQLインジェクション安全）
-/// へ`SELECT * FROM {table} WHERE item_id = $1`を実行し、行をserde_json::Valueへ変換する。
-/// レコードが存在しない場合はNoneを返す（エラーにしない）
-/// 【テスト対応】: TC-0011-N01, N03, N05に対応
-/// 🟡 信頼性レベル: タスクファイル「media_typeごとに異なるテーブルへの分岐」からの妥当な推測
+/// 【機能概要】: itemsテーブルのdetailsカラム（正規化済みMediaDetails JSON）を取得する
+/// 【実装方針】: 保存時と同一のJSONをそのまま返す（GET /items/searchの要素と同形）。
+/// detailsがNULL（手動作成・移行前インポート等）の場合はNoneを返す（エラーにしない）
 pub async fn get_item_detail(
     pool: &PgPool,
-    media_type: MediaType,
     item_id: Uuid,
 ) -> Result<Option<serde_json::Value>, ApiError> {
-    let table = detail_table_name(media_type);
-    let sql = format!("SELECT * FROM {table} WHERE item_id = $1");
-    let row: Option<sqlx::postgres::PgRow> = sqlx::query(&sql)
-        .bind(item_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(db_error)?;
+    let details: Option<Option<serde_json::Value>> =
+        sqlx::query_scalar("SELECT details FROM items WHERE id = $1")
+            .bind(item_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(db_error)?;
 
-    match row {
-        Some(row) => Ok(Some(pg_row_to_json(&row))),
-        None => Ok(None),
-    }
-}
-
-/// 【機能概要】: PgRowを動的にserde_json::Value(Object)へ変換する
-/// 【実装方針】: 詳細テーブルはmedia_type毎にカラム構成が異なるため、固定構造体ではなく
-/// カラム名→値のMapとして汎用的に組み立てる。サポート対象外の型は文字列化を試みる
-/// 🟡 信頼性レベル: 詳細テーブルのカラム構成が可変であることからの設計判断
-fn pg_row_to_json(row: &sqlx::postgres::PgRow) -> serde_json::Value {
-    use sqlx::{Column, Row, TypeInfo, ValueRef};
-
-    let mut map = serde_json::Map::new();
-    for column in row.columns() {
-        let name = column.name();
-        let value_ref = match row.try_get_raw(name) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        if value_ref.is_null() {
-            map.insert(name.to_string(), serde_json::Value::Null);
-            continue;
-        }
-
-        let type_name = column.type_info().name();
-        let json_value = match type_name {
-            "UUID" => row
-                .try_get::<Uuid, _>(name)
-                .map(|v| serde_json::Value::String(v.to_string()))
-                .unwrap_or(serde_json::Value::Null),
-            "INT2" | "INT4" => row
-                .try_get::<i32, _>(name)
-                .map(serde_json::Value::from)
-                .unwrap_or(serde_json::Value::Null),
-            "INT8" => row
-                .try_get::<i64, _>(name)
-                .map(serde_json::Value::from)
-                .unwrap_or(serde_json::Value::Null),
-            "FLOAT4" | "FLOAT8" | "NUMERIC" => row
-                .try_get::<f64, _>(name)
-                .map(serde_json::Value::from)
-                .unwrap_or(serde_json::Value::Null),
-            "BOOL" => row
-                .try_get::<bool, _>(name)
-                .map(serde_json::Value::Bool)
-                .unwrap_or(serde_json::Value::Null),
-            "TEXT_ARRAY" | "VARCHAR_ARRAY" => row
-                .try_get::<Vec<String>, _>(name)
-                .map(serde_json::Value::from)
-                .unwrap_or(serde_json::Value::Null),
-            "DATE" => row
-                .try_get::<chrono::NaiveDate, _>(name)
-                .map(|v| serde_json::Value::String(v.to_string()))
-                .unwrap_or(serde_json::Value::Null),
-            "TIMESTAMP" | "TIMESTAMPTZ" => row
-                .try_get::<chrono::NaiveDateTime, _>(name)
-                .map(|v| serde_json::Value::String(v.to_string()))
-                .unwrap_or(serde_json::Value::Null),
-            _ => row
-                .try_get::<String, _>(name)
-                .map(serde_json::Value::String)
-                .unwrap_or(serde_json::Value::Null),
-        };
-        map.insert(name.to_string(), json_value);
-    }
-    serde_json::Value::Object(map)
+    Ok(details.flatten())
 }
 
 /// 【機能概要】: item_idに紐づくタグ一覧をtagsテーブルとのJOINで取得する
@@ -728,94 +629,6 @@ pub async fn update_item_status(
 mod tests {
     use super::*;
     use crate::models::item::{ItemStatus, ListItemsQuery};
-
-    /// TC-001-03関連: media_type=animeはanime_detailsへ振り分けられる
-    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（anime_details）に直接対応
-    #[test]
-    fn detail_table_name_for_anime() {
-        // 【テスト目的】: MediaType::Animeが正しいテーブル名に解決されることを確認する
-        // 【テスト内容】: detail_table_name関数にMediaType::Animeを渡す
-        // 【期待される動作】: "anime_details"が返る
-        // 🔵 信頼性レベル: database-schema.sql L80のCREATE TABLE anime_detailsに直接対応
-
-        // 【実際の処理実行】: 振り分け関数を呼び出す
-        let result = detail_table_name(MediaType::Anime);
-
-        // 【結果検証】: テーブル名が一致することを確認
-        assert_eq!(result, "anime_details"); // 【確認内容】: anime_detailsテーブルへの振り分けが正しいことを確認 🔵
-    }
-
-    /// TC-001-03: media_type=movieはmovie_detailsへ振り分けられる
-    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（movie_details）に直接対応
-    #[test]
-    fn detail_table_name_for_movie() {
-        // 【テスト目的】: MediaType::Movieが正しいテーブル名に解決されることを確認する
-        // 【テスト内容】: detail_table_name関数にMediaType::Movieを渡す
-        // 【期待される動作】: "movie_details"が返る
-        // 🔵 信頼性レベル: database-schema.sql L91のCREATE TABLE movie_detailsに直接対応
-        let result = detail_table_name(MediaType::Movie);
-        assert_eq!(result, "movie_details"); // 【確認内容】: movie_detailsテーブルへの振り分けが正しいことを確認 🔵
-    }
-
-    /// media_type=dramaはdrama_detailsへ振り分けられる
-    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（drama_details）に直接対応
-    #[test]
-    fn detail_table_name_for_drama() {
-        // 【テスト目的】: MediaType::Dramaが正しいテーブル名に解決されることを確認する
-        // 🔵 信頼性レベル: database-schema.sql L100のCREATE TABLE drama_detailsに直接対応
-        let result = detail_table_name(MediaType::Drama);
-        assert_eq!(result, "drama_details"); // 【確認内容】: drama_detailsテーブルへの振り分けが正しいことを確認 🔵
-    }
-
-    /// media_type=mangaはmanga_detailsへ振り分けられる
-    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（manga_details）に直接対応
-    #[test]
-    fn detail_table_name_for_manga() {
-        // 【テスト目的】: MediaType::Mangaが正しいテーブル名に解決されることを確認する
-        // 🔵 信頼性レベル: database-schema.sql L110のCREATE TABLE manga_detailsに直接対応
-        let result = detail_table_name(MediaType::Manga);
-        assert_eq!(result, "manga_details"); // 【確認内容】: manga_detailsテーブルへの振り分けが正しいことを確認 🔵
-    }
-
-    /// media_type=novelはnovel_detailsへ振り分けられる
-    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（novel_details）に直接対応
-    #[test]
-    fn detail_table_name_for_novel() {
-        // 【テスト目的】: MediaType::Novelが正しいテーブル名に解決されることを確認する
-        // 🔵 信頼性レベル: database-schema.sql L121のCREATE TABLE novel_detailsに直接対応
-        let result = detail_table_name(MediaType::Novel);
-        assert_eq!(result, "novel_details"); // 【確認内容】: novel_detailsテーブルへの振り分けが正しいことを確認 🔵
-    }
-
-    /// media_type=gameはgame_detailsへ振り分けられる
-    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（game_details）に直接対応
-    #[test]
-    fn detail_table_name_for_game() {
-        // 【テスト目的】: MediaType::Gameが正しいテーブル名に解決されることを確認する
-        // 🔵 信頼性レベル: database-schema.sql L132のCREATE TABLE game_detailsに直接対応
-        let result = detail_table_name(MediaType::Game);
-        assert_eq!(result, "game_details"); // 【確認内容】: game_detailsテーブルへの振り分けが正しいことを確認 🔵
-    }
-
-    /// media_type=academic_bookはacademic_book_detailsへ振り分けられる
-    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（academic_book_details）に直接対応
-    #[test]
-    fn detail_table_name_for_academic_book() {
-        // 【テスト目的】: MediaType::AcademicBookが正しいテーブル名に解決されることを確認する
-        // 🔵 信頼性レベル: database-schema.sql L142のCREATE TABLE academic_book_detailsに直接対応
-        let result = detail_table_name(MediaType::AcademicBook);
-        assert_eq!(result, "academic_book_details"); // 【確認内容】: academic_book_detailsテーブルへの振り分けが正しいことを確認 🔵
-    }
-
-    /// media_type=paperはpaper_detailsへ振り分けられる
-    /// 🔵 信頼性レベル: database-schema.sqlのテーブル定義（paper_details）に直接対応
-    #[test]
-    fn detail_table_name_for_paper() {
-        // 【テスト目的】: MediaType::Paperが正しいテーブル名に解決されることを確認する
-        // 🔵 信頼性レベル: database-schema.sql L152のCREATE TABLE paper_detailsに直接対応
-        let result = detail_table_name(MediaType::Paper);
-        assert_eq!(result, "paper_details"); // 【確認内容】: paper_detailsテーブルへの振り分けが正しいことを確認 🔵
-    }
 
     /// TC-001-02-A: build_update_item_queryがrating・is_favoriteのみのSET句を生成する
     /// 【テスト目的】: UpdateItemRequestのうちrating・is_favoriteのみSomeの場合に、
@@ -1345,8 +1158,8 @@ mod tests {
         assert_eq!(err.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR); // 【確認内容】: HTTPステータスが500であることを確認 🟡
     }
 
-    /// TC-0011-N01: 存在するitemの詳細取得（詳細テーブルあり、実DB必要）
-    /// 🟡 信頼性レベル: タスクファイル テストケース1に対応
+    /// TC-0011-N01: 存在するitemの詳細取得（details JSONBあり、実DB必要）
+    /// 🟡 信頼性レベル: items.details（正規化済みMediaDetails JSON）方式への移行に対応
     #[tokio::test]
     #[ignore]
     async fn get_item_by_id_and_detail_returns_anime_details() {
@@ -1360,20 +1173,27 @@ mod tests {
             None,
         )
         .await;
-        sqlx::query("INSERT INTO anime_details (item_id, studio) VALUES ($1, 'Test Studio')")
+        sqlx::query("UPDATE items SET details = $1 WHERE id = $2")
+            .bind(serde_json::json!({
+                "media_type": "anime",
+                "external_id": "12345",
+                "title": "テストアニメ",
+                "episodes": 24,
+                "studios": ["Test Studio"],
+                "trailer_url": "https://example.com/pv"
+            }))
             .bind(item_id)
             .execute(&pool)
             .await
-            .expect("anime_detailsへの投入に失敗しました");
+            .expect("items.detailsの更新に失敗しました");
 
         let item = get_item_by_id(&pool, item_id).await.unwrap().unwrap();
-        let detail = get_item_detail(&pool, item.media_type, item_id)
-            .await
-            .unwrap();
+        let detail = get_item_detail(&pool, item_id).await.unwrap();
 
         assert_eq!(item.id, item_id); // 【確認内容】: 取得したitemのIDが一致することを確認 🟡
         let detail = detail.unwrap();
-        assert_eq!(detail["studio"], serde_json::json!("Test Studio")); // 【確認内容】: anime_detailsのstudioカラムが含まれることを確認 🟡
+        assert_eq!(detail["episodes"], serde_json::json!(24)); // 【確認内容】: MediaDetailsのepisodesがそのまま返ることを確認 🟡
+        assert_eq!(detail["studios"], serde_json::json!(["Test Studio"])); // 【確認内容】: 配列フィールドが保持されることを確認 🟡
     }
 
     /// TC-0011-N02: タグ・カテゴリが紐付いている場合の取得（実DB必要）
@@ -1403,13 +1223,13 @@ mod tests {
         assert_eq!(categories[0].id, category_id);
     }
 
-    /// TC-0011-N03: 詳細テーブルにレコードが無い場合（実DB必要）
-    /// 🟡 信頼性レベル: タスクファイル「該当item存在しない場合」とは別に詳細欠落ケースを想定した妥当な推測
+    /// TC-0011-N03: detailsがNULLの場合（実DB必要）
+    /// 🟡 信頼性レベル: 手動作成・移行前インポートitem（details未保存）を想定した境界ケース
     #[tokio::test]
     #[ignore]
     async fn get_item_detail_returns_none_when_detail_record_missing() {
         let pool = test_pool().await;
-        // 【テストデータ準備】: detail_table_nameへのINSERTを行わず、items単体のみ作成する
+        // 【テストデータ準備】: detailsを設定せずitems単体のみ作成する
         let item_id: Uuid = sqlx::query_scalar(
             "INSERT INTO items (media_type, title, status, is_favorite, source, external_id) \
             VALUES ('anime', 'テストアイテム', 'not_started', false, 'manual', NULL) RETURNING id",
@@ -1418,11 +1238,9 @@ mod tests {
         .await
         .expect("詳細レコード無しitemの投入に失敗しました");
 
-        let detail = get_item_detail(&pool, MediaType::Anime, item_id)
-            .await
-            .unwrap();
+        let detail = get_item_detail(&pool, item_id).await.unwrap();
 
-        assert!(detail.is_none()); // 【確認内容】: 詳細テーブルにレコードが無い場合エラーにならずNoneが返ることを確認 🟡
+        assert!(detail.is_none()); // 【確認内容】: detailsがNULLの場合エラーにならずNoneが返ることを確認 🟡
     }
 
     /// TC-0011-N04: タグ・カテゴリが紐付いていない場合（実DB必要）
@@ -1458,8 +1276,8 @@ mod tests {
         assert!(item.is_none()); // 【確認内容】: 存在しないUUIDではNoneが返り、ハンドラ側で404に変換できることを確認 🔵
     }
 
-    /// TC-0011-N05: media_typeごとの詳細テーブル分岐（movie/game、実DB必要）
-    /// 🔵 信頼性レベル: タスクファイル「media_typeに応じたメディア別詳細テーブルをJOIN」に直接対応
+    /// TC-0011-N05: item毎に保存したdetails JSONがそれぞれ取得できる（movie/game、実DB必要）
+    /// 🔵 信頼性レベル: items.details方式（media_type別テーブル分岐の廃止）に対応
     #[tokio::test]
     #[ignore]
     async fn get_item_detail_dispatches_to_correct_table_per_media_type() {
@@ -1474,11 +1292,12 @@ mod tests {
             None,
         )
         .await;
-        sqlx::query("INSERT INTO movie_details (item_id, director) VALUES ($1, 'Test Director')")
+        sqlx::query("UPDATE items SET details = $1 WHERE id = $2")
+            .bind(serde_json::json!({"media_type": "movie", "runtime_minutes": 120}))
             .bind(movie_id)
             .execute(&pool)
             .await
-            .expect("movie_detailsへの投入に失敗しました");
+            .expect("movieのdetails更新に失敗しました");
 
         let game_id = insert_test_item(
             &pool,
@@ -1489,26 +1308,21 @@ mod tests {
             None,
         )
         .await;
-        sqlx::query("INSERT INTO game_details (item_id, developer) VALUES ($1, 'Test Developer')")
+        sqlx::query("UPDATE items SET details = $1 WHERE id = $2")
+            .bind(serde_json::json!({"media_type": "game", "developers": ["Test Developer"]}))
             .bind(game_id)
             .execute(&pool)
             .await
-            .expect("game_detailsへの投入に失敗しました");
+            .expect("gameのdetails更新に失敗しました");
 
-        let movie_detail = get_item_detail(&pool, MediaType::Movie, movie_id)
-            .await
-            .unwrap()
-            .unwrap();
-        let game_detail = get_item_detail(&pool, MediaType::Game, game_id)
-            .await
-            .unwrap()
-            .unwrap();
+        let movie_detail = get_item_detail(&pool, movie_id).await.unwrap().unwrap();
+        let game_detail = get_item_detail(&pool, game_id).await.unwrap().unwrap();
 
-        assert_eq!(movie_detail["director"], serde_json::json!("Test Director")); // 【確認内容】: movie_detailsから正しくdirectorが取得されることを確認 🔵
+        assert_eq!(movie_detail["runtime_minutes"], serde_json::json!(120)); // 【確認内容】: movieのdetailsが取得されることを確認 🔵
         assert_eq!(
-            game_detail["developer"],
-            serde_json::json!("Test Developer")
-        ); // 【確認内容】: game_detailsから正しくdeveloperが取得されることを確認 🔵
+            game_detail["developers"],
+            serde_json::json!(["Test Developer"])
+        ); // 【確認内容】: gameのdetailsが取得されることを確認 🔵
     }
 
     /// TC-001-02-B: update_itemがrating・is_favoriteのみを更新し他フィールドを変化させない（実DB必要）
@@ -2159,6 +1973,34 @@ mod tests {
         ); // 【確認内容】: consumed_dateがCSV値どおりにDBへ保存・RETURNINGされることを確認 🔵
         assert_eq!(item.source, ItemSource::Manual); // 【確認内容】: sourceが引数通りManualであることを確認 🔵
         assert_eq!(item.external_id, Some("isbn".to_string())); // 【確認内容】: external_idが引数通り保持されることを確認 🔵
+    }
+
+    /// create_item_with_sourceがdetails JSONBを永続化し、get_item_detailで同一JSONが返る（実DB必要）
+    /// 【テスト目的】: インポート経路で渡される正規化済みMediaDetails JSONがitems.detailsへ保存され、
+    /// GET /items/:id相当の読み出しでそのまま取得できることを確認する
+    #[tokio::test]
+    #[ignore]
+    async fn create_item_with_source_persists_details_json() {
+        let pool = test_pool().await;
+        let details = serde_json::json!({
+            "media_type": "anime",
+            "external_id": "det-1",
+            "title": "詳細付き作品",
+            "episodes": 12,
+            "studios": ["Studio A", "Studio B"],
+            "trailer_url": "https://example.com/pv"
+        });
+        let mut request = create_item_request(MediaType::Anime, "詳細付き作品");
+        request.details = Some(details.clone());
+
+        let item =
+            create_item_with_source(&pool, request, ItemSource::Api, Some("det-1".to_string()))
+                .await
+                .unwrap();
+
+        let stored = get_item_detail(&pool, item.id).await.unwrap();
+
+        assert_eq!(stored, Some(details)); // 【確認内容】: 保存したMediaDetails JSONがそのまま返ることを確認
     }
 
     /// TC-REG-01: create_item（manualラッパー）はconsumed_date拡張後もconsumed_date=Noneで

@@ -7,9 +7,9 @@ import { ExternalResultCard } from '@/features/items/components/ExternalResultCa
 import { SearchBox } from '@/features/items/components/SearchBox';
 import { ErrorState } from '@/features/items/components/ErrorState';
 import {
-  externalProviderLabels,
   mediaTypeLabels,
   mediaTypeProvider,
+  providerLabel,
   type GeneralMediaType,
 } from '@/features/items/types';
 
@@ -83,7 +83,7 @@ export function SearchAddPage() {
             APIキーが設定されていません
           </h3>
           <p>
-            この種別の検索には {externalProviderLabels[mediaTypeProvider[mediaType]]} のAPIキーが必要です。設定画面から登録してください。
+            この種別の検索には {providerLabel(mediaTypeProvider[mediaType])} のAPIキーが必要です。設定画面から登録してください。
           </p>
           <Link
             to="/settings"

@@ -16,7 +16,6 @@ use api_client_lib::clients::igdb::IgdbClient;
 use api_client_lib::clients::igdb::models::IgdbModel;
 use api_client_lib::clients::igdb::requests::{IgdbRequest, IgdbSearchRequest};
 use api_client_lib::clients::jikan::JikanClient;
-use api_client_lib::clients::jikan::models::JikanModel;
 use api_client_lib::clients::jikan::requests::{
     JikanAnimeSearchRequest, JikanMangaSearchRequest, JikanRequest,
 };
@@ -24,13 +23,16 @@ use api_client_lib::clients::ndl::NdlClient;
 use api_client_lib::clients::ndl::models::NdlModel;
 use api_client_lib::clients::ndl::requests::{NdlRequest, NdlSearchRequest};
 use api_client_lib::clients::tmdb::TmdbClient;
-use api_client_lib::clients::tmdb::models::TmdbModel;
 use api_client_lib::clients::tmdb::requests::{SearchMovieRequest, SearchTvRequest, TmdbRequest};
 use api_client_lib::traits::ApiClient;
+use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::models::api_credential::{ApiCredential, ApiProvider};
-use crate::models::external_search::{ExternalSearchError, ExternalSearchResult};
+use crate::models::domain::{
+    AnimeDetails, DramaDetails, GameDetails, MangaDetails, MediaDetails, MovieDetails, NovelDetails,
+};
+use crate::models::external_search::ExternalSearchError;
 use crate::models::item::MediaType;
 use crate::repositories::api_credential_repository;
 
@@ -54,11 +56,9 @@ pub enum ApiCredentialLookup {
 
 /// `ApiResponse.raw`（`RawData::Json`/`Xml`）を`serde_json::Value`へ変換する共通ヘルパー
 ///
-/// 【設計判断】: `ExternalSearchResult.raw_data`は要件定義書第3章で`ApiResponse.raw`由来と
-/// 規定されている。各プロバイダModelは`Serialize`を実装していないため、個別Modelの再シリアライズではなく
-/// レスポンス全体のraw文字列（JSON/XML）をそのまま`serde_json::Value`へ変換する。
+/// 【設計判断】: domain マッパー（`from_jikan_details`/`from_tmdb` 等）は raw JSON の
+/// 検索結果要素を入力に取るため、レスポンス全体のraw文字列をそのまま`serde_json::Value`へ変換する。
 /// XMLの場合はテキストとしてラップし、パース失敗時はNullへフォールバックする（panic防止）。
-/// 🟡 信頼性レベル: 要件定義書 第3章 出力仕様（raw_data: ApiResponse.raw由来）より
 fn raw_data_to_value(raw: &api_client_lib::response::RawData) -> serde_json::Value {
     match raw {
         api_client_lib::response::RawData::Json(text) => {
@@ -68,57 +68,20 @@ fn raw_data_to_value(raw: &api_client_lib::response::RawData) -> serde_json::Val
     }
 }
 
-/// TMDbの`poster_path`（相対パス）を完全な画像URLへ変換する
+/// 一覧系レスポンスのraw JSONから、指定キー配下の配列要素をマッパーで`MediaDetails`へ変換する
 ///
-/// 🟡 信頼性レベル: フロントエンド既存実装（w342サイズ）との整合を取るための実装上の補完
-fn tmdb_poster_url(poster_path: &Option<String>) -> Option<String> {
-    poster_path
-        .as_ref()
-        .map(|p| format!("https://image.tmdb.org/t/p/w342{p}"))
-}
-
-/// 一覧系レスポンスのraw JSONから、指定キー配下の`index`番目の要素を取り出す
-///
-/// 【機能概要】: TMDb（"results"）/Jikan（"data"）等、レスポンス全体ではなく個々の検索結果要素を
-/// `ExternalSearchResult.raw_data`へ反映するためのヘルパー。該当配列・添字が見つからない場合は
-/// レスポンス全体をフォールバックとして返す（panic防止優先）。
-/// 🟡 信頼性レベル: 要件定義書 第3章 出力仕様（raw_data: ApiResponse.raw由来）からの実装上の補完
-fn raw_data_item(whole: &serde_json::Value, array_key: &str, index: usize) -> serde_json::Value {
+/// 【機能概要】: TMDb（"results"）/Jikan（"data"）のように「レスポンス直下のキーに
+/// 検索結果配列を持つ」プロバイダ共通の変換ループ。配列が無い場合は空Vecを返す（panic防止）。
+fn map_array_items(
+    whole: &Value,
+    array_key: &str,
+    to_details: impl Fn(&Value) -> MediaDetails,
+) -> Vec<MediaDetails> {
     whole
         .get(array_key)
-        .and_then(|arr| arr.get(index))
-        .cloned()
-        .unwrap_or_else(|| whole.clone())
-}
-
-/// 【ヘルパー関数】: プロバイダModelの配列を`ExternalSearchResult`へ一括変換する共通アダプタ
-///
-/// 【機能概要】: dispatch_*各メソッドに重複していた「`enumerate` → 要素ごとに
-/// `ExternalSearchResult`を組み立てて`collect`する」処理を一本化したもの。
-/// プロバイダ固有の差異（external_id/titleの抽出方法、raw_dataの配列キー名）は
-/// 呼び出し側からクロージャ`to_result`で注入し、本関数自体はprovider間で共通の
-/// 「何番目の要素か（index）」の追跡と`Vec`への集約のみを担当する。
-/// 【改善内容】: 旧実装はTMDb(movie/drama)・Jikan(anime/manga)・OpenLibraryの5箇所で
-/// ほぼ同一の`into_iter().enumerate().map(...).collect()`を個別に書いており、
-/// raw_data_itemの配列キーやフィールド抽出ロジックのみが異なっていた。本関数で
-/// ループ構造を共通化し、各dispatchメソッドは「1要素をどう変換するか」のみを記述すればよくなった。
-/// 【設計方針】: IGDB（型付きModelを持たずserde_json::Valueを直接返す）・NDL（配列キー無しで
-/// レスポンス全体を複製する設計）は変換シグネチャが異なるため対象外とし、本ヘルパーは
-/// 「配列キー配下のN番目要素をraw_dataとして埋め込む」プロバイダ（TMDb/Jikan/OpenLibrary）に限定適用する。
-/// 【再利用性】: 新規プロバイダ追加時も、配列キー名とper要素の変換クロージャを渡すだけで
-/// 同じパターンを再利用できる。
-/// 🟡 信頼性レベル: 既存5箇所の重複実装からの構造抽出（要件定義書に明記はないが動作は完全に同一）
-fn collect_results<T>(
-    raw_data: &serde_json::Value,
-    array_key: &str,
-    models: Vec<T>,
-    to_result: impl Fn(&T, serde_json::Value) -> ExternalSearchResult,
-) -> Vec<ExternalSearchResult> {
-    models
-        .into_iter()
-        .enumerate()
-        .map(|(i, m)| to_result(&m, raw_data_item(raw_data, array_key, i)))
-        .collect()
+        .and_then(Value::as_array)
+        .map(|arr| arr.iter().map(to_details).collect())
+        .unwrap_or_default()
 }
 
 impl ApiCredentialLookup {
@@ -205,7 +168,7 @@ impl ExternalSearchService {
         &self,
         media_type: MediaType,
         query: &str,
-    ) -> Result<Vec<ExternalSearchResult>, ExternalSearchError> {
+    ) -> Result<Vec<MediaDetails>, ExternalSearchError> {
         match media_type {
             MediaType::Anime => self.dispatch_jikan_anime(query).await,
             MediaType::Manga => self.dispatch_jikan_manga(query).await,
@@ -273,7 +236,7 @@ impl ExternalSearchService {
     async fn dispatch_jikan_anime(
         &self,
         query: &str,
-    ) -> Result<Vec<ExternalSearchResult>, ExternalSearchError> {
+    ) -> Result<Vec<MediaDetails>, ExternalSearchError> {
         // 【クライアント構築】: Jikanはキー不要のためnew()のみで初期化する 🔵
         let client = self.build_jikan_client()?;
         let request = JikanRequest::SearchAnime(JikanAnimeSearchRequest {
@@ -288,24 +251,10 @@ impl ExternalSearchService {
             .execute(request)
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
+        // 【ドメイン変換】: raw JSONの検索結果要素をAnimeDetailsへノーマライズする（providerはNone=Jikan表現） 🔵
         let raw_data = raw_data_to_value(&response.raw);
-        let JikanModel::SearchResults(models) = response.model else {
-            return Ok(Vec::new());
-        };
-        // 【アダプタ変換】: JikanAnimeModelをExternalSearchResultへ変換する。providerはNone（Jikan表現） 🔵
-        Ok(collect_results(&raw_data, "data", models, |m, raw_data| {
-            ExternalSearchResult {
-                media_type: MediaType::Anime,
-                provider: None,
-                external_id: m.mal_id.to_string(),
-                title: m
-                    .title_japanese
-                    .clone()
-                    .or_else(|| m.title.clone())
-                    .unwrap_or_default(),
-                thumbnail_url: m.image_url.clone(),
-                raw_data,
-            }
+        Ok(map_array_items(&raw_data, "data", |item| {
+            MediaDetails::Anime(AnimeDetails::from_jikan_details(item))
         }))
     }
 
@@ -314,7 +263,7 @@ impl ExternalSearchService {
     async fn dispatch_jikan_manga(
         &self,
         query: &str,
-    ) -> Result<Vec<ExternalSearchResult>, ExternalSearchError> {
+    ) -> Result<Vec<MediaDetails>, ExternalSearchError> {
         let client = self.build_jikan_client()?;
         let request = JikanRequest::SearchManga(JikanMangaSearchRequest {
             q: Some(query.to_string()),
@@ -326,24 +275,10 @@ impl ExternalSearchService {
             .execute(request)
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
+        // 【ドメイン変換】: raw JSONの検索結果要素をMangaDetailsへノーマライズする（providerはNone=Jikan表現） 🟡
         let raw_data = raw_data_to_value(&response.raw);
-        let JikanModel::MangaSearchResults(models) = response.model else {
-            return Ok(Vec::new());
-        };
-        // 【アダプタ変換】: JikanMangaModelをExternalSearchResultへ変換する。providerはNone（Jikan表現） 🟡
-        Ok(collect_results(&raw_data, "data", models, |m, raw_data| {
-            ExternalSearchResult {
-                media_type: MediaType::Manga,
-                provider: None,
-                external_id: m.mal_id.to_string(),
-                title: m
-                    .title_japanese
-                    .clone()
-                    .or_else(|| m.title.clone())
-                    .unwrap_or_default(),
-                thumbnail_url: m.image_url.clone(),
-                raw_data,
-            }
+        Ok(map_array_items(&raw_data, "data", |item| {
+            MediaDetails::Manga(MangaDetails::from_jikan_details(item))
         }))
     }
 
@@ -352,7 +287,7 @@ impl ExternalSearchService {
     async fn dispatch_tmdb_movie(
         &self,
         query: &str,
-    ) -> Result<Vec<ExternalSearchResult>, ExternalSearchError> {
+    ) -> Result<Vec<MediaDetails>, ExternalSearchError> {
         let api_key = self.ensure_key(ApiProvider::Tmdb).await?;
         let client = self.build_tmdb_client(api_key)?;
         let request = TmdbRequest::SearchMovie(SearchMovieRequest {
@@ -364,28 +299,12 @@ impl ExternalSearchService {
             .execute(request)
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
+        // 【ドメイン変換】: raw JSONの検索結果要素をMovieDetailsへノーマライズする。
+        // 検索レスポンスにはgenre名配列が無い（genre_idsのみ）ためgenresは空になる 🔵
         let raw_data = raw_data_to_value(&response.raw);
-        let TmdbModel::MovieList(models) = response.model else {
-            return Ok(Vec::new());
-        };
-        // 【アダプタ変換】: TmdbMovieModelをExternalSearchResultへ変換する 🔵
-        Ok(collect_results(
-            &raw_data,
-            "results",
-            models,
-            |m, raw_data| ExternalSearchResult {
-                media_type: MediaType::Movie,
-                provider: Some(ApiProvider::Tmdb),
-                external_id: m.id.to_string(),
-                title: m
-                    .original_title
-                    .clone()
-                    .or_else(|| m.title.clone())
-                    .unwrap_or_default(),
-                thumbnail_url: tmdb_poster_url(&m.poster_path),
-                raw_data,
-            },
-        ))
+        Ok(map_array_items(&raw_data, "results", |item| {
+            MediaDetails::Movie(MovieDetails::from_tmdb(item))
+        }))
     }
 
     /// TMDb（drama）へディスパッチする。movieと同一provider。TVエンドポイント（SearchTv）を使う。
@@ -393,7 +312,7 @@ impl ExternalSearchService {
     async fn dispatch_tmdb_drama(
         &self,
         query: &str,
-    ) -> Result<Vec<ExternalSearchResult>, ExternalSearchError> {
+    ) -> Result<Vec<MediaDetails>, ExternalSearchError> {
         let api_key = self.ensure_key(ApiProvider::Tmdb).await?;
         let client = self.build_tmdb_client(api_key)?;
         let request = TmdbRequest::SearchTv(SearchTvRequest {
@@ -405,28 +324,11 @@ impl ExternalSearchService {
             .execute(request)
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
+        // 【ドメイン変換】: raw JSONの検索結果要素をDramaDetailsへノーマライズする（genresは検索結果では空） 🔵
         let raw_data = raw_data_to_value(&response.raw);
-        let TmdbModel::TvList(models) = response.model else {
-            return Ok(Vec::new());
-        };
-        // 【アダプタ変換】: TmdbTvModelをExternalSearchResultへ変換する（フィールド名はnameでmovieのtitleと異なる） 🔵
-        Ok(collect_results(
-            &raw_data,
-            "results",
-            models,
-            |m, raw_data| ExternalSearchResult {
-                media_type: MediaType::Drama,
-                provider: Some(ApiProvider::Tmdb),
-                external_id: m.id.to_string(),
-                title: m
-                    .original_name
-                    .clone()
-                    .or_else(|| m.name.clone())
-                    .unwrap_or_default(),
-                thumbnail_url: tmdb_poster_url(&m.poster_path),
-                raw_data,
-            },
-        ))
+        Ok(map_array_items(&raw_data, "results", |item| {
+            MediaDetails::Drama(DramaDetails::from_tmdb_tv(item))
+        }))
     }
 
     /// IGDB（game、設計判断B：Steamは対象外）へディスパッチする。
@@ -436,10 +338,7 @@ impl ExternalSearchService {
     /// `"client_id:client_secret"`形式として解釈し、区切り文字が無い場合はclient_id/secret双方に
     /// 同一値を用いる（テスト・簡易運用向けのフォールバック）。
     /// 🟡 信頼性レベル: api_credentialsスキーマがIGDBの2値資格情報を直接表現できないことからの設計判断
-    async fn dispatch_igdb(
-        &self,
-        query: &str,
-    ) -> Result<Vec<ExternalSearchResult>, ExternalSearchError> {
+    async fn dispatch_igdb(&self, query: &str) -> Result<Vec<MediaDetails>, ExternalSearchError> {
         let api_key = self.ensure_key(ApiProvider::Igdb).await?;
         let (client_id, client_secret) = match api_key.split_once(':') {
             Some((id, secret)) => (id.to_string(), secret.to_string()),
@@ -447,8 +346,11 @@ impl ExternalSearchService {
         };
         let client = self.build_igdb_client(client_id, client_secret)?;
         let escaped_query = query.replace('"', "\\\"");
+        // 【フィールド指定】: GameDetails::from_igdbが読む全フィールドをApicalypseクエリで要求する 🟡
         let request = IgdbRequest::Search(IgdbSearchRequest {
-            query: format!(r#"search "{escaped_query}"; fields id,name,cover.url; limit 20;"#),
+            query: format!(
+                r#"search "{escaped_query}"; fields id,name,summary,storyline,first_release_date,cover.url,genres.name,platforms.name,involved_companies.company.name,involved_companies.developer,involved_companies.publisher,rating,screenshots.url,url,alternative_names.name; limit 20;"#
+            ),
         });
         let response = client
             .execute(request)
@@ -457,33 +359,10 @@ impl ExternalSearchService {
         let IgdbModel::SearchResults(values) = response.model else {
             return Ok(Vec::new());
         };
-        // 【アダプタ変換】: Igdbの/searchは型付きModelを持たずserde_json::Valueを返すため、
-        // id/nameフィールドを素朴に抽出する 🟡
+        // 【ドメイン変換】: Igdbの/searchはserde_json::Valueの配列を返すため、要素ごとにGameDetailsへノーマライズする 🟡
         Ok(values
-            .into_iter()
-            .map(|v| {
-                let external_id = v.get("id").map(|id| id.to_string()).unwrap_or_default();
-                let title = v
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                    .unwrap_or_default()
-                    .to_string();
-                // 【サムネイル抽出】: IGDBのcover.urlは"//images.igdb.com/.../t_thumb/....jpg"形式のため、
-                // t_thumbをt_cover_bigへ置換し"https:"を前置して完全URLへ変換する 🟡
-                let thumbnail_url = v
-                    .get("cover")
-                    .and_then(|c| c.get("url"))
-                    .and_then(|u| u.as_str())
-                    .map(|u| format!("https:{}", u.replace("t_thumb", "t_cover_big")));
-                ExternalSearchResult {
-                    media_type: MediaType::Game,
-                    provider: Some(ApiProvider::Igdb),
-                    external_id,
-                    title,
-                    thumbnail_url,
-                    raw_data: v,
-                }
-            })
+            .iter()
+            .map(|v| MediaDetails::Game(GameDetails::from_igdb(v)))
             .collect())
     }
 
@@ -493,7 +372,7 @@ impl ExternalSearchService {
         &self,
         query: &str,
         media_type: MediaType,
-    ) -> Result<Vec<ExternalSearchResult>, ExternalSearchError> {
+    ) -> Result<Vec<MediaDetails>, ExternalSearchError> {
         self.ensure_key(ApiProvider::Ndl).await?;
         let client = self.build_ndl_client()?;
         let request = NdlRequest::Search(NdlSearchRequest {
@@ -509,17 +388,18 @@ impl ExternalSearchService {
             .execute(request)
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
-        let raw_data = raw_data_to_value(&response.raw);
         let NdlModel::Items(models) = response.model;
+        // 【ドメイン変換】: NDLはnovel/academic_book/paper共通のため、検索時のmedia_typeで
+        // NovelDetails（書誌形状共通）を対応するvariantへ振り分ける 🔵
         Ok(models
-            .into_iter()
-            .map(|m| ExternalSearchResult {
-                media_type,
-                provider: Some(ApiProvider::Ndl),
-                external_id: m.isbn.clone().unwrap_or_default(),
-                title: m.title.clone().unwrap_or_default(),
-                thumbnail_url: m.thumbnail_url.clone(),
-                raw_data: raw_data.clone(),
+            .iter()
+            .map(|m| {
+                let details = NovelDetails::from_ndl_item(m, media_type);
+                match media_type {
+                    MediaType::AcademicBook => MediaDetails::AcademicBook(details),
+                    MediaType::Paper => MediaDetails::Paper(details),
+                    _ => MediaDetails::Novel(details),
+                }
             })
             .collect())
     }
@@ -624,7 +504,7 @@ mod tests {
 
         // 【結果検証】: Okが返り、Jikanモック受信数が1、他プロバイダ受信数が0であること（Green phaseで検証予定）
         // 【確認ポイント】: 現状はdispatch_jikan_anime内のtodo!()でpanicするため、Red状態として正しい
-        assert!(result.is_ok()); // 【確認内容】: Green実装後はOk(Vec<ExternalSearchResult>)が返ることを確認する 🔵
+        assert!(result.is_ok()); // 【確認内容】: Green実装後はOk(Vec<MediaDetails>)が返ることを確認する 🔵
         assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: Jikanモックへの到達回数が1であることを確認する 🔵
     }
 
@@ -829,19 +709,27 @@ mod tests {
         assert_eq!(ndl_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: NDLモックへの到達回数が1であることを確認する 🔵
     }
 
-    /// TC-002-RESULT: 成功時にプロバイダModelが`ExternalSearchResult`へ変換される（ユニット）
+    /// TC-002-RESULT: 成功時にプロバイダレスポンスが`MediaDetails`へノーマライズされる（ユニット）
     /// 🟡 信頼性レベル: 要件定義書 REQ-0023-06・第3章 出力仕様より
     #[tokio::test]
-    async fn search_movie_converts_tmdb_model_to_external_search_result() {
-        // 【テスト目的】: TMDbモックの既知JSONがExternalSearchResultへ正しく変換されるかを確認する
+    async fn search_movie_converts_tmdb_response_to_media_details() {
+        // 【テスト目的】: TMDbモックの既知JSONがMediaDetails::Movie（MovieDetails）へ正しく変換されるかを確認する
         // 【テスト内容】: TMDbモックがid/title等を含むJSONを返すよう設定し、search(Movie, "タイトル")を呼ぶ
-        // 【期待される動作】: result[0].media_type==Movie、external_id==モックのid、title==モックのtitle、raw_dataが生JSONを保持
-        // 🟡 信頼性レベル: 要件定義書 REQ-0023-06・第3章 出力仕様（ラップ形式は実装詳細未確定）より
+        // 【期待される動作】: result[0]がMediaDetails::Movieで、core.external_id==モックのid、core.title==モックのtitle、
+        // image_urlがposter_pathから完全URLへ解決される
 
         let tmdb_mock = MockServer::start().await;
         Mock::given(method("GET"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "results": [{"id": 603, "title": "The Matrix"}]
+                "results": [{
+                    "id": 603,
+                    "title": "The Matrix",
+                    "original_title": "The Matrix",
+                    "overview": "A computer hacker...",
+                    "release_date": "1999-03-31",
+                    "poster_path": "/poster.jpg",
+                    "vote_average": 8.2
+                }]
             })))
             .mount(&tmdb_mock)
             .await;
@@ -852,13 +740,20 @@ mod tests {
         let result = service
             .search(MediaType::Movie, "タイトル")
             .await
-            .expect("Green実装後はOkが返るはず");
+            .expect("Okが返るはず");
 
         let first = result.first().expect("少なくとも1件の結果が返るはず"); // 【確認内容】: 結果が空でないことを確認する 🟡
-        assert_eq!(first.media_type, MediaType::Movie); // 【確認内容】: media_typeが入力どおりMovieであることを確認する 🟡
-        assert_eq!(first.external_id, "603"); // 【確認内容】: external_idがモックのidと一致することを確認する 🟡
-        assert_eq!(first.title, "The Matrix"); // 【確認内容】: titleがモックのtitleと一致することを確認する 🟡
-        assert!(first.raw_data["id"] == 603); // 【確認内容】: raw_dataが生JSONを保持することを確認する 🟡
+        assert!(matches!(first, MediaDetails::Movie(_))); // 【確認内容】: Movie variantへディスパッチされることを確認する 🟡
+        let core = first.core();
+        assert_eq!(core.media_type, MediaType::Movie); // 【確認内容】: media_typeが入力どおりMovieであることを確認する 🟡
+        assert_eq!(core.provider, Some(ApiProvider::Tmdb)); // 【確認内容】: providerがTmdbであることを確認する 🟡
+        assert_eq!(core.external_id, "603"); // 【確認内容】: external_idがモックのidと一致することを確認する 🟡
+        assert_eq!(core.title, "The Matrix"); // 【確認内容】: titleがモックのtitleと一致することを確認する 🟡
+        assert_eq!(core.release_date.as_deref(), Some("1999-03-31")); // 【確認内容】: release_dateがノーマライズされることを確認する 🟡
+        assert_eq!(
+            core.image_url.as_deref(),
+            Some("https://image.tmdb.org/t/p/w342/poster.jpg")
+        ); // 【確認内容】: poster_pathが完全URLへ解決されることを確認する 🟡
     }
 
     // ============================================================

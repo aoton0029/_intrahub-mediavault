@@ -13,3 +13,6 @@ anyhow = "1"
 thiserror = "2"
 tracing = "0.1"
 quick-xml = { version = "0.37", features = ["serialize"] }
+
+[dev-dependencies]
+dotenvy = "0.15"

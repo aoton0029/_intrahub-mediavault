@@ -3,6 +3,7 @@ import { useSetTitlebar } from '@/components/layout/useTitlebar';
 import { useItemDetailQuery } from '@/features/items/api-detail';
 import { mediaTypeLabels } from '@/features/items/types';
 import { DetailRail } from '@/features/items/components/detail/DetailRail';
+import { MediaDetailSection } from '@/features/items/components/detail/MediaDetailSection';
 import { GroupEpisodeList } from '@/features/items/components/detail/GroupEpisodeList';
 import { StaffList } from '@/features/items/components/detail/StaffList';
 import { RelatedItemsList } from '@/features/items/components/detail/RelatedItemsList';
@@ -48,6 +49,7 @@ export function ItemDetailPage() {
             <p className="leading-[1.7] text-text-primary">{item.description}</p>
           </div>
         )}
+        <MediaDetailSection detail={item.detail} />
         <GroupEpisodeList itemId={item.id} />
         <StaffList itemId={item.id} />
         <RelatedItemsList itemId={item.id} />

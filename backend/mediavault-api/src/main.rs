@@ -20,8 +20,8 @@ async fn main() {
         .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
-    let cors_allowed_origin = std::env::var("CORS_ALLOWED_ORIGIN")
-        .unwrap_or_else(|_| "http://localhost".to_string());
+    let cors_allowed_origin =
+        std::env::var("CORS_ALLOWED_ORIGIN").unwrap_or_else(|_| "http://localhost".to_string());
 
     let db = match db::create_pool(&database_url).await {
         Ok(pool) => pool,

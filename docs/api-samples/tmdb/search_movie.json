@@ -1,0 +1,395 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/tlm8UkiQsitc8rSuIAscQDCnP8d.jpg",
+      "genre_ids": [
+        28,
+        878
+      ],
+      "id": 603,
+      "original_language": "en",
+      "original_title": "The Matrix",
+      "overview": "トーマス・アンダーソンは、大手ソフトウェア会社に勤めるプログラマである。しかし彼には天才ハッカー、ネオというもう一つの顔があった。ある日、彼はとある人物から連絡を受け、警察に追われる。そして彼から衝撃的な世界の真実を告げられた。",
+      "popularity": 42.4281,
+      "poster_path": "/tlSn7UnfH2LxrBRwfTLs3JSYOTO.jpg",
+      "release_date": "1999-03-31",
+      "softcore": false,
+      "title": "マトリックス",
+      "video": false,
+      "vote_average": 8.25,
+      "vote_count": 28123
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/ihOJcrorpDQtHTzIOrobbOhpJsj.jpg",
+      "genre_ids": [
+        12,
+        28,
+        53,
+        878
+      ],
+      "id": 604,
+      "original_language": "en",
+      "original_title": "The Matrix Reloaded",
+      "overview": "人類の最期の砦「ザイオン」に残されたのは72時間。それを過ぎれば25万のセンチネルに襲われるだろう。しかしモーフィアスの信念は堅い。オラクルによればネオがこの戦争に終止符を打つ。一方のネオはヒントを得るためオラクルに会いに行く。",
+      "popularity": 16.8577,
+      "poster_path": "/bZFZB5tk1O0YgD9mJAPohLp3hNH.jpg",
+      "release_date": "2003-05-15",
+      "softcore": false,
+      "title": "マトリックス リローデッド",
+      "video": false,
+      "vote_average": 7.08,
+      "vote_count": 12045
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/kJYPag1YrA4PsXIftFdq3QEaanV.jpg",
+      "genre_ids": [
+        12,
+        28,
+        53,
+        878
+      ],
+      "id": 605,
+      "original_language": "en",
+      "original_title": "The Matrix Revolutions",
+      "overview": "昏睡状態のネオはマトリックスとソースの狭間に捕らえられていた。ネオを信じるトリニティーらは彼を救出する。一方スミスは新たな段階へと進む。その間もザイオンにはセンティネルが近づきつつあった。",
+      "popularity": 9.3076,
+      "poster_path": "/u8XKDpUvKDd9CaCcCdZJmDOwcYR.jpg",
+      "release_date": "2003-11-05",
+      "softcore": false,
+      "title": "マトリックス レボリューションズ",
+      "video": false,
+      "vote_average": 6.755,
+      "vote_count": 10892
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/eNI7PtK6DEYgZmHWP9gQNuff8pv.jpg",
+      "genre_ids": [
+        878,
+        28,
+        12
+      ],
+      "id": 624860,
+      "original_language": "en",
+      "original_title": "The Matrix Resurrections",
+      "overview": "ネオ(キアヌ・リーヴス)は自分の生きている世界に違和感を覚え、やがて覚醒する。そして、マトリックスにとらわれているトリニティーを救出するため、さらには人類を救うため、マトリックスと再び戦うべく立ち上がる。",
+      "popularity": 11.5838,
+      "poster_path": "/3fwx4IJyF4Jj1Xfvv6UsV0c1fPf.jpg",
+      "release_date": "2021-12-16",
+      "softcore": false,
+      "title": "マトリックス レザレクションズ",
+      "video": false,
+      "vote_average": 6.328,
+      "vote_count": 6536
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/lBdXACywnLwKUZmZkZ87djDQBeV.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 14543,
+      "original_language": "en",
+      "original_title": "The Matrix Revisited",
+      "overview": "",
+      "popularity": 1.0713,
+      "poster_path": "/8yxSztoc5sqZiGuKcFuVOh65B6Y.jpg",
+      "release_date": "2001-11-19",
+      "softcore": false,
+      "title": "マトリックス リビジテッド",
+      "video": false,
+      "vote_average": 6.88,
+      "vote_count": 209
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        99,
+        878
+      ],
+      "id": 221495,
+      "original_language": "en",
+      "original_title": "The Matrix Recalibrated",
+      "overview": "",
+      "popularity": 1.1448,
+      "poster_path": "/gRni1Q651AZPnLqZczmahiIxG0s.jpg",
+      "release_date": "2004-04-06",
+      "softcore": false,
+      "title": "The Matrix Recalibrated",
+      "video": true,
+      "vote_average": 6.902,
+      "vote_count": 56
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/4FuxMYW1E1LHqSkWov2YwaziID3.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 684431,
+      "original_language": "en",
+      "original_title": "Making \"The Matrix\"",
+      "overview": "",
+      "popularity": 0.7789,
+      "poster_path": "/m2yIfRJYwpCgHON1Ig1pNKMWTxp.jpg",
+      "release_date": "1999-09-21",
+      "softcore": false,
+      "title": "Making \"The Matrix\"",
+      "video": false,
+      "vote_average": 7.314,
+      "vote_count": 51
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        99
+      ],
+      "id": 591955,
+      "original_language": "en",
+      "original_title": "The Matrix Reloaded Revisited",
+      "overview": "",
+      "popularity": 0.5399,
+      "poster_path": "/gb7C4oRzYWXWCuZMR1cwtHa53Pz.jpg",
+      "release_date": "2004-12-07",
+      "softcore": false,
+      "title": "The Matrix Reloaded Revisited",
+      "video": true,
+      "vote_average": 6.7,
+      "vote_count": 28
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        28,
+        12,
+        878
+      ],
+      "id": 1268926,
+      "original_language": "en",
+      "original_title": "The Matrix 5",
+      "overview": "",
+      "popularity": 0.5681,
+      "poster_path": null,
+      "release_date": "",
+      "softcore": false,
+      "title": "The Matrix 5",
+      "video": false,
+      "vote_average": 0.0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 1386216,
+      "original_language": "fr",
+      "original_title": "The Matrix",
+      "overview": "",
+      "popularity": 0.106,
+      "poster_path": "/u9Mt7yFDTEqtZ9R6O5Cu3ECSiBV.jpg",
+      "release_date": "2004-12-27",
+      "softcore": false,
+      "title": "The Matrix",
+      "video": false,
+      "vote_average": 0.0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        99
+      ],
+      "id": 1128583,
+      "original_language": "en",
+      "original_title": "The Religion Matrix",
+      "overview": "",
+      "popularity": 0.058,
+      "poster_path": "/leFJDPvLoJKuzWY8iXFgHuyazgN.jpg",
+      "release_date": "2021-01-01",
+      "softcore": false,
+      "title": "The Religion Matrix",
+      "video": false,
+      "vote_average": 0.0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/kYZhvlmKHUuAhXPBzTkZy42oZ3h.jpg",
+      "genre_ids": [
+        35
+      ],
+      "id": 344225,
+      "original_language": "en",
+      "original_title": "Sex and the Matrix",
+      "overview": "",
+      "popularity": 1.4645,
+      "poster_path": "/oCYKLcutQzMIeeonk8xhXxlDmq.jpg",
+      "release_date": "2000-06-03",
+      "softcore": false,
+      "title": "Sex and the Matrix",
+      "video": false,
+      "vote_average": 6.722,
+      "vote_count": 9
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        99
+      ],
+      "id": 503880,
+      "original_language": "en",
+      "original_title": "The Matrix Revolutions Revisited",
+      "overview": "",
+      "popularity": 0.7788,
+      "poster_path": "/61ASnmqvzpuz9VEfFElo3e2nIft.jpg",
+      "release_date": "2004-12-07",
+      "softcore": false,
+      "title": "The Matrix Revolutions Revisited",
+      "video": true,
+      "vote_average": 7.1,
+      "vote_count": 29
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/zLNBAxQ4gVNk5sFfeiqbzI1hWyy.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 684735,
+      "original_language": "en",
+      "original_title": "Making 'Enter the Matrix'",
+      "overview": "",
+      "popularity": 0.3919,
+      "poster_path": "/9dYkNzrjfVpgABgssYUReQTXGsz.jpg",
+      "release_date": "2003-10-14",
+      "softcore": false,
+      "title": "Making 'Enter the Matrix'",
+      "video": false,
+      "vote_average": 6.111,
+      "vote_count": 9
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/oIfSEQveCEk8W7FZPiGigwYM6Vh.jpg",
+      "genre_ids": [
+        878
+      ],
+      "id": 1712133,
+      "original_language": "es",
+      "original_title": "Exit the matrix",
+      "overview": "",
+      "popularity": 1.1504,
+      "poster_path": "/fVgzuNUOmsJUYpCmvmMQjNtL3ZZ.jpg",
+      "release_date": "2026-06-15",
+      "softcore": false,
+      "title": "Exit the matrix",
+      "video": true,
+      "vote_average": 5.0,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        99
+      ],
+      "id": 119742,
+      "original_language": "de",
+      "original_title": "The Living Matrix",
+      "overview": "",
+      "popularity": 0.1173,
+      "poster_path": "/ydEBvI3tAp719EbHvhBDUcU3k3V.jpg",
+      "release_date": "2009-10-22",
+      "softcore": false,
+      "title": "The Living Matrix",
+      "video": false,
+      "vote_average": 6.0,
+      "vote_count": 6
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        99
+      ],
+      "id": 684721,
+      "original_language": "en",
+      "original_title": "The Matrix Revolutions: Super Big Mini Models",
+      "overview": "",
+      "popularity": 0.382,
+      "poster_path": "/aFSXTzdOYevM3jytFNySwvzYE9q.jpg",
+      "release_date": "2004-04-06",
+      "softcore": false,
+      "title": "The Matrix Revolutions: Super Big Mini Models",
+      "video": false,
+      "vote_average": 6.9,
+      "vote_count": 4
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 1568732,
+      "original_language": "en",
+      "original_title": "The Matrix REdeZIONized",
+      "overview": "",
+      "popularity": 0.0193,
+      "poster_path": "/6MA2V52jvL89cFE1kjkw4B2gdTx.jpg",
+      "release_date": "2022-01-01",
+      "softcore": false,
+      "title": "The Matrix REdeZIONized",
+      "video": false,
+      "vote_average": 0.0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        99
+      ],
+      "id": 684729,
+      "original_language": "en",
+      "original_title": "The Matrix Reloaded: Car Chase",
+      "overview": "",
+      "popularity": 0.3276,
+      "poster_path": "/sWcSPivHUVSAYVLMXksvECeQbe.jpg",
+      "release_date": "2004-12-07",
+      "softcore": false,
+      "title": "The Matrix Reloaded: Car Chase",
+      "video": false,
+      "vote_average": 7.0,
+      "vote_count": 7
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        99
+      ],
+      "id": 684731,
+      "original_language": "en",
+      "original_title": "The Matrix Reloaded: Pre-Load",
+      "overview": "",
+      "popularity": 0.7061,
+      "poster_path": null,
+      "release_date": "2003-10-14",
+      "softcore": false,
+      "title": "The Matrix Reloaded: Pre-Load",
+      "video": false,
+      "vote_average": 6.1,
+      "vote_count": 21
+    }
+  ],
+  "total_pages": 3,
+  "total_results": 55
+}

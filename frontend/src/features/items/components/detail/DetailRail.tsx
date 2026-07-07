@@ -1,4 +1,4 @@
-import { FiCalendar, FiLink, FiPlayCircle } from 'react-icons/fi';
+import { FiCalendar, FiCheckCircle, FiExternalLink, FiLink, FiPlayCircle } from 'react-icons/fi';
 import { statusLabels } from '../../types';
 import type { ItemDetail } from '../../types-detail';
 import { RatingStars } from './RatingStars';
@@ -39,6 +39,23 @@ export function DetailRail({ item }: { item: ItemDetail }) {
             <FiCalendar className="h-4 w-4 text-text-faint" />
             {item.release_date}
           </span>
+        )}
+        {item.consumed_date && (
+          <span className="flex items-center gap-2 text-[12.5px] text-text-muted">
+            <FiCheckCircle className="h-4 w-4 text-text-faint" />
+            視聴/読了日: {item.consumed_date}
+          </span>
+        )}
+        {item.homepage_url && (
+          <a
+            href={item.homepage_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-[12.5px] text-text-muted hover:text-text-primary"
+          >
+            <FiExternalLink className="h-4 w-4 text-text-faint" />
+            <span className="truncate">公式サイト</span>
+          </a>
         )}
         <span className="flex items-center gap-2 text-[12.5px] text-text-faint">
           <FiLink className="h-4 w-4 text-text-faint" />

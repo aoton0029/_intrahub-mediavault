@@ -29,10 +29,10 @@ export function RelatedItemsList({ itemId }: { itemId: string }) {
         (await apiFetch<ItemDetail>(`/items/${relation.related_item_id}`)).data,
     })),
   });
-  const relatedTitleById = new Map(
+  const relatedItemById = new Map(
     relations.map((relation, index) => [
       relation.related_item_id,
-      relatedItemQueries[index]?.data?.title,
+      relatedItemQueries[index]?.data,
     ]),
   );
 
@@ -53,15 +53,24 @@ export function RelatedItemsList({ itemId }: { itemId: string }) {
         <FiGitBranch className="h-4 w-4 text-text-faint" />
         関連作品
       </h3>
-      {relations.map((relation) => (
+      {relations.map((relation) => {
+        const related = relatedItemById.get(relation.related_item_id);
+        return (
         <div
           key={relation.id}
           className="mb-2.5 flex items-center gap-3.5 rounded-app border border-border-soft bg-bg-surface p-3.5"
         >
-          <div className="h-[72px] w-[52px] flex-shrink-0 rounded bg-[linear-gradient(160deg,#33304a,#232323)]" />
+          <div
+            className="h-[72px] w-[52px] flex-shrink-0 rounded bg-[linear-gradient(160deg,#33304a,#232323)]"
+            style={
+              related?.cover_image_url
+                ? { backgroundImage: `url(${related.cover_image_url})`, backgroundSize: 'cover' }
+                : undefined
+            }
+          />
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 font-display text-sm font-semibold text-text-primary">
-              {relatedTitleById.get(relation.related_item_id) ?? relation.related_item_id}
+              {related?.title ?? relation.related_item_id}
             </div>
             <div className="font-mono text-xs text-text-faint">{relation.relation_type}</div>
           </div>
@@ -73,7 +82,8 @@ export function RelatedItemsList({ itemId }: { itemId: string }) {
             解除
           </button>
         </div>
-      ))}
+        );
+      })}
 
       {!adding && (
         <button

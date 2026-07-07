@@ -2,9 +2,9 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { apiFetch, apiFetchPaginated } from '@/lib/api-client';
 import type {
   CategoryRef,
-  ExternalSearchResult,
   GeneralMediaType,
   ImportItemRequest,
+  MediaDetails,
   Item,
   ItemStatus,
   MediaType,
@@ -137,9 +137,9 @@ export function useItemStatusCountsQuery() {
 export async function searchExternalItems(params: {
   media_type: GeneralMediaType;
   q: string;
-}): Promise<ExternalSearchResult[]> {
+}): Promise<MediaDetails[]> {
   const search = new URLSearchParams({ media_type: params.media_type, q: params.q });
-  return (await apiFetch<ExternalSearchResult[]>(`/items/search?${search.toString()}`)).data;
+  return (await apiFetch<MediaDetails[]>(`/items/search?${search.toString()}`)).data;
 }
 
 export function useExternalSearchQuery(mediaType: GeneralMediaType, q: string) {

@@ -71,7 +71,10 @@ pub async fn delete_item_file_handler(
 
     let deleted = item_file_repository::delete_item_file(&state.db, item_id, file_id).await?;
     let file = deleted.ok_or_else(|| {
-        ApiError::new(ApiErrorCode::FileNotFound, "指定されたファイルが見つかりません")
+        ApiError::new(
+            ApiErrorCode::FileNotFound,
+            "指定されたファイルが見つかりません",
+        )
     })?;
 
     let base_dir = file_storage::resolve_base_dir(file.file_type);

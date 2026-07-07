@@ -1,0 +1,715 @@
+[
+  {
+    "alternative_names": [
+      {
+        "id": 37766,
+        "name": "The Hyrule Fantasy: Legend of Zelda"
+      },
+      {
+        "id": 37767,
+        "name": "Zelda no Densetsu: The Hyrule Fantasy"
+      },
+      {
+        "id": 120471,
+        "name": "Легендата за Зелда"
+      },
+      {
+        "id": 71141,
+        "name": "LoZ"
+      },
+      {
+        "id": 71139,
+        "name": "TLoZ"
+      },
+      {
+        "id": 118554,
+        "name": "Zelda no Densetsu 1: The Hyrule Fantasy"
+      },
+      {
+        "id": 119301,
+        "name": "Zelda no Densetsu"
+      },
+      {
+        "id": 191961,
+        "name": "A lenda de Zelda"
+      }
+    ],
+    "cover": {
+      "id": 86202,
+      "url": "//images.igdb.com/igdb/image/upload/t_thumb/co1uii.jpg"
+    },
+    "first_release_date": 509328000,
+    "genres": [
+      {
+        "id": 31,
+        "name": "Adventure"
+      }
+    ],
+    "id": 1022,
+    "involved_companies": [
+      {
+        "company": {
+          "id": 70,
+          "name": "Nintendo"
+        },
+        "developer": false,
+        "id": 180342,
+        "publisher": true
+      },
+      {
+        "company": {
+          "id": 32471,
+          "name": "Nintendo R&D4"
+        },
+        "developer": true,
+        "id": 197987,
+        "publisher": false
+      },
+      {
+        "company": {
+          "id": 33804,
+          "name": "Playtronic"
+        },
+        "developer": false,
+        "id": 225320,
+        "publisher": true
+      }
+    ],
+    "name": "The Legend of Zelda",
+    "platforms": [
+      {
+        "id": 51,
+        "name": "Family Computer Disk System"
+      },
+      {
+        "id": 37,
+        "name": "Nintendo 3DS"
+      },
+      {
+        "id": 5,
+        "name": "Wii"
+      },
+      {
+        "id": 99,
+        "name": "Family Computer"
+      },
+      {
+        "id": 41,
+        "name": "Wii U"
+      },
+      {
+        "id": 18,
+        "name": "Nintendo Entertainment System"
+      }
+    ],
+    "rating": 80.52241913947984,
+    "screenshots": [
+      {
+        "id": 951192,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdy0.jpg"
+      },
+      {
+        "id": 951195,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdy3.jpg"
+      },
+      {
+        "id": 951196,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdy4.jpg"
+      },
+      {
+        "id": 951197,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdy5.jpg"
+      },
+      {
+        "id": 951198,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdy6.jpg"
+      },
+      {
+        "id": 951189,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdxx.jpg"
+      },
+      {
+        "id": 951193,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdy1.jpg"
+      },
+      {
+        "id": 951194,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdy2.jpg"
+      },
+      {
+        "id": 951190,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdxy.jpg"
+      },
+      {
+        "id": 951191,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckdxz.jpg"
+      }
+    ],
+    "storyline": "In one of the darkest times in the Kingdom of Hyrule, a young boy named Link takes on an epic quest to restore the fragmented Triforce of Wisdom and save the Princess Zelda from the clutches of the evil Ganon.",
+    "summary": "The Legend of Zelda is the first title in the Zelda series, it has marked the history of video games particularly for it's game mechanics and universe. The player controls Link and must make his way through the forests, graveyards, plains and deserts of the Otherworld to find the secret entrances to the eight dungeons and try to restore the broken Triforce. Among the game's mechanics, it was the first time we saw a continuous world that could be freely explored, power-ups that permanently enhanced the main character's abilities and a battery save feature that allowed players to keep their progress instead of having to start over. The gameplay balanced action sequences with discovery, secrets and exploration.",
+    "url": "https://www.igdb.com/games/the-legend-of-zelda"
+  },
+  {
+    "alternative_names": [
+      {
+        "id": 120468,
+        "name": "Зелда II: Приключението на Линк"
+      },
+      {
+        "id": 61167,
+        "name": "Zelda II"
+      },
+      {
+        "id": 61168,
+        "name": "Zelda 2: The Adventure of Link"
+      },
+      {
+        "id": 61169,
+        "name": "The Legend of Zelda 2: Link no Bouken"
+      },
+      {
+        "id": 61171,
+        "name": "The Legend of Zelda 2:"
+      },
+      {
+        "id": 120579,
+        "name": "Зелда II - Приключението на Линк"
+      },
+      {
+        "id": 120580,
+        "name": "Зелда II Приключението на Линк"
+      },
+      {
+        "id": 137826,
+        "name": "Zelda II: A Aventura de Link"
+      },
+      {
+        "id": 138001,
+        "name": "젤다2"
+      }
+    ],
+    "cover": {
+      "id": 86234,
+      "url": "//images.igdb.com/igdb/image/upload/t_thumb/co1uje.jpg"
+    },
+    "first_release_date": 537580800,
+    "genres": [
+      {
+        "id": 8,
+        "name": "Platform"
+      },
+      {
+        "id": 12,
+        "name": "Role-playing (RPG)"
+      },
+      {
+        "id": 31,
+        "name": "Adventure"
+      }
+    ],
+    "id": 1025,
+    "involved_companies": [
+      {
+        "company": {
+          "id": 70,
+          "name": "Nintendo"
+        },
+        "developer": false,
+        "id": 149156,
+        "publisher": true
+      },
+      {
+        "company": {
+          "id": 32471,
+          "name": "Nintendo R&D4"
+        },
+        "developer": true,
+        "id": 198227,
+        "publisher": false
+      },
+      {
+        "company": {
+          "id": 33804,
+          "name": "Playtronic"
+        },
+        "developer": false,
+        "id": 225322,
+        "publisher": true
+      }
+    ],
+    "name": "Zelda II: The Adventure of Link",
+    "platforms": [
+      {
+        "id": 51,
+        "name": "Family Computer Disk System"
+      },
+      {
+        "id": 37,
+        "name": "Nintendo 3DS"
+      },
+      {
+        "id": 5,
+        "name": "Wii"
+      },
+      {
+        "id": 41,
+        "name": "Wii U"
+      },
+      {
+        "id": 18,
+        "name": "Nintendo Entertainment System"
+      }
+    ],
+    "rating": 65.47546272082633,
+    "screenshots": [
+      {
+        "id": 179229,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/rmdhzefetito3kaewgmy.jpg"
+      },
+      {
+        "id": 179231,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/cakoghkyhlvhprfkdtcw.jpg"
+      },
+      {
+        "id": 179233,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/xynfvbtkeymblhw7z0iz.jpg"
+      },
+      {
+        "id": 19444,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/hqhg84m1938opiactwvx.jpg"
+      },
+      {
+        "id": 179234,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/goiyxdnf6uov4nuwzh75.jpg"
+      },
+      {
+        "id": 179230,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/ayfky3lub2r11kvoh5pp.jpg"
+      },
+      {
+        "id": 179232,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/s88qvaejqozjfwvcvnr5.jpg"
+      },
+      {
+        "id": 179235,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/nnhx8ulbz4ozjubiwdng.jpg"
+      },
+      {
+        "id": 179236,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/d1ho6mr2gmnb3okbhbsl.jpg"
+      }
+    ],
+    "storyline": "Several years after the events of The Legend of Zelda, Link has just turned sixteen and discovers a strange birthmark on his hand. With the help of Impa, Zelda's nursemaid, Link learns that this mark is the key to unlock a secret room where Princess Zelda lies sleeping. When young, Princess Zelda was given knowledge of the Triforce of power which was used to rule the kingdom of Hyrule, but when a magician unsuccessfully tried to find out about the Triforce from Zelda, he put her into an eternal sleep. In his grief, the prince placed Zelda in this room hoping she may wake some day. He ordered all female children in the royal household to be named Zelda from this point on, so the tragedy would not be forgotten. Now, to bring Princess Zelda back, Link must locate all the pieces of the Triforce which have been hidden throughout the land.",
+    "summary": "Zelda II: The Adventure of Link is the second major installment in The Legend of Zelda series and the direct sequel to the first game. Like its predecessor, it features dungeons that must be located in the overworld and searched for an item that will prove useful. However, the game presents many very important gameplay changes compared to the previous one, affecting especially the movements and the combat. Moving around the world map involves encounters with enemies that take place on a side-scrolling playfield rather than the top-down perspective for which the series became known.",
+    "url": "https://www.igdb.com/games/zelda-ii-the-adventure-of-link"
+  },
+  {
+    "alternative_names": [
+      {
+        "id": 32936,
+        "name": "The Legend of Zelda: The Mysterious Nuts - Chapter of Space-Time"
+      },
+      {
+        "id": 55547,
+        "name": "TLOZ Oracle of Ages"
+      },
+      {
+        "id": 55548,
+        "name": "Zelda Oracle of Ages"
+      },
+      {
+        "id": 140372,
+        "name": "Zelda no Densetsu: Fushigi no Kinomi - Jikuu no Shou"
+      },
+      {
+        "id": 155377,
+        "name": "Zelda no Densetsu: Fushigi no Kinomi - Yuuki no Shou"
+      },
+      {
+        "id": 155378,
+        "name": "The Legend of Zelda: Mystical Seed of Courage"
+      }
+    ],
+    "cover": {
+      "id": 132049,
+      "url": "//images.igdb.com/igdb/image/upload/t_thumb/co2tw1.jpg"
+    },
+    "first_release_date": 983232000,
+    "genres": [
+      {
+        "id": 9,
+        "name": "Puzzle"
+      },
+      {
+        "id": 31,
+        "name": "Adventure"
+      }
+    ],
+    "id": 1041,
+    "involved_companies": [
+      {
+        "company": {
+          "id": 70,
+          "name": "Nintendo"
+        },
+        "developer": false,
+        "id": 198386,
+        "publisher": true
+      },
+      {
+        "company": {
+          "id": 660,
+          "name": "Capcom Production Studio 1"
+        },
+        "developer": true,
+        "id": 200281,
+        "publisher": false
+      },
+      {
+        "company": {
+          "id": 812,
+          "name": "Gradiente"
+        },
+        "developer": false,
+        "id": 224817,
+        "publisher": true
+      }
+    ],
+    "name": "The Legend of Zelda: Oracle of Ages",
+    "platforms": [
+      {
+        "id": 22,
+        "name": "Game Boy Color"
+      },
+      {
+        "id": 37,
+        "name": "Nintendo 3DS"
+      }
+    ],
+    "rating": 84.25033277863207,
+    "screenshots": [
+      {
+        "id": 176308,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/l8zvnxgmqhb3nnesg7e9.jpg"
+      },
+      {
+        "id": 176309,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/lrj9bbm9a3i2ivp0vn6c.jpg"
+      },
+      {
+        "id": 176307,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/t7l71ajns1jk97ytkpks.jpg"
+      },
+      {
+        "id": 176310,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/vpaltrwlvwvfkvet6lzx.jpg"
+      },
+      {
+        "id": 176313,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/jzuaecsuznl7ezp2mv0q.jpg"
+      },
+      {
+        "id": 176312,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/mpaogl2848lhfsmo91ry.jpg"
+      },
+      {
+        "id": 176311,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/cdx7sfogk2uasy23zirs.jpg"
+      },
+      {
+        "id": 176314,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/ujhr706ik9ylq6yg9fil.jpg"
+      }
+    ],
+    "storyline": "A pall of Darkness has fallen over the land of Labrynna. The Sorceress of Shadows has captured the Oracle of Ages and is using her power to do evil. Link has been summoned to help and must travel back and forth in time to stop the Sorceress of Shadows and return Labrynna to its former glory.",
+    "summary": "The Legend of Zelda: Oracle of Ages is one of two Zelda titles released for the Game Boy Color, the other being Oracle of Seasons. The game retain many gameplay elements from Link's Awakening such as the graphics, audio and top-view perspective. It also features eight dungeons and a large overworld to explore like in the previous games. Oracle of Ages is said to be more puzzle-oriented than its counterpart being more action-oriented. After completing one of the two games, both can be linked to form a single linear plot with an alternate ending. Oracle of Ages and Oracle of Seasons were often credited as being two of the top games for the Game Boy Color.",
+    "url": "https://www.igdb.com/games/the-legend-of-zelda-oracle-of-ages"
+  },
+  {
+    "alternative_names": [
+      {
+        "id": 32939,
+        "name": "The Legend of Zelda: The Mysterious Nuts - Chapter of Earth"
+      },
+      {
+        "id": 55569,
+        "name": "TLOZ Oracle of Seasons"
+      },
+      {
+        "id": 55570,
+        "name": "Zelda Oracle of Seasons"
+      },
+      {
+        "id": 140371,
+        "name": "Zelda no Densetsu: Fushigi no Kinomi - Daichi no Shou"
+      },
+      {
+        "id": 155375,
+        "name": "Zelda no Densetsu: Fushigi no Kinomi - Chikara no Shou"
+      },
+      {
+        "id": 155376,
+        "name": "The Legend of Zelda: Mystical Seed of Power"
+      }
+    ],
+    "cover": {
+      "id": 132048,
+      "url": "//images.igdb.com/igdb/image/upload/t_thumb/co2tw0.jpg"
+    },
+    "first_release_date": 983232000,
+    "genres": [
+      {
+        "id": 9,
+        "name": "Puzzle"
+      },
+      {
+        "id": 31,
+        "name": "Adventure"
+      }
+    ],
+    "id": 1032,
+    "involved_companies": [
+      {
+        "company": {
+          "id": 70,
+          "name": "Nintendo"
+        },
+        "developer": false,
+        "id": 198389,
+        "publisher": true
+      },
+      {
+        "company": {
+          "id": 660,
+          "name": "Capcom Production Studio 1"
+        },
+        "developer": true,
+        "id": 200282,
+        "publisher": false
+      },
+      {
+        "company": {
+          "id": 812,
+          "name": "Gradiente"
+        },
+        "developer": false,
+        "id": 224818,
+        "publisher": true
+      }
+    ],
+    "name": "The Legend of Zelda: Oracle of Seasons",
+    "platforms": [
+      {
+        "id": 22,
+        "name": "Game Boy Color"
+      },
+      {
+        "id": 37,
+        "name": "Nintendo 3DS"
+      }
+    ],
+    "rating": 81.29742745554876,
+    "screenshots": [
+      {
+        "id": 952111,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckenj.jpg"
+      },
+      {
+        "id": 952112,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckenk.jpg"
+      },
+      {
+        "id": 952113,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckenl.jpg"
+      },
+      {
+        "id": 952114,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckenm.jpg"
+      },
+      {
+        "id": 952115,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckenn.jpg"
+      },
+      {
+        "id": 952117,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckenp.jpg"
+      },
+      {
+        "id": 952116,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/sckeno.jpg"
+      }
+    ],
+    "storyline": "The land of Holodrum is slowly withering. Onox, the General of Darkness, has imprisoned the Oracle of Seasons and is draining the very life out of the land. With the seasons in tumult and the forces of evil running rampant, the world looks for a hero... and finds Link. His quest won't be easy - he'll have to master the seasons themselves if he's to turn back the evil tide.",
+    "summary": "The Legend of Zelda: Oracle of Seasons is one of two Zelda titles released for the Game Boy Color, the other being Oracle of Ages. The game retain many gameplay elements from Link's Awakening such as the graphics, audio and top-view perspective. It also features eight dungeons and a large overworld to explore like in the previous games. Oracle of Seasons is said to be more action-oriented than its counterpart being more puzzle-oriented. After completing one of the two games, both can be linked to form a single linear plot with an alternate ending. Oracle of Seasons and Oracle of Ages were often credited as being two of the top games for the Game Boy Color.",
+    "url": "https://www.igdb.com/games/the-legend-of-zelda-oracle-of-seasons"
+  },
+  {
+    "alternative_names": [
+      {
+        "id": 71654,
+        "name": "Zelda no Densetsu: Kamigami no Triforce"
+      },
+      {
+        "id": 71655,
+        "name": "Zelda III"
+      },
+      {
+        "id": 3279,
+        "name": "TLoZ: ALttP"
+      },
+      {
+        "id": 172287,
+        "name": "LTTP"
+      },
+      {
+        "id": 137998,
+        "name": "젤다 신트포"
+      },
+      {
+        "id": 172284,
+        "name": "塞尔达传说 - 众神的三角力量"
+      },
+      {
+        "id": 172288,
+        "name": "Zelda 3"
+      },
+      {
+        "id": 191965,
+        "name": "A lenda de Zelda: um elo com o passado"
+      }
+    ],
+    "cover": {
+      "id": 181427,
+      "url": "//images.igdb.com/igdb/image/upload/t_thumb/co3vzn.jpg"
+    },
+    "first_release_date": 690681600,
+    "genres": [
+      {
+        "id": 9,
+        "name": "Puzzle"
+      },
+      {
+        "id": 31,
+        "name": "Adventure"
+      }
+    ],
+    "id": 1026,
+    "involved_companies": [
+      {
+        "company": {
+          "id": 25230,
+          "name": "St. GIGA"
+        },
+        "developer": false,
+        "id": 101094,
+        "publisher": true
+      },
+      {
+        "company": {
+          "id": 421,
+          "name": "Nintendo Entertainment Analysis & Development"
+        },
+        "developer": true,
+        "id": 162318,
+        "publisher": false
+      },
+      {
+        "company": {
+          "id": 70,
+          "name": "Nintendo"
+        },
+        "developer": false,
+        "id": 162319,
+        "publisher": true
+      },
+      {
+        "company": {
+          "id": 33804,
+          "name": "Playtronic"
+        },
+        "developer": false,
+        "id": 224534,
+        "publisher": true
+      },
+      {
+        "company": {
+          "id": 812,
+          "name": "Gradiente"
+        },
+        "developer": false,
+        "id": 224545,
+        "publisher": true
+      },
+      {
+        "company": {
+          "id": 32350,
+          "name": "Hyundai"
+        },
+        "developer": false,
+        "id": 226969,
+        "publisher": true
+      }
+    ],
+    "name": "The Legend of Zelda: A Link to the Past",
+    "platforms": [
+      {
+        "id": 306,
+        "name": "Satellaview"
+      },
+      {
+        "id": 19,
+        "name": "Super Nintendo Entertainment System"
+      },
+      {
+        "id": 5,
+        "name": "Wii"
+      },
+      {
+        "id": 41,
+        "name": "Wii U"
+      },
+      {
+        "id": 137,
+        "name": "New Nintendo 3DS"
+      },
+      {
+        "id": 58,
+        "name": "Super Famicom"
+      }
+    ],
+    "rating": 91.94713610915898,
+    "screenshots": [
+      {
+        "id": 176243,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/mussjiqbllmh1lxkavc4.jpg"
+      },
+      {
+        "id": 176244,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/tip6pqunpn88oufxkl05.jpg"
+      },
+      {
+        "id": 176245,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/tgy8bav1xegsdkjcwce2.jpg"
+      },
+      {
+        "id": 176246,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/lw052zlyygibyccnh8re.jpg"
+      },
+      {
+        "id": 176248,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/arzyywgcajea7r1bbjbt.jpg"
+      },
+      {
+        "id": 176247,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/kug1gjpomy43zthbms2q.jpg"
+      },
+      {
+        "id": 176249,
+        "url": "//images.igdb.com/igdb/image/upload/t_thumb/zsxzq9l0kl5l96mtm9c1.jpg"
+      }
+    ],
+    "storyline": "The wizard Agahnim has been abducting descendants of the seven sages, intent on using their power to obliterate the barrier leading to the Dark World. One of the descendants happens to be Princess Zelda, who informs Link of her plight. Armed with a trusty sword and shield, Link begins a journey that will take him through treacherous territory.",
+    "summary": "Venture back to Hyrule and an age of magic and heroes. The predecessors of Link and Zelda face monsters on the march when a menacing magician takes over the kingdom. Only you can prevent his evil plot from shattering the land of Hyrule.\n\nIn your quest, you'll venture into twisting mazes, dungeons, palaces and shadowy forests. Test your mettle with mighty swords and magical weapons. Or heft a boulder and hurl it at your enemies. If the going gets tough, dive into a river - you can swim to escape! Learn powerful spells, locate magical artifacts and solve the mysteries of the evil magician and the hidden realm of Hyrule.",
+    "url": "https://www.igdb.com/games/the-legend-of-zelda-a-link-to-the-past"
+  }
+]

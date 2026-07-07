@@ -14,13 +14,13 @@ cp backend/.env.example backend/.env
 # 3. 統合環境を起動する
 docker compose up -d --build
 
-# 4. 起動状態を確認する（frontend/backend/dbの3サービスが Up になっていること。dbは healthy）
+# 4. 起動状態を確認する（db・backend・frontend が Up、migrate は Exited (0) なら正常）
 docker compose ps
 ```
 
 起動後、ブラウザで [http://localhost](http://localhost) にアクセスする。フロントエンドはnginx経由で配信され、`/api/`宛のリクエストはnginxが自動的にbackend（`http://backend:8080`）へリバースプロキシする。`backend`（8080番）・`db`（5432番）はホストに公開されず、`frontend`（80番）のみアクセス可能。
 
-初回起動時にDBスキーマが空の場合は、`backend/mediavault-api/migrations/`配下のSQLを適用する必要がある（`sqlx-cli`または`psql`を利用）。
+統合環境では `db` の起動後に `migrate` ワンショットサービスが `backend/mediavault-api/migrations/` 配下のSQLを `sqlx migrate run` で適用してから backend を起動する。初回起動時に別途 `sqlx-cli` や `psql` で手動適用する必要はない。`migrate` はワンショットのため、`docker compose ps` 上で `Exited (0)` になるのが正常。
 
 停止するには:
 ```bash

@@ -1,25 +1,24 @@
 import { ApiClientError } from '@/lib/api-client';
 import { useImportItemMutation } from '../api';
 import {
-  externalProviderLabels,
   mediaTypeLabels,
-  type ExternalSearchResult,
+  providerLabel,
   type GeneralMediaType,
+  type MediaDetails,
 } from '../types';
-import { getCoverImageUrl, getOriginalTitle, getReleaseYear } from '../lib/externalSearchResult';
 
 export function ExternalResultCard({
   result,
   mediaType,
 }: {
-  result: ExternalSearchResult;
+  result: MediaDetails;
   mediaType: GeneralMediaType;
 }) {
   const importMutation = useImportItemMutation();
 
-  const originalTitle = getOriginalTitle(result);
-  const coverImageUrl = getCoverImageUrl(result);
-  const releaseYear = getReleaseYear(result);
+  const originalTitle = result.original_title;
+  const coverImageUrl = result.image_url;
+  const releaseYear = result.release_date?.slice(0, 4);
 
   const alreadyImported =
     importMutation.isError &&
@@ -27,13 +26,8 @@ export function ExternalResultCard({
     importMutation.error.code === 'ITEM_ALREADY_IMPORTED';
 
   function handleImport() {
-    importMutation.mutate({
-      media_type: mediaType,
-      external_id: result.external_id,
-      title: result.title,
-      provider: result.provider,
-      raw_data: result.raw_data,
-    });
+    // ノーマライズ済み検索結果（MediaDetails）をそのままインポートリクエストとして送る
+    importMutation.mutate(result);
   }
 
   return (
@@ -56,7 +50,7 @@ export function ExternalResultCard({
         <div className="flex items-center gap-1.5 text-[11px] text-text-faint">
           {releaseYear && <span>{releaseYear}年</span>}
           {releaseYear && <span>・</span>}
-          <span>{externalProviderLabels[result.provider]}</span>
+          <span>{providerLabel(result.provider)}</span>
         </div>
         <button
           type="button"
