@@ -1,0 +1,112 @@
+{
+  "works": [
+    {
+      "id": 6607,
+      "title": "メイドインアビス 深き魂の黎明",
+      "title_kana": "めいどいんあびすふかきたましいのれいめい",
+      "title_en": "Made in Abyss Movie 3: Fukaki Tamashii no Reimei",
+      "media": "movie",
+      "media_text": "映画",
+      "released_on": "",
+      "released_on_about": "",
+      "official_site_url": "http://miabyss.com/movie/index.html#1",
+      "wikipedia_url": "https://ja.wikipedia.org/wiki/%E3%83%A1%E3%82%A4%E3%83%89%E3%82%A4%E3%83%B3%E3%82%A2%E3%83%93%E3%82%B9_(%E3%82%A2%E3%83%8B%E3%83%A1)",
+      "twitter_username": "miabyss_anime",
+      "twitter_hashtag": "miabyss",
+      "syobocal_tid": "",
+      "mal_anime_id": "36862",
+      "images": {
+        "recommended_url": "http://miabyss.com/images/ogp.jpg",
+        "facebook": {
+          "og_image_url": "http://miabyss.com/images/ogp.jpg"
+        },
+        "twitter": {
+          "mini_avatar_url": "https://twitter.com/miabyss_anime/profile_image?size=mini",
+          "normal_avatar_url": "https://twitter.com/miabyss_anime/profile_image?size=normal",
+          "bigger_avatar_url": "https://twitter.com/miabyss_anime/profile_image?size=bigger",
+          "original_avatar_url": "https://twitter.com/miabyss_anime/profile_image?size=original",
+          "image_url": ""
+        }
+      },
+      "episodes_count": 0,
+      "watchers_count": 5759,
+      "reviews_count": 53,
+      "no_episodes": true,
+      "season_name": "2020-winter",
+      "season_name_text": "2020年冬"
+    },
+    {
+      "id": 4021,
+      "title": "サラとダックン",
+      "title_kana": "さらとだっくん",
+      "title_en": "",
+      "media": "tv",
+      "media_text": "TV",
+      "released_on": "2013-10-04",
+      "released_on_about": "",
+      "official_site_url": "http://www9.nhk.or.jp/anime/sarah_duck/",
+      "wikipedia_url": "http://ja.wikipedia.org/wiki/%E3%82%B5%E3%83%A9%E3%81%A8%E3%83%80%E3%83%83%E3%82%AF%E3%83%B3",
+      "twitter_username": "",
+      "twitter_hashtag": "",
+      "syobocal_tid": "3194",
+      "mal_anime_id": "",
+      "images": {
+        "recommended_url": "",
+        "facebook": {
+          "og_image_url": ""
+        },
+        "twitter": {
+          "mini_avatar_url": "",
+          "normal_avatar_url": "",
+          "bigger_avatar_url": "",
+          "original_avatar_url": "",
+          "image_url": ""
+        }
+      },
+      "episodes_count": 40,
+      "watchers_count": 17,
+      "reviews_count": 0,
+      "no_episodes": false,
+      "season_name": "2013-autumn",
+      "season_name_text": "2013年秋"
+    },
+    {
+      "id": 17492,
+      "title": "恋する天使アンジェリーク～心のめざめる時～ スペシャルアニメ「ちびキャラ♥Adventure」",
+      "title_kana": "",
+      "title_en": "",
+      "media": "ova",
+      "media_text": "OVA",
+      "released_on": "",
+      "released_on_about": "",
+      "official_site_url": "",
+      "wikipedia_url": "",
+      "twitter_username": "",
+      "twitter_hashtag": "",
+      "syobocal_tid": "",
+      "mal_anime_id": "5783",
+      "images": {
+        "recommended_url": "",
+        "facebook": {
+          "og_image_url": ""
+        },
+        "twitter": {
+          "mini_avatar_url": "",
+          "normal_avatar_url": "",
+          "bigger_avatar_url": "",
+          "original_avatar_url": "",
+          "image_url": ""
+        }
+      },
+      "episodes_count": 0,
+      "watchers_count": 4,
+      "reviews_count": 0,
+      "no_episodes": true,
+      "season_name": "2006-summer",
+      "season_name_text": "2006年夏"
+    }
+  ],
+  "total_count": 17386,
+  "next_page": 2,
+  "prev_page": null
+}

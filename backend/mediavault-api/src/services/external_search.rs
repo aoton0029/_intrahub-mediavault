@@ -12,9 +12,11 @@
 use std::sync::Arc;
 
 use api_client_lib::auth::AuthStrategy;
+use api_client_lib::clients::annict::AnnictClient;
+use api_client_lib::clients::annict::requests::ListWorksRequest;
 use api_client_lib::clients::jikan::JikanClient;
 use api_client_lib::clients::jikan::requests::{
-    JikanAnimeSearchRequest, JikanMangaSearchRequest, JikanRequest,
+    JikanAnimeDetailsRequest, JikanMangaSearchRequest, JikanRequest,
 };
 use api_client_lib::clients::ndl::NdlClient;
 use api_client_lib::clients::ndl::models::NdlModel;
@@ -102,6 +104,7 @@ struct TestBaseUrls {
     tmdb: Option<String>,
     ndl: Option<String>,
     steam: Option<String>,
+    annict: Option<String>,
 }
 
 /// media_type→provider振り分けディスパッチサービス
@@ -158,7 +161,7 @@ impl ExternalSearchService {
         query: &str,
     ) -> Result<Vec<MediaDetails>, ExternalSearchError> {
         match media_type {
-            MediaType::Anime => self.dispatch_jikan_anime(query).await,
+            MediaType::Anime => self.dispatch_annict_anime(query).await,
             MediaType::Manga => self.dispatch_jikan_manga(query).await,
             MediaType::Movie => self.dispatch_tmdb_movie(query).await,
             MediaType::Drama => self.dispatch_tmdb_drama(query).await,
@@ -200,6 +203,20 @@ impl ExternalSearchService {
         NdlClient::new().map_err(ExternalSearchError::ExternalApiError)
     }
 
+    /// Annictクライアントを構築する（テスト時はベースURL差し替え可能） 🔵
+    fn build_annict_client(&self, api_key: String) -> Result<AnnictClient, ExternalSearchError> {
+        #[cfg(test)]
+        if let Some(base_url) = &self.test_base_urls.annict {
+            return AnnictClient::new_with_base_url(
+                AuthStrategy::ApiKey(api_key),
+                base_url.clone(),
+            )
+            .map_err(ExternalSearchError::ExternalApiError);
+        }
+        AnnictClient::new(AuthStrategy::ApiKey(api_key))
+            .map_err(ExternalSearchError::ExternalApiError)
+    }
+
     /// Steamクライアントを構築する（テスト時はベースURL差し替え可能。ストア検索は認証不要のため`AuthStrategy::None`固定） 🟡
     fn build_steam_client(&self) -> Result<SteamClient, ExternalSearchError> {
         #[cfg(test)]
@@ -214,31 +231,81 @@ impl ExternalSearchService {
         SteamClient::new(AuthStrategy::None).map_err(ExternalSearchError::ExternalApiError)
     }
 
-    /// Jikan（anime）へディスパッチする。キー不要のため `find_by_provider` は呼ばない（REQ-0023-102）。
-    /// 🔵 信頼性レベル: 要件定義書 REQ-0023-02・設計判断Cより
-    async fn dispatch_jikan_anime(
+    /// Annict（anime）へディスパッチする。`find_by_provider(Annict)` でキーを取得する。
+    /// 検索結果はid/title/images.recommended_urlのみを保持する軽量マッピングとする。
+    async fn dispatch_annict_anime(
         &self,
         query: &str,
     ) -> Result<Vec<MediaDetails>, ExternalSearchError> {
-        // 【クライアント構築】: Jikanはキー不要のためnew()のみで初期化する 🔵
-        let client = self.build_jikan_client()?;
-        let request = JikanRequest::SearchAnime(JikanAnimeSearchRequest {
-            q: Some(query.to_string()),
-            page: None,
-            limit: None,
-            anime_type: None,
-            status: None,
-        });
-        // 【実呼び出し】: ApiClient::executeを呼び、ApiErrorはExternalApiErrorへ集約する 🔵
+        let api_key = self.ensure_key(ApiProvider::Annict).await?;
+        let client = self.build_annict_client(api_key)?;
         let response = client
-            .execute(request)
+            .list_works(ListWorksRequest {
+                filter_title: Some(query.to_string()),
+                ..Default::default()
+            })
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
-        // 【ドメイン変換】: raw JSONの検索結果要素をAnimeDetailsへノーマライズする（providerはNone=Jikan表現） 🔵
-        let raw_data = raw_data_to_value(&response.raw);
-        Ok(map_array_items(&raw_data, "data", |item| {
-            MediaDetails::Anime(AnimeDetails::from_jikan_details(item))
-        }))
+        Ok(response
+            .model
+            .iter()
+            .map(|work| MediaDetails::Anime(AnimeDetails::from_annict_work(work)))
+            .collect())
+    }
+
+    /// インポート確定時: Annictの作品情報を再取得し、`mal_anime_id`を使ってJikanから詳細を取得、
+    /// 両者をマージした`MediaDetails::Anime`を返す。
+    ///
+    /// `mal_anime_id`が空、またはJikan取得に失敗した場合はAnnict情報のみへフォールバックする
+    /// （Jikan障害でインポート全体を失敗させない設計）。
+    pub async fn fetch_anime_import_details(
+        &self,
+        annict_work_id: &str,
+    ) -> Result<MediaDetails, ExternalSearchError> {
+        let api_key = self.ensure_key(ApiProvider::Annict).await?;
+        let annict_client = self.build_annict_client(api_key)?;
+        let response = annict_client
+            .list_works(ListWorksRequest {
+                filter_ids: Some(annict_work_id.to_string()),
+                ..Default::default()
+            })
+            .await
+            .map_err(ExternalSearchError::ExternalApiError)?;
+        let work = response.model.into_iter().next().ok_or_else(|| {
+            ExternalSearchError::ExternalApiError(api_client_lib::ApiError::Http {
+                status: 404,
+                body: format!("Annict work not found: {annict_work_id}"),
+            })
+        })?;
+
+        let mal_id: Option<u32> = work
+            .mal_anime_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse().ok());
+
+        let Some(mal_id) = mal_id else {
+            return Ok(MediaDetails::Anime(AnimeDetails::from_annict_work(&work)));
+        };
+
+        let jikan_client = self.build_jikan_client()?;
+        let jikan_result = jikan_client
+            .execute(JikanRequest::GetAnimeDetails(JikanAnimeDetailsRequest {
+                id: mal_id,
+            }))
+            .await;
+
+        match jikan_result {
+            Ok(response) => {
+                let raw_data = raw_data_to_value(&response.raw);
+                let jikan_data = raw_data.get("data").unwrap_or(&raw_data);
+                Ok(MediaDetails::Anime(AnimeDetails::from_annict_and_jikan(
+                    &work, jikan_data,
+                )))
+            }
+            Err(_) => Ok(MediaDetails::Anime(AnimeDetails::from_annict_work(&work))),
+        }
     }
 
     /// Jikan（manga、設計判断A）へディスパッチする。キー不要のため `find_by_provider` は呼ばない。
@@ -451,32 +518,31 @@ mod tests {
     // 1. 正常系テストケース（基本的な動作）
     // ============================================================
 
-    /// TC-002-01-A: media_type=Anime → Jikanのみへディスパッチ（ユニット・HTTPモック）
-    /// 🔵 信頼性レベル: 要件定義書 REQ-0023-02・設計判断C・TC-002-01より
+    /// TC-002-01-A: media_type=Anime → Annictのみへディスパッチ（ユニット・HTTPモック）
+    /// 🔵 信頼性レベル: ユーザー指示（アニメ検索はAnnictを使用）より
     #[tokio::test]
-    async fn search_anime_dispatches_to_jikan_only() {
-        // 【テスト目的】: MediaType::Animeのとき、Jikanクライアントのexecuteのみが実行されるかを確認する
+    async fn search_anime_dispatches_to_annict_only() {
+        // 【テスト目的】: MediaType::Animeのとき、Annictクライアントのexecuteのみが実行されるかを確認する
         // 【テスト内容】: 各プロバイダのモックサーバーURLを注入したserviceでsearch(Anime, "鬼滅の刃")を呼ぶ
-        // 【期待される動作】: JikanモックのみがHTTPリクエストを1回受信し、他プロバイダは0回
-        // 🔵 信頼性レベル: 要件定義書 REQ-0023-02・設計判断C・TC-002-01-Aより
-        // 【Red期待】: search内部はdispatch_jikan_anime経由でtodo!()に到達するため、本テストは現状panicする（Red状態）
+        // 【期待される動作】: AnnictモックのみがHTTPリクエストを1回受信し、他プロバイダは0回
 
-        let jikan_mock = MockServer::start().await;
+        let annict_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
-            .mount(&jikan_mock)
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"works": []})),
+            )
+            .mount(&annict_mock)
             .await;
 
-        let service =
-            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service = service_with_single_key(ApiProvider::Annict, "test-annict-key")
+            .with_test_base_urls(|u| u.annict = Some(annict_mock.uri()));
 
         // 【実際の処理実行】: Animeでsearchを呼び出す
         let result = service.search(MediaType::Anime, "鬼滅の刃").await;
 
-        // 【結果検証】: Okが返り、Jikanモック受信数が1、他プロバイダ受信数が0であること（Green phaseで検証予定）
-        // 【確認ポイント】: 現状はdispatch_jikan_anime内のtodo!()でpanicするため、Red状態として正しい
-        assert!(result.is_ok()); // 【確認内容】: Green実装後はOk(Vec<MediaDetails>)が返ることを確認する 🔵
-        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: Jikanモックへの到達回数が1であることを確認する 🔵
+        // 【結果検証】: Okが返り、Annictモック受信数が1であること
+        assert!(result.is_ok()); // 【確認内容】: Ok(Vec<MediaDetails>)が返ることを確認する
+        assert_eq!(annict_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: Annictモックへの到達回数が1であることを確認する
     }
 
     /// TC-002-02-B: media_type=Drama → TMDbへディスパッチ（ユニット・HTTPモック）
@@ -894,24 +960,25 @@ mod tests {
     /// 🟡 信頼性レベル: 要件定義書 第3章 L86（空文字バリデーションは呼び出し元責務）より
     #[tokio::test]
     async fn search_anime_with_empty_query_is_passed_through_without_validation() {
-        // 【テスト目的】: query=""（空文字）がバリデーションされず透過的にJikanへ渡されるかを確認する
+        // 【テスト目的】: query=""（空文字）がバリデーションされず透過的にAnnictへ渡されるかを確認する
         // 【テスト内容】: search(Anime, "")を呼ぶ
-        // 【期待される動作】: サービス層がValidationErrorを発生させず、Jikanモックへ空クエリのリクエストが到達する。panicしない
-        // 🟡 信頼性レベル: 要件定義書 第3章 L86（空文字バリデーションは呼び出し元責務・透過処理）より
+        // 【期待される動作】: サービス層がValidationErrorを発生させず、Annictモックへ空クエリのリクエストが到達する。panicしない
 
-        let jikan_mock = MockServer::start().await;
+        let annict_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
-            .mount(&jikan_mock)
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"works": []})),
+            )
+            .mount(&annict_mock)
             .await;
 
-        let service =
-            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service = service_with_single_key(ApiProvider::Annict, "test-annict-key")
+            .with_test_base_urls(|u| u.annict = Some(annict_mock.uri()));
 
         let result = service.search(MediaType::Anime, "").await;
 
-        assert!(result.is_ok()); // 【確認内容】: 空文字クエリでもpanicせずOkが返ることを確認する 🟡
-        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: 空文字クエリでもJikanへ到達することを確認する 🟡
+        assert!(result.is_ok()); // 【確認内容】: 空文字クエリでもpanicせずOkが返ることを確認する
+        assert_eq!(annict_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: 空文字クエリでもAnnictへ到達することを確認する
     }
 
     /// TC-002-B02: 非常に長いクエリ文字列が透過的に処理される（境界・ユニット）
@@ -929,14 +996,16 @@ mod tests {
         // 反映されること（モック受信時にエラー応答が返ること）自体で証明される。
         // 🟡 信頼性レベル: 要件定義書 第3章 L86（透過処理方針）からの妥当な推測（クエリ長上限の明記なし）より
 
-        let jikan_mock = MockServer::start().await;
+        let annict_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
-            .mount(&jikan_mock)
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"works": []})),
+            )
+            .mount(&annict_mock)
             .await;
 
-        let service =
-            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service = service_with_single_key(ApiProvider::Annict, "test-annict-key")
+            .with_test_base_urls(|u| u.annict = Some(annict_mock.uri()));
         let long_query = "あ".repeat(10_000);
 
         let result = service.search(MediaType::Anime, &long_query).await;
@@ -961,8 +1030,8 @@ mod tests {
         // 🔵 信頼性レベル: 要件定義書 第2章 マッピング表・REQ-0023-01・REQ-0023-501・REQ-0023-402より
 
         // キー不要provider（Jikan/Steam）は到達不能プールで検証し、キー必須providerは個別テストケースで検証済みのため、
-        // 本テストではJikan系2variant（Anime/Manga）の一意写像のみを境界網羅として確認する
-        // （キー必須providerはTC-002-02-B/NOVEL/ACADEMIC/PAPERで、Steam(Game)はTC-002-GAMEで個別に確認済み）。
+        // 本テストではManga（Jikan、キー不要）の一意写像のみを境界網羅として確認する
+        // （Anime(Annict)はTC-002-01-A・キー必須検証は別テストで、Steam(Game)はTC-002-GAMEで個別に確認済み）。
         let jikan_mock = MockServer::start().await;
         Mock::given(method("GET"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
@@ -972,11 +1041,9 @@ mod tests {
         let service =
             service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
 
-        for media_type in [MediaType::Anime, MediaType::Manga] {
-            let result = service.search(media_type, "クエリ").await;
-            assert!(result.is_ok(), "media_type={media_type:?}"); // 【確認内容】: 各variantで未処理（panic/fallthrough）にならないことを確認する 🔵
-        }
-        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 2); // 【確認内容】: Anime/Manga双方がJikanへ到達することを確認する 🔵
+        let result = service.search(MediaType::Manga, "クエリ").await;
+        assert!(result.is_ok(), "media_type=Manga"); // 【確認内容】: 未処理（panic/fallthrough）にならないことを確認する 🔵
+        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: MangaがJikanへ到達することを確認する 🔵
     }
 
     /// TC-002-B04: 隣接enum variant誤ディスパッチ検証（Manga/Novel・AcademicBook/Paper・Anime/Movie 非混同・ユニット）
@@ -1007,14 +1074,13 @@ mod tests {
         assert_eq!(ndl_mock.received_requests().await.unwrap().len(), 0); // 【確認内容】: NDLモックへ誤到達しないことを確認する 🔵
     }
 
-    /// TC-002-B05: Jikan系（Anime/Manga）はキー取得を一切行わない（境界・ユニット）
+    /// TC-002-B05: Manga（Jikan）はキー取得を一切行わない（境界・ユニット）
     /// 🔵 信頼性レベル: 要件定義書 REQ-0023-102・設計判断A/Cより
     #[tokio::test]
-    async fn search_anime_and_manga_never_call_find_by_provider() {
-        // 【テスト目的】: Anime/Manga実行時にfind_by_providerが一度も呼ばれないかを確認する
-        // 【テスト内容】: 到達不能プール（DB未初期化相当）でsearch(Anime, ..)とsearch(Manga, ..)を呼ぶ
-        // 【期待される動作】: いずれもfind_by_provider呼び出し==0、Jikanモック受信==1。DB接続不能でもApiKeyNotConfiguredにならず成功し得る
-        // 🔵 信頼性レベル: 要件定義書 REQ-0023-102・設計判断A/C・タスクファイルL60より
+    async fn search_manga_never_calls_find_by_provider() {
+        // 【テスト目的】: Manga実行時にfind_by_providerが一度も呼ばれないかを確認する
+        // 【テスト内容】: 全プロバイダキー未設定resolverでsearch(Manga, ..)を呼ぶ
+        // 【期待される動作】: find_by_provider呼び出し==0、Jikanモック受信==1。DB接続不能でもApiKeyNotConfiguredにならず成功し得る
 
         let jikan_mock = MockServer::start().await;
         Mock::given(method("GET"))
@@ -1028,11 +1094,191 @@ mod tests {
         let service =
             service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
 
-        let anime_result = service.search(MediaType::Anime, "クエリ").await;
         let manga_result = service.search(MediaType::Manga, "クエリ").await;
 
-        assert!(anime_result.is_ok()); // 【確認内容】: Anime検索がDB接続不能でも成功することを確認する（find_by_provider非経由の証明） 🔵
         assert!(manga_result.is_ok()); // 【確認内容】: Manga検索がDB接続不能でも成功することを確認する（find_by_provider非経由の証明） 🔵
-        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 2); // 【確認内容】: Anime/Manga双方がJikanへ到達することを確認する 🔵
+        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: MangaがJikanへ到達することを確認する 🔵
+    }
+
+    /// media_type=Anime → Annictキー未設定時にApiKeyNotConfigured(Annict)を返す（ユニット）
+    /// 🔵 信頼性レベル: ユーザー指示（アニメ検索はAnnictを使用）・REQ-0023-101より
+    #[tokio::test]
+    async fn search_anime_returns_api_key_not_configured_when_annict_key_missing() {
+        let annict_mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"works": []})),
+            )
+            .mount(&annict_mock)
+            .await;
+
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.annict = Some(annict_mock.uri()));
+
+        let result = service.search(MediaType::Anime, "クエリ").await;
+
+        match result {
+            Err(ExternalSearchError::ApiKeyNotConfigured(provider)) => {
+                assert_eq!(provider, ApiProvider::Annict);
+            }
+            other => panic!("ApiKeyNotConfigured(Annict)が返るはずだったが: {other:?}"),
+        }
+        assert_eq!(annict_mock.received_requests().await.unwrap().len(), 0); // 【確認内容】: 外部API呼び出しが発生しないことを確認する
+    }
+
+    // ============================================================
+    // 4. fetch_anime_import_details（インポート確定時のAnnict+Jikanマージ取得）
+    // ============================================================
+
+    /// mal_anime_idが存在する場合、Annict再取得→Jikan取得の順で呼ばれマージされる
+    #[tokio::test]
+    async fn fetch_anime_import_details_merges_annict_and_jikan_when_mal_anime_id_present() {
+        let annict_mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "works": [{
+                    "id": 6607,
+                    "title": "メイドインアビス 深き魂の黎明",
+                    "mal_anime_id": "9253",
+                    "images": { "recommended_url": "http://example.com/ogp.jpg" },
+                    "episodes_count": 1,
+                    "season_name": "2020-winter"
+                }]
+            })))
+            .mount(&annict_mock)
+            .await;
+
+        let jikan_mock = MockServer::start().await;
+        let Some(jikan_fixture) =
+            crate::models::domain::test_util::load_fixture("jikan/anime_details.json")
+        else {
+            eprintln!("fixture missing, skipped");
+            return;
+        };
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&jikan_fixture))
+            .mount(&jikan_mock)
+            .await;
+
+        let service = service_with_single_key(ApiProvider::Annict, "test-annict-key")
+            .with_test_base_urls(|u| {
+                u.annict = Some(annict_mock.uri());
+                u.jikan = Some(jikan_mock.uri());
+            });
+
+        let result = service
+            .fetch_anime_import_details("6607")
+            .await
+            .expect("Okが返るはず");
+
+        assert_eq!(annict_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: Annict再取得が1回発生することを確認する
+        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: mal_anime_id経由でJikan取得が1回発生することを確認する
+
+        let MediaDetails::Anime(details) = result else {
+            panic!("MediaDetails::Animeが返るはず");
+        };
+        assert_eq!(details.core.provider, Some(ApiProvider::Annict));
+        assert_eq!(details.core.external_id, "6607");
+        assert_eq!(details.core.title, "メイドインアビス 深き魂の黎明");
+        assert!(details.core.description.is_some()); // 【確認内容】: あらすじはJikan由来で補完されることを確認する
+    }
+
+    /// mal_anime_idが空の場合、JikanへはアクセスせずAnnict情報のみでフォールバックする
+    #[tokio::test]
+    async fn fetch_anime_import_details_falls_back_to_annict_only_when_mal_anime_id_blank() {
+        let annict_mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "works": [{
+                    "id": 4021,
+                    "title": "サラとダックン",
+                    "mal_anime_id": "",
+                    "images": { "recommended_url": "" }
+                }]
+            })))
+            .mount(&annict_mock)
+            .await;
+
+        let jikan_mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": {}})))
+            .mount(&jikan_mock)
+            .await;
+
+        let service = service_with_single_key(ApiProvider::Annict, "test-annict-key")
+            .with_test_base_urls(|u| {
+                u.annict = Some(annict_mock.uri());
+                u.jikan = Some(jikan_mock.uri());
+            });
+
+        let result = service
+            .fetch_anime_import_details("4021")
+            .await
+            .expect("Okが返るはず");
+
+        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 0); // 【確認内容】: mal_anime_id空の場合はJikanを呼ばないことを確認する
+
+        let MediaDetails::Anime(details) = result else {
+            panic!("MediaDetails::Animeが返るはず");
+        };
+        assert_eq!(details.core.provider, Some(ApiProvider::Annict));
+        assert_eq!(details.core.title, "サラとダックン");
+    }
+
+    /// Jikan呼び出しが失敗した場合、Annict情報のみでフォールバックしインポート全体は失敗させない
+    #[tokio::test]
+    async fn fetch_anime_import_details_falls_back_to_annict_only_when_jikan_fails() {
+        let annict_mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "works": [{
+                    "id": 6607,
+                    "title": "メイドインアビス 深き魂の黎明",
+                    "mal_anime_id": "9253",
+                    "images": { "recommended_url": "http://example.com/ogp.jpg" }
+                }]
+            })))
+            .mount(&annict_mock)
+            .await;
+
+        // 到達不能なポートへJikanベースURLを向け、Network系ApiErrorを誘発する
+        let service = service_with_single_key(ApiProvider::Annict, "test-annict-key")
+            .with_test_base_urls(|u| {
+                u.annict = Some(annict_mock.uri());
+                u.jikan = Some("http://127.0.0.1:1".to_string());
+            });
+
+        let result = service
+            .fetch_anime_import_details("6607")
+            .await
+            .expect("Jikan障害でもOkが返るはず");
+
+        let MediaDetails::Anime(details) = result else {
+            panic!("MediaDetails::Animeが返るはず");
+        };
+        assert_eq!(details.core.title, "メイドインアビス 深き魂の黎明");
+        assert!(details.core.description.is_none()); // 【確認内容】: Jikan障害時はAnnict情報のみであることを確認する
+    }
+
+    /// Annictに該当作品が存在しない（filter_idsで空配列）場合はErrを返す
+    #[tokio::test]
+    async fn fetch_anime_import_details_returns_error_when_annict_work_not_found() {
+        let annict_mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"works": []})),
+            )
+            .mount(&annict_mock)
+            .await;
+
+        let service = service_with_single_key(ApiProvider::Annict, "test-annict-key")
+            .with_test_base_urls(|u| u.annict = Some(annict_mock.uri()));
+
+        let result = service.fetch_anime_import_details("999999").await;
+
+        assert!(matches!(
+            result,
+            Err(ExternalSearchError::ExternalApiError(_))
+        ));
     }
 }

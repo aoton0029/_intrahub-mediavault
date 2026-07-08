@@ -1,0 +1,202 @@
+{
+  "staffs": [
+    {
+      "id": 7,
+      "name": "村濱章司",
+      "name_en": "",
+      "role_text": "その他",
+      "role_other": "プロデューサー",
+      "role_other_en": "",
+      "sort_number": 100,
+      "work": {
+        "id": 1,
+        "title": "サムライ7",
+        "title_kana": "さむらいせぶん",
+        "title_en": "SAMURAI7",
+        "media": "tv",
+        "media_text": "TV",
+        "released_on": "2004-06-12",
+        "released_on_about": "",
+        "official_site_url": "http://www.samurai-7.com/",
+        "wikipedia_url": "https://ja.wikipedia.org/wiki/SAMURAI_7",
+        "twitter_username": "",
+        "twitter_hashtag": "",
+        "syobocal_tid": "399",
+        "mal_anime_id": "166",
+        "images": {
+          "recommended_url": "",
+          "facebook": {
+            "og_image_url": ""
+          },
+          "twitter": {
+            "mini_avatar_url": "",
+            "normal_avatar_url": "",
+            "bigger_avatar_url": "",
+            "original_avatar_url": "",
+            "image_url": ""
+          }
+        },
+        "episodes_count": 26,
+        "watchers_count": 186,
+        "reviews_count": 0,
+        "no_episodes": false,
+        "season_name": "2004-spring",
+        "season_name_text": "2004年春"
+      },
+      "person": {
+        "id": 7,
+        "name": "村濱章司",
+        "name_kana": "",
+        "name_en": "",
+        "nickname": "",
+        "nickname_en": "",
+        "gender_text": "",
+        "url": "",
+        "url_en": "",
+        "wikipedia_url": "",
+        "wikipedia_url_en": "",
+        "twitter_username": "",
+        "twitter_username_en": "",
+        "birthday": "",
+        "blood_type": "",
+        "height": "",
+        "favorite_people_count": 0,
+        "casts_count": 0,
+        "staffs_count": 3
+      }
+    },
+    {
+      "id": 6,
+      "name": "小林誠",
+      "name_en": "",
+      "role_text": "その他",
+      "role_other": "メカデザイン／美術デザイン",
+      "role_other_en": "",
+      "sort_number": 100,
+      "work": {
+        "id": 1,
+        "title": "サムライ7",
+        "title_kana": "さむらいせぶん",
+        "title_en": "SAMURAI7",
+        "media": "tv",
+        "media_text": "TV",
+        "released_on": "2004-06-12",
+        "released_on_about": "",
+        "official_site_url": "http://www.samurai-7.com/",
+        "wikipedia_url": "https://ja.wikipedia.org/wiki/SAMURAI_7",
+        "twitter_username": "",
+        "twitter_hashtag": "",
+        "syobocal_tid": "399",
+        "mal_anime_id": "166",
+        "images": {
+          "recommended_url": "",
+          "facebook": {
+            "og_image_url": ""
+          },
+          "twitter": {
+            "mini_avatar_url": "",
+            "normal_avatar_url": "",
+            "bigger_avatar_url": "",
+            "original_avatar_url": "",
+            "image_url": ""
+          }
+        },
+        "episodes_count": 26,
+        "watchers_count": 186,
+        "reviews_count": 0,
+        "no_episodes": false,
+        "season_name": "2004-spring",
+        "season_name_text": "2004年春"
+      },
+      "person": {
+        "id": 6,
+        "name": "小林誠",
+        "name_kana": "",
+        "name_en": "",
+        "nickname": "",
+        "nickname_en": "",
+        "gender_text": "",
+        "url": "",
+        "url_en": "",
+        "wikipedia_url": "",
+        "wikipedia_url_en": "",
+        "twitter_username": "",
+        "twitter_username_en": "",
+        "birthday": "",
+        "blood_type": "",
+        "height": "",
+        "favorite_people_count": 0,
+        "casts_count": 0,
+        "staffs_count": 14
+      }
+    },
+    {
+      "id": 3,
+      "name": "冨岡淳広",
+      "name_en": "",
+      "role_text": "脚本",
+      "role_other": "",
+      "role_other_en": "",
+      "sort_number": 30,
+      "work": {
+        "id": 1,
+        "title": "サムライ7",
+        "title_kana": "さむらいせぶん",
+        "title_en": "SAMURAI7",
+        "media": "tv",
+        "media_text": "TV",
+        "released_on": "2004-06-12",
+        "released_on_about": "",
+        "official_site_url": "http://www.samurai-7.com/",
+        "wikipedia_url": "https://ja.wikipedia.org/wiki/SAMURAI_7",
+        "twitter_username": "",
+        "twitter_hashtag": "",
+        "syobocal_tid": "399",
+        "mal_anime_id": "166",
+        "images": {
+          "recommended_url": "",
+          "facebook": {
+            "og_image_url": ""
+          },
+          "twitter": {
+            "mini_avatar_url": "",
+            "normal_avatar_url": "",
+            "bigger_avatar_url": "",
+            "original_avatar_url": "",
+            "image_url": ""
+          }
+        },
+        "episodes_count": 26,
+        "watchers_count": 186,
+        "reviews_count": 0,
+        "no_episodes": false,
+        "season_name": "2004-spring",
+        "season_name_text": "2004年春"
+      },
+      "person": {
+        "id": 3,
+        "name": "冨岡淳広",
+        "name_kana": "",
+        "name_en": "",
+        "nickname": "",
+        "nickname_en": "",
+        "gender_text": "",
+        "url": "",
+        "url_en": "",
+        "wikipedia_url": "",
+        "wikipedia_url_en": "",
+        "twitter_username": "",
+        "twitter_username_en": "",
+        "birthday": "",
+        "blood_type": "",
+        "height": "",
+        "favorite_people_count": 1,
+        "casts_count": 0,
+        "staffs_count": 62
+      }
+    }
+  ],
+  "total_count": 103541,
+  "next_page": 2,
+  "prev_page": null
+}

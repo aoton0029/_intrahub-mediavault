@@ -8,13 +8,15 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
 use crate::AppState;
+use crate::models::api_credential::ApiProvider;
 use crate::models::domain::MediaDetails;
+use crate::models::item::MediaType;
 use crate::models::item::{
     Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaTypeCounts, UpdateItemRequest,
     UpdateStatusRequest, deserialize_request, parse_create_item_request, parse_item_id,
     validate_update_title,
 };
-use crate::models::item_import::parse_import_item_request;
+use crate::models::item_import::{ImportItemRequest, parse_media_details_for_import};
 use crate::models::item_search::ItemSearchQuery;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk, PaginatedOk, Pagination};
 use crate::repositories::item_file_repository;
@@ -307,8 +309,24 @@ pub async fn import_item_handler(
     State(state): State<AppState>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<axum::response::Response, ApiError> {
-    // 【入力値検証】: media_type/external_id/titleの妥当性をparse_import_item_requestで検証する 🔵
-    let request = parse_import_item_request(body)?;
+    // 【入力値検証】: media_type/external_id/titleの妥当性を検証しMediaDetailsを得る 🔵
+    let details = parse_media_details_for_import(body)?;
+
+    // 【アニメ(Annict)のみ】: DB保存前にAnnict作品情報を再取得し、mal_anime_id経由でJikanの
+    // 詳細を取得・マージした最終的なMediaDetailsへ差し替える。Jikan障害等はAnnict情報のみへ
+    // フォールバックする（fetch_anime_import_details内で処理済み）ため、ここでは422/502のみ伝播する。
+    let details = if details.core().media_type == MediaType::Anime
+        && details.core().provider == Some(ApiProvider::Annict)
+    {
+        let service = ExternalSearchService::new(state.db.clone());
+        service
+            .fetch_anime_import_details(&details.core().external_id)
+            .await?
+    } else {
+        details
+    };
+
+    let request = ImportItemRequest::from(details);
 
     // 【DB登録】: 重複チェック+items+詳細テーブルへ同一トランザクションでINSERTする。
     // 重複時はitem_repository::import_item内でItemAlreadyImported（409）として早期returnされる 🟡

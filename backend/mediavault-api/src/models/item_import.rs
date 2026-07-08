@@ -122,6 +122,15 @@ pub fn validate_external_id(external_id: &str) -> Result<(), ApiError> {
 /// 🔵 信頼性レベル: item-import-requirements.md 2.3データフロー、
 /// item-import-testcases.md TC-0025-N01・E01〜E05より
 pub fn parse_import_item_request(value: serde_json::Value) -> Result<ImportItemRequest, ApiError> {
+    let details = parse_media_details_for_import(value)?;
+    Ok(ImportItemRequest::from(details))
+}
+
+/// リクエストボディを`MediaDetails`へデシリアライズし、バリデーションのみ行う。
+///
+/// アニメ（Annict経由）のようにDB保存前にサーバー側で詳細情報を再取得・マージする
+/// 必要があるケースのため、`ImportItemRequest`への変換前の`MediaDetails`を返す。
+pub fn parse_media_details_for_import(value: serde_json::Value) -> Result<MediaDetails, ApiError> {
     // 【デシリアライズ】: media_typeを判別子としてMediaDetailsへ変換する。
     // デシリアライズ失敗（media_type不正値・external_id欠落等）はVALIDATION_ERRORへ変換される 🔵
     let details: MediaDetails = crate::models::item::deserialize_request(value)?;
@@ -132,7 +141,7 @@ pub fn parse_import_item_request(value: serde_json::Value) -> Result<ImportItemR
     // 空文字・空白のみのtitleを拒否する 🟡
     validate_title(&details.core().title)?;
 
-    Ok(ImportItemRequest::from(details))
+    Ok(details)
 }
 
 #[cfg(test)]

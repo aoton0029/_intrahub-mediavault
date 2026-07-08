@@ -1,0 +1,49 @@
+{
+  "organizations": [
+    {
+      "id": 58,
+      "name": "HOTLINE",
+      "name_kana": "ほっとらいん",
+      "name_en": "",
+      "url": "",
+      "url_en": "",
+      "wikipedia_url": "",
+      "wikipedia_url_en": "",
+      "twitter_username": "",
+      "twitter_username_en": "",
+      "favorite_organizations_count": 0,
+      "staffs_count": 6
+    },
+    {
+      "id": 931,
+      "name": "W.BABA",
+      "name_kana": "",
+      "name_en": "",
+      "url": "",
+      "url_en": "",
+      "wikipedia_url": "",
+      "wikipedia_url_en": "",
+      "twitter_username": "",
+      "twitter_username_en": "",
+      "favorite_organizations_count": 0,
+      "staffs_count": 1
+    },
+    {
+      "id": 369,
+      "name": "サイクロングラフィックス",
+      "name_kana": "",
+      "name_en": "",
+      "url": "",
+      "url_en": "",
+      "wikipedia_url": "",
+      "wikipedia_url_en": "",
+      "twitter_username": "",
+      "twitter_username_en": "",
+      "favorite_organizations_count": 0,
+      "staffs_count": 5
+    }
+  ],
+  "total_count": 2626,
+  "next_page": 2,
+  "prev_page": null
+}

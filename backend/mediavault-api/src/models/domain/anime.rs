@@ -2,6 +2,7 @@
 //!
 //! docs/api-samples/jikan/anime_details.json・anilist/media_details.json を根拠とする。
 
+use api_client_lib::clients::annict::models::WorkModel;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -10,6 +11,11 @@ use super::core::{
 };
 use crate::models::api_credential::ApiProvider;
 use crate::models::item::MediaType;
+
+/// 空文字列をNone扱いにする（Annictは未設定項目を`""`で返すため）
+fn non_empty(s: Option<String>) -> Option<String> {
+    s.filter(|v| !v.trim().is_empty())
+}
 
 /// アニメ詳細モデル
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,10 +113,91 @@ impl AnimeDetails {
             trailer_url: None,
         }
     }
+
+    /// Annict `GET /v1/works` の`WorkModel`から構築する（検索結果用の軽量マッピング）。
+    ///
+    /// id/title/images.recommended_urlのみを保持し、あらすじ等の詳細はインポート確定時に
+    /// [`AnimeDetails::from_annict_and_jikan`]で補完する。
+    pub fn from_annict_work(work: &WorkModel) -> Self {
+        let core = MediaCore {
+            media_type: MediaType::Anime,
+            provider: Some(ApiProvider::Annict),
+            external_id: work.id.to_string(),
+            title: non_empty(work.title.clone()).unwrap_or_default(),
+            original_title: None,
+            alternative_titles: Vec::new(),
+            description: None,
+            release_date: None,
+            image_url: work
+                .images
+                .as_ref()
+                .and_then(|i| non_empty(i.recommended_url.clone())),
+            genres: Vec::new(),
+            rating: None,
+            url: None,
+        };
+        AnimeDetails {
+            core,
+            episodes: None,
+            status: None,
+            season: None,
+            year: None,
+            studios: Vec::new(),
+            source: None,
+            duration: None,
+            trailer_url: None,
+        }
+    }
+
+    /// AnnictとJikanの情報をマージして構築する（インポート確定時用）。
+    ///
+    /// id/title/画像/話数等の作品識別・掲載情報はAnnict優先、あらすじ・ジャンル・評価・
+    /// スタジオ等の詳細はJikan（`GET /anime/{id}/full`の`data`オブジェクト）由来とする。
+    /// Annict側が空の場合はJikanの値でフォールバックする。
+    pub fn from_annict_and_jikan(work: &WorkModel, jikan_data: &Value) -> Self {
+        let jikan = AnimeDetails::from_jikan_details(jikan_data);
+
+        let title = non_empty(work.title.clone()).unwrap_or(jikan.core.title);
+        let image_url = work
+            .images
+            .as_ref()
+            .and_then(|i| non_empty(i.recommended_url.clone()))
+            .or(jikan.core.image_url);
+        let episodes = work.episodes_count.or(jikan.episodes);
+        let season = non_empty(work.season_name.clone()).or(jikan.season);
+
+        let core = MediaCore {
+            media_type: MediaType::Anime,
+            provider: Some(ApiProvider::Annict),
+            external_id: work.id.to_string(),
+            title,
+            original_title: jikan.core.original_title,
+            alternative_titles: jikan.core.alternative_titles,
+            description: jikan.core.description,
+            release_date: non_empty(work.released_on.clone()).or(jikan.core.release_date),
+            image_url,
+            genres: jikan.core.genres,
+            rating: jikan.core.rating,
+            url: non_empty(work.official_site_url.clone()).or(jikan.core.url),
+        };
+        AnimeDetails {
+            core,
+            episodes,
+            status: jikan.status,
+            season,
+            year: jikan.year,
+            studios: jikan.studios,
+            source: jikan.source,
+            duration: jikan.duration,
+            trailer_url: jikan.trailer_url,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use api_client_lib::clients::annict::models::WorkImagesModel;
+
     use super::super::test_util::load_fixture;
     use super::*;
 
@@ -158,5 +245,106 @@ mod tests {
         assert_eq!(details.episodes, Some(24));
         assert_eq!(details.season.as_deref(), Some("SPRING"));
         assert_eq!(details.year, Some(2011));
+    }
+
+    fn sample_work() -> WorkModel {
+        WorkModel {
+            id: 6607,
+            title: Some("メイドインアビス 深き魂の黎明".to_string()),
+            title_kana: None,
+            title_en: Some("Made in Abyss Movie 3".to_string()),
+            media: Some("movie".to_string()),
+            media_text: None,
+            released_on: Some("2020-01-17".to_string()),
+            official_site_url: Some("http://miabyss.com/movie/index.html#1".to_string()),
+            wikipedia_url: None,
+            twitter_username: None,
+            episodes_count: Some(1),
+            watchers_count: None,
+            reviews_count: None,
+            season_name: Some("2020-winter".to_string()),
+            season_name_text: None,
+            mal_anime_id: Some("36862".to_string()),
+            images: Some(WorkImagesModel {
+                recommended_url: Some("http://miabyss.com/images/ogp.jpg".to_string()),
+            }),
+        }
+    }
+
+    #[test]
+    fn from_annict_work_maps_lightweight_search_fields_only() {
+        let work = sample_work();
+        let details = AnimeDetails::from_annict_work(&work);
+
+        assert_eq!(details.core.media_type, MediaType::Anime);
+        assert_eq!(details.core.provider, Some(ApiProvider::Annict));
+        assert_eq!(details.core.external_id, "6607");
+        assert_eq!(details.core.title, "メイドインアビス 深き魂の黎明");
+        assert_eq!(
+            details.core.image_url.as_deref(),
+            Some("http://miabyss.com/images/ogp.jpg")
+        );
+        // 検索結果はid/title/imageのみ保持し、詳細項目は空のままであることを確認する
+        assert!(details.core.description.is_none());
+        assert!(details.core.genres.is_empty());
+        assert!(details.core.rating.is_none());
+    }
+
+    #[test]
+    fn from_annict_work_treats_empty_strings_as_none() {
+        let mut work = sample_work();
+        work.images = Some(WorkImagesModel {
+            recommended_url: Some(String::new()),
+        });
+        let details = AnimeDetails::from_annict_work(&work);
+        assert!(details.core.image_url.is_none());
+    }
+
+    #[test]
+    fn from_annict_and_jikan_prefers_annict_for_identity_fields_and_jikan_for_details() {
+        let Some(json) = load_fixture("jikan/anime_details.json") else {
+            eprintln!("fixture missing, skipped");
+            return;
+        };
+        let work = sample_work();
+        let details = AnimeDetails::from_annict_and_jikan(&work, &json["data"]);
+
+        // Annict優先: id/title/画像/話数/シーズン
+        assert_eq!(details.core.provider, Some(ApiProvider::Annict));
+        assert_eq!(details.core.external_id, "6607");
+        assert_eq!(details.core.title, "メイドインアビス 深き魂の黎明");
+        assert_eq!(
+            details.core.image_url.as_deref(),
+            Some("http://miabyss.com/images/ogp.jpg")
+        );
+        assert_eq!(details.episodes, Some(1));
+        assert_eq!(details.season.as_deref(), Some("2020-winter"));
+
+        // Jikan優先: あらすじ・ジャンル・評価
+        assert_eq!(details.core.original_title.as_deref(), Some("STEINS;GATE"));
+        assert!(details.core.description.is_some());
+        assert!(details.core.genres.contains(&"Sci-Fi".to_string()));
+        assert!(details.core.rating.is_some());
+    }
+
+    #[test]
+    fn from_annict_and_jikan_falls_back_to_jikan_when_annict_fields_are_empty() {
+        let Some(json) = load_fixture("jikan/anime_details.json") else {
+            eprintln!("fixture missing, skipped");
+            return;
+        };
+        let mut work = sample_work();
+        work.title = Some(String::new());
+        work.images = None;
+        work.episodes_count = None;
+        work.season_name = None;
+
+        let details = AnimeDetails::from_annict_and_jikan(&work, &json["data"]);
+
+        // Annict側が空の項目はJikanの値へフォールバックする
+        assert!(!details.core.title.is_empty());
+        assert!(details.core.image_url.is_some());
+        assert_eq!(details.episodes, Some(24));
+        assert!(details.season.is_some());
     }
 }

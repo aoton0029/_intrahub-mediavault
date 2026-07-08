@@ -1,0 +1,193 @@
+{
+  "episodes": [
+    {
+      "id": 120032,
+      "number": null,
+      "number_text": "第50話",
+      "sort_number": 5000,
+      "title": "アトム西部へ行く",
+      "records_count": 1,
+      "record_comments_count": 0,
+      "work": {
+        "id": 1394,
+        "title": "鉄腕アトム",
+        "title_kana": "てつわんあとむ",
+        "title_en": "Tetsuwan Atom",
+        "media": "tv",
+        "media_text": "TV",
+        "released_on": "1963-01-01",
+        "released_on_about": "",
+        "official_site_url": "",
+        "wikipedia_url": "https://ja.wikipedia.org/wiki/鉄腕アトム_(アニメ第1作)",
+        "twitter_username": "",
+        "twitter_hashtag": "",
+        "syobocal_tid": "",
+        "mal_anime_id": "2747",
+        "images": {
+          "recommended_url": "",
+          "facebook": {
+            "og_image_url": ""
+          },
+          "twitter": {
+            "mini_avatar_url": "",
+            "normal_avatar_url": "",
+            "bigger_avatar_url": "",
+            "original_avatar_url": "",
+            "image_url": ""
+          }
+        },
+        "episodes_count": 193,
+        "watchers_count": 97,
+        "reviews_count": 0,
+        "no_episodes": false,
+        "season_name": "1963-winter",
+        "season_name_text": "1963年冬"
+      },
+      "prev_episode": {
+        "id": 120031,
+        "number": null,
+        "number_text": "第49話",
+        "sort_number": 4900,
+        "title": "透明巨人",
+        "records_count": 1,
+        "record_comments_count": 0
+      },
+      "next_episode": {
+        "id": 120033,
+        "number": null,
+        "number_text": "第51話",
+        "sort_number": 5100,
+        "title": "子象プーラ",
+        "records_count": 1,
+        "record_comments_count": 0
+      }
+    },
+    {
+      "id": 23605,
+      "number": null,
+      "number_text": "#104",
+      "sort_number": 1040,
+      "title": "しのびよる毒使い 霧骨",
+      "records_count": 24,
+      "record_comments_count": 0,
+      "work": {
+        "id": 165,
+        "title": "犬夜叉",
+        "title_kana": "いぬやしゃ",
+        "title_en": "InuYasha",
+        "media": "tv",
+        "media_text": "TV",
+        "released_on": "2000-10-16",
+        "released_on_about": "",
+        "official_site_url": "",
+        "wikipedia_url": "https://ja.wikipedia.org/wiki/犬夜叉",
+        "twitter_username": "",
+        "twitter_hashtag": "",
+        "syobocal_tid": "430",
+        "mal_anime_id": "249",
+        "images": {
+          "recommended_url": "",
+          "facebook": {
+            "og_image_url": ""
+          },
+          "twitter": {
+            "mini_avatar_url": "",
+            "normal_avatar_url": "",
+            "bigger_avatar_url": "",
+            "original_avatar_url": "",
+            "image_url": ""
+          }
+        },
+        "episodes_count": 167,
+        "watchers_count": 2106,
+        "reviews_count": 1,
+        "no_episodes": false,
+        "season_name": "2000-autumn",
+        "season_name_text": "2000年秋"
+      },
+      "prev_episode": {
+        "id": 23604,
+        "number": null,
+        "number_text": "#103",
+        "sort_number": 1030,
+        "title": "よみがえった七人隊",
+        "records_count": 24,
+        "record_comments_count": 0
+      },
+      "next_episode": {
+        "id": 23606,
+        "number": null,
+        "number_text": "#105",
+        "sort_number": 1050,
+        "title": "不気味な鋼の重装備",
+        "records_count": 24,
+        "record_comments_count": 0
+      }
+    },
+    {
+      "id": 127452,
+      "number": 9,
+      "number_text": "第9話",
+      "sort_number": 900,
+      "title": "いせきはっくつ",
+      "records_count": 12,
+      "record_comments_count": 0,
+      "work": {
+        "id": 7720,
+        "title": "無能なナナ ミニアニメ",
+        "title_kana": "むのうなななみにあにめ",
+        "title_en": "",
+        "media": "web",
+        "media_text": "Web",
+        "released_on": "",
+        "released_on_about": "",
+        "official_site_url": "https://munounanana.com/",
+        "wikipedia_url": "",
+        "twitter_username": "munounanana",
+        "twitter_hashtag": "",
+        "syobocal_tid": "",
+        "mal_anime_id": "42831",
+        "images": {
+          "recommended_url": "http://munounanana.com/og-image.jpg",
+          "facebook": {
+            "og_image_url": "http://munounanana.com/og-image.jpg"
+          },
+          "twitter": {
+            "mini_avatar_url": "https://twitter.com/munounanana/profile_image?size=mini",
+            "normal_avatar_url": "https://twitter.com/munounanana/profile_image?size=normal",
+            "bigger_avatar_url": "https://twitter.com/munounanana/profile_image?size=bigger",
+            "original_avatar_url": "https://twitter.com/munounanana/profile_image?size=original",
+            "image_url": ""
+          }
+        },
+        "episodes_count": 12,
+        "watchers_count": 123,
+        "reviews_count": 0,
+        "no_episodes": false,
+        "season_name": "2020-autumn",
+        "season_name_text": "2020年秋"
+      },
+      "prev_episode": {
+        "id": 127293,
+        "number": 8,
+        "number_text": "第8話",
+        "sort_number": 800,
+        "title": "にんじゅつ",
+        "records_count": 12,
+        "record_comments_count": 0
+      },
+      "next_episode": {
+        "id": 127589,
+        "number": 10,
+        "number_text": "第10話",
+        "sort_number": 1000,
+        "title": "へんしん",
+        "records_count": 12,
+        "record_comments_count": 0
+      }
+    }
+  ],
+  "total_count": 176706,
+  "next_page": 2,
+  "prev_page": null
+}

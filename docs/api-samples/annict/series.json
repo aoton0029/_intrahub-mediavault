@@ -1,0 +1,25 @@
+{
+  "series": [
+    {
+      "id": 1,
+      "name": "鴉 -KARAS-",
+      "name_ro": "",
+      "name_en": ""
+    },
+    {
+      "id": 4,
+      "name": "電脳コイル",
+      "name_ro": "",
+      "name_en": ""
+    },
+    {
+      "id": 5,
+      "name": "ポルフィの長い旅",
+      "name_ro": "",
+      "name_en": ""
+    }
+  ],
+  "total_count": 3719,
+  "next_page": 2,
+  "prev_page": null
+}
