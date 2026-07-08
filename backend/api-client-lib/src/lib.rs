@@ -5,7 +5,6 @@
 //! 統一されたインターフェースを提供する Rust ライブラリ。
 //!
 //! # 対応 API
-//! - [`clients::anilist`] — AniList (GraphQL)
 //! - [`clients::annict`]  — Annict (REST)
 //! - [`clients::igdb`]    — IGDB (Apicalypse / Twitch OAuth2)
 //! - [`clients::jikan`]   — Jikan (REST)

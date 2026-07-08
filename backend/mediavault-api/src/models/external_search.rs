@@ -1,11 +1,33 @@
-//! ExternalSearchService のエラー型定義
+//! ExternalSearchService のエラー型・検索結果DTO定義
 //!
 //! TASK-0023: ExternalSearchServiceラッパー実装（media_type→provider振り分け）
 //!
-//! 検索結果のワイヤ表現は `models::domain::MediaDetails`（ノーマライズ済みドメインモデル）に
-//! 一本化されたため、旧 `ExternalSearchResult`（raw_data同梱DTO）は廃止した。
+//! 検索結果のワイヤ表現は、旧 `models::domain::MediaDetails`（フル情報の正規化モデル）を廃止し、
+//! カード表示に必要な最小限のフィールドのみを持つ [`SearchResultItem`] に一本化した。
+//! 選択後の詳細取得・DB保存用JSON構築は `services::external_search` 側の
+//! プロバイダ別変換関数が`CreateItemRequest`を直接構築する形へ移行した。
+
+use serde::Serialize;
 
 use crate::models::api_credential::ApiProvider;
+use crate::models::item::MediaType;
+
+/// `GET /items/search` のレスポンス要素（軽量DTO）
+///
+/// id/title/サムネイルURL + media_type/providerのみを保持する。詳細情報は
+/// `POST /items/import`（`{media_type, provider, external_id}`）確定時にサーバー側で
+/// 再取得する。
+#[derive(Debug, Clone, Serialize)]
+pub struct SearchResultItem {
+    /// プロバイダ固有ID（mal_id/tmdb id/steam appid/annict work id/isbn等）
+    pub id: String,
+    pub media_type: MediaType,
+    /// 採用したプロバイダ。キー不要プロバイダ（Jikan）は`None`
+    pub provider: Option<ApiProvider>,
+    /// タイトル（日本語優先）
+    pub title: String,
+    pub thumbnail_url: Option<String>,
+}
 
 /// ExternalSearchService が返すエラー型
 ///

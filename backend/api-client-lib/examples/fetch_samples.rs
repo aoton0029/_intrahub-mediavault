@@ -8,10 +8,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use api_client_lib::auth::AuthStrategy;
-use api_client_lib::clients::anilist::requests::{
-    MediaDetailsRequest, MediaSearchRequest, MediaType as AniListMediaType,
-};
-use api_client_lib::clients::anilist::AniListClient;
 use api_client_lib::clients::igdb::requests::{GamesQueryRequest, IgdbSearchRequest};
 use api_client_lib::clients::igdb::IgdbClient;
 use api_client_lib::clients::jikan::requests::{
@@ -233,47 +229,6 @@ async fn fetch_jikan(s: &mut Saver) {
                 season: "spring".into(),
                 page: None,
             })
-            .await
-    );
-}
-
-async fn fetch_anilist(s: &mut Saver) {
-    let client = match AniListClient::new(AuthStrategy::None) {
-        Ok(c) => c,
-        Err(e) => return s.skip("anilist", "*", e),
-    };
-    record!(
-        s,
-        "anilist",
-        "search_media_anime",
-        client
-            .search_media(MediaSearchRequest {
-                search: Some("Fullmetal Alchemist".into()),
-                media_type: Some(AniListMediaType::Anime),
-                per_page: Some(5),
-                ..Default::default()
-            })
-            .await
-    );
-    record!(
-        s,
-        "anilist",
-        "search_media_manga",
-        client
-            .search_media(MediaSearchRequest {
-                search: Some("Berserk".into()),
-                media_type: Some(AniListMediaType::Manga),
-                per_page: Some(5),
-                ..Default::default()
-            })
-            .await
-    );
-    record!(
-        s,
-        "anilist",
-        "media_details",
-        client
-            .get_media_details(MediaDetailsRequest { id: 9253 })
             .await
     );
 }
@@ -519,7 +474,6 @@ async fn main() {
 
     let mut saver = Saver::new();
     fetch_jikan(&mut saver).await;
-    fetch_anilist(&mut saver).await;
     fetch_tmdb(&mut saver).await;
     fetch_openlibrary(&mut saver).await;
     fetch_ndl(&mut saver).await;

@@ -8,15 +8,13 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
 use crate::AppState;
-use crate::models::api_credential::ApiProvider;
-use crate::models::domain::MediaDetails;
-use crate::models::item::MediaType;
+use crate::models::external_search::SearchResultItem;
 use crate::models::item::{
     Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaTypeCounts, UpdateItemRequest,
     UpdateStatusRequest, deserialize_request, parse_create_item_request, parse_item_id,
     validate_update_title,
 };
-use crate::models::item_import::{ImportItemRequest, parse_media_details_for_import};
+use crate::models::item_import::parse_import_by_id_request;
 use crate::models::item_search::ItemSearchQuery;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk, PaginatedOk, Pagination};
 use crate::repositories::item_file_repository;
@@ -40,38 +38,12 @@ pub async fn create_item_handler(
         Err(err) => return Err(err),
     };
 
-    // 【details検証】: 指定された場合はMediaDetails形式かつmedia_type一致であることを検証する
-    validate_create_details(&request)?;
-
-    // 【DB登録】: itemsテーブル（details JSONB含む）へINSERTする 🔵
+    // 【DB登録】: itemsテーブル（details JSONB含む）へINSERTする。detailsは
+    // models/domain全廃止に伴いスキーマ検証対象外の自由形式JSONとして扱う 🔵
     let item = item_repository::create_item(&state.db, request).await?;
 
     // 【成功レスポンス】: 作成済みitemを201で返す 🔵
     Ok(created_response(item))
-}
-
-/// 【機能概要】: 手動作成リクエストのdetailsがMediaDetails形式として妥当かを検証する
-/// 【実装方針】: detailsはインポート経路では正規化済みMediaDetailsが入る前提のため、
-/// 手動作成経路でも同一スキーマへデシリアライズ可能で、かつ内側のmedia_typeが
-/// リクエスト本体のmedia_typeと一致する場合のみ受理する（不一致・不正形式は400）
-fn validate_create_details(
-    request: &crate::models::item::CreateItemRequest,
-) -> Result<(), ApiError> {
-    let Some(details) = &request.details else {
-        return Ok(());
-    };
-
-    let parsed: MediaDetails = serde_json::from_value(details.clone())
-        .map_err(|_| ApiError::new(ApiErrorCode::ValidationError, "detailsの形式が不正です"))?;
-
-    if parsed.core().media_type != request.media_type {
-        return Err(ApiError::new(
-            ApiErrorCode::ValidationError,
-            "detailsのmedia_typeがリクエストのmedia_typeと一致しません",
-        ));
-    }
-
-    Ok(())
 }
 
 /// 【機能概要】: 作成済みitemをHTTP 201・統一レスポンス形式で返すためのレスポンスを構築する
@@ -286,7 +258,7 @@ pub async fn update_item_status_handler(
 pub async fn search_items_handler(
     State(state): State<AppState>,
     Query(query): Query<ItemSearchQuery>,
-) -> Result<ApiOk<Vec<MediaDetails>>, ApiError> {
+) -> Result<ApiOk<Vec<SearchResultItem>>, ApiError> {
     // 【サービス構築】: AppStateはPgPoolのみ保持するため、ハンドラ内で都度ExternalSearchServiceを構築する 🔵
     let service = ExternalSearchService::new(state.db.clone());
 
@@ -299,9 +271,15 @@ pub async fn search_items_handler(
 }
 
 /// 【機能概要】: `POST /items/import` ハンドラ。外部API検索結果（GET /items/search）から
-/// 選択した1件をインポートし、items+メディア別詳細テーブルへ`source=api`で登録する
-/// 【実装方針】: `parse_import_item_request`でバリデーション → `item_repository::import_item`で
+/// 選択した1件（`{media_type, provider, external_id}`）をインポートし、
+/// items+メディア別詳細テーブルへ`source=api`で登録する
+/// 【実装方針】: `parse_import_by_id_request`でバリデーション →
+/// `ExternalSearchService::fetch_import_details`でmedia_typeに対応するプロバイダから
+/// 詳細情報を再取得し`CreateItemRequest`を直接構築 → `item_repository::import_item`で
 /// 重複チェック+DB登録 → 成功時は既存`created_response`を再利用して201を返す
+/// 【models/domain全廃止に伴うリファクタ】: 旧`parse_media_details_for_import`
+/// （フル`MediaDetails`ボディの受理）は廃止し、フロントからは
+/// `{media_type, provider, external_id}`のみを受け取る形へ変更した
 /// 【テスト対応】: TC-0025-N02（created_response再利用）、TC-0025-N06（ルーター経由201）、
 /// TC-0025-E01〜E08（各種エラー）に対応
 /// 🔵 信頼性レベル: item-import-requirements.md 2.2・2.3データフロー、note.mdより
@@ -309,28 +287,25 @@ pub async fn import_item_handler(
     State(state): State<AppState>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<axum::response::Response, ApiError> {
-    // 【入力値検証】: media_type/external_id/titleの妥当性を検証しMediaDetailsを得る 🔵
-    let details = parse_media_details_for_import(body)?;
+    // 【入力値検証】: media_type/external_idの妥当性を検証する 🔵
+    let request = parse_import_by_id_request(body)?;
 
-    // 【アニメ(Annict)のみ】: DB保存前にAnnict作品情報を再取得し、mal_anime_id経由でJikanの
-    // 詳細を取得・マージした最終的なMediaDetailsへ差し替える。Jikan障害等はAnnict情報のみへ
-    // フォールバックする（fetch_anime_import_details内で処理済み）ため、ここでは422/502のみ伝播する。
-    let details = if details.core().media_type == MediaType::Anime
-        && details.core().provider == Some(ApiProvider::Annict)
-    {
-        let service = ExternalSearchService::new(state.db.clone());
-        service
-            .fetch_anime_import_details(&details.core().external_id)
-            .await?
-    } else {
-        details
-    };
-
-    let request = ImportItemRequest::from(details);
+    // 【詳細再取得】: media_typeに対応するプロバイダから詳細情報を再取得し、
+    // CreateItemRequestを直接構築する（アニメはAnnict+Jikanマージ処理を内部で行う）。
+    let service = ExternalSearchService::new(state.db.clone());
+    let create_request = service
+        .fetch_import_details(request.media_type, &request.external_id)
+        .await?;
 
     // 【DB登録】: 重複チェック+items+詳細テーブルへ同一トランザクションでINSERTする。
     // 重複時はitem_repository::import_item内でItemAlreadyImported（409）として早期returnされる 🟡
-    let item = item_repository::import_item(&state.db, request).await?;
+    let item = item_repository::import_item(
+        &state.db,
+        request.media_type,
+        request.external_id,
+        create_request,
+    )
+    .await?;
 
     // 【成功レスポンス】: 既存create_item_handlerと同一のcreated_responseを再利用し201で返す 🔵
     Ok(created_response(item))

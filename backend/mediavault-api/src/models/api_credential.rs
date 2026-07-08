@@ -19,8 +19,6 @@ pub enum ApiProvider {
     Steam,
     #[sqlx(rename = "openlibrary")]
     OpenLibrary,
-    #[sqlx(rename = "anilist")]
-    AniList,
     #[sqlx(rename = "annict")]
     Annict,
     // Jikanはキー不要のため対象外 🔵 requirements.mdより
@@ -41,7 +39,6 @@ pub fn parse_api_provider(raw: &str) -> Option<ApiProvider> {
         "ndl" => Some(ApiProvider::Ndl),
         "steam" => Some(ApiProvider::Steam),
         "open_library" => Some(ApiProvider::OpenLibrary),
-        "ani_list" => Some(ApiProvider::AniList),
         "annict" => Some(ApiProvider::Annict),
         // 【対象外provider】: jikanはキー不要のためenumに存在せず、ここでNoneとなる 🔵
         _ => None,
@@ -86,7 +83,6 @@ mod tests {
             ("ndl", ApiProvider::Ndl),
             ("steam", ApiProvider::Steam),
             ("open_library", ApiProvider::OpenLibrary),
-            ("ani_list", ApiProvider::AniList),
             ("annict", ApiProvider::Annict),
         ];
 

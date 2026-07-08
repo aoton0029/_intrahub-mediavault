@@ -11,7 +11,6 @@ use crate::models::item::{
     CategoryRef, CreateItemRequest, Item, ItemSource, ListItemsQuery, MediaType, MediaTypeCounts,
     TagRef, UpdateItemRequest, UpdateStatusRequest, has_any_update_field,
 };
-use crate::models::item_import::ImportItemRequest;
 use crate::models::response::{ApiError, ApiErrorCode};
 
 /// 【機能概要】: sqlxのDBエラーを統一エラー型（INTERNAL_ERROR）へ変換する
@@ -119,16 +118,25 @@ pub async fn find_existing_import(
     Ok(existing.is_some())
 }
 
-/// 【機能概要】: `ImportItemRequest`をリポジトリ層のトランザクション処理（create_item_with_source）へ
-/// 橋渡しするためのインポート専用関数
+/// 【機能概要】: 外部APIインポート確定時に構築済みの`CreateItemRequest`をitems+詳細テーブルへ
+/// 登録するためのインポート専用関数
 /// 【実装方針】: 重複チェック（find_existing_import）→ 存在すれば`ItemAlreadyImported`（409）で
-/// 早期return → 存在しなければ`ImportItemRequest`を`CreateItemRequest`へ変換し
-/// `create_item_with_source(pool, request, ItemSource::Api, Some(external_id))`を呼び出す
+/// 早期return → 存在しなければ`create_item_with_source(pool, request, ItemSource::Api, Some(external_id))`
+/// を呼び出す
+/// 【models/domain全廃止に伴うリファクタ】: 旧`ImportItemRequest`（`MediaDetails`由来の中間DTO）は
+/// 廃止され、`services::external_search`のプロバイダ別変換関数が`CreateItemRequest`を直接構築する
+/// ようになったため、本関数は`media_type`・`external_id`・`CreateItemRequest`を個別の引数として
+/// 受け取る形へ変更した
 /// 【テスト対応】: TC-0025-N03、TC-0025-E06、TC-0025-E08に対応
 /// 🟡 信頼性レベル: item-import-requirements.md 2.3データフロー・第6章6.3より
-pub async fn import_item(pool: &PgPool, request: ImportItemRequest) -> Result<Item, ApiError> {
+pub async fn import_item(
+    pool: &PgPool,
+    media_type: MediaType,
+    external_id: String,
+    request: CreateItemRequest,
+) -> Result<Item, ApiError> {
     // 【重複チェック】: 同一(media_type, external_id)が既存の場合は409エラーで早期returnする 🟡
-    let duplicate = find_existing_import(pool, request.media_type, &request.external_id).await?;
+    let duplicate = find_existing_import(pool, media_type, &external_id).await?;
     if duplicate {
         // 【エラー処理】: 重複インポートは要件第6章の決定に従い409 ITEM_ALREADY_IMPORTEDを返す 🟡
         return Err(ApiError::new(
@@ -137,14 +145,8 @@ pub async fn import_item(pool: &PgPool, request: ImportItemRequest) -> Result<It
         ));
     }
 
-    // 【DTO変換】: ImportItemRequestをcreate_item_with_source用のCreateItemRequestへ変換する。
-    // フィールド列挙はImportItemRequest側のFrom実装（models/item_import.rs）へ集約し、
-    // 本関数では呼び出しのみを行う（DRY・CreateItemRequestのフィールド追加時の検知漏れ防止） 🟡
-    let external_id = request.external_id.clone();
-    let create_request = CreateItemRequest::from(request);
-
     // 【DB登録】: source=Api・external_id=Some(...)でitems+詳細テーブルへ同一トランザクションでINSERTする 🔵
-    create_item_with_source(pool, create_request, ItemSource::Api, Some(external_id)).await
+    create_item_with_source(pool, request, ItemSource::Api, Some(external_id)).await
 }
 
 /// 【機能概要】: ListItemsQueryの絞り込み条件をQueryBuilderのWHERE句として共通追加する
@@ -1803,23 +1805,17 @@ mod tests {
         }
     }
 
-    /// テスト用ヘルパー: 最小構成のImportItemRequestを構築する
+    /// テスト用ヘルパー: import_item呼び出し用の(media_type, external_id, CreateItemRequest)を構築する
     fn import_item_request(
         media_type: MediaType,
         external_id: &str,
         title: &str,
-    ) -> ImportItemRequest {
-        ImportItemRequest {
+    ) -> (MediaType, String, CreateItemRequest) {
+        (
             media_type,
-            external_id: external_id.to_string(),
-            title: title.to_string(),
-            original_title: None,
-            description: None,
-            cover_image_url: None,
-            release_date: None,
-            homepage_url: None,
-            details: None,
-        }
+            external_id.to_string(),
+            create_item_request(media_type, title),
+        )
     }
 
     /// TC-0025-N03: create_item_with_sourceがsource=api/external_idでitems本体とanime_detailsを
@@ -2068,8 +2064,11 @@ mod tests {
     #[ignore]
     async fn import_item_returns_409_and_does_not_create_duplicate_row() {
         let pool = test_pool().await;
-        let first_request = import_item_request(MediaType::Anime, "12345", "鬼滅の刃");
-        import_item(&pool, first_request).await.unwrap();
+        let (media_type, external_id, first_request) =
+            import_item_request(MediaType::Anime, "12345", "鬼滅の刃");
+        import_item(&pool, media_type, external_id, first_request)
+            .await
+            .unwrap();
 
         let count_before: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE external_id = $1")
@@ -2079,8 +2078,11 @@ mod tests {
                 .unwrap();
 
         // 【実際の処理実行】: 同一media_type+external_idで再度import_itemを呼び出す
-        let second_request = import_item_request(MediaType::Anime, "12345", "鬼滅の刃");
-        let err = import_item(&pool, second_request).await.unwrap_err();
+        let (media_type, external_id, second_request) =
+            import_item_request(MediaType::Anime, "12345", "鬼滅の刃");
+        let err = import_item(&pool, media_type, external_id, second_request)
+            .await
+            .unwrap_err();
 
         // 【結果検証】: 409 ITEM_ALREADY_IMPORTED・items行数不変であることを確認
         assert_eq!(err.error.code, "ITEM_ALREADY_IMPORTED"); // 【確認内容】: 重複時にITEM_ALREADY_IMPORTEDが返ることを確認 🟡

@@ -1,4 +1,3 @@
-pub mod anilist;
 pub mod annict;
 pub mod igdb;
 pub mod jikan;
