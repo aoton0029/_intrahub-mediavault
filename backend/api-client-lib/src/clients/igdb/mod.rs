@@ -143,7 +143,7 @@ impl IgdbClient {
         query: &str,
     ) -> Result<(u16, String, u64, T), ApiError> {
         let url = format!("{}/{}", self.base_url, endpoint);
-        tracing::trace!(url = %url, endpoint, "IGDB Apicalypse request sending");
+        tracing::debug!(url = %url, endpoint, "IGDB request sending");
         let access_token = self.ensure_token().await?;
 
         let start = Instant::now();
@@ -170,7 +170,7 @@ impl IgdbClient {
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            tracing::warn!(status, endpoint, "IGDB HTTP error");
+            tracing::warn!(status, endpoint, body = %body, "IGDB HTTP error");
             return Err(ApiError::Http { status, body });
         }
 
@@ -178,13 +178,7 @@ impl IgdbClient {
             .text()
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
-        tracing::trace!(
-            status,
-            latency_ms,
-            response_len = text.len(),
-            "IGDB response received"
-        );
-        tracing::debug!(body = %text, "IGDB response body");
+        tracing::debug!(status, latency_ms, body = %text, "IGDB response received");
         let model: T = serde_json::from_str(&text).map_err(|e| ApiError::Parse(e.to_string()))?;
 
         Ok((status, text, latency_ms, model))

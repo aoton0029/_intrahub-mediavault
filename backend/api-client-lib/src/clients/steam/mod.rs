@@ -65,7 +65,7 @@ impl SteamClient {
     // ── 内部ヘルパー ────────────────────────────────────────────────────
 
     async fn get_json(&self, url: &str) -> Result<(u16, String, u64), ApiError> {
-        tracing::trace!(url, "Steam GET request sending");
+        tracing::debug!(url, "Steam request sending");
         let start = std::time::Instant::now();
         let response = self
             .http
@@ -86,7 +86,7 @@ impl SteamClient {
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            tracing::warn!(status, "Steam HTTP error");
+            tracing::warn!(status, body = %body, "Steam HTTP error");
             return Err(ApiError::Http { status, body });
         }
 
@@ -94,8 +94,7 @@ impl SteamClient {
             .text()
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
-        tracing::trace!(status, latency_ms, "Steam response received");
-        tracing::debug!(body = %text, "Steam response body");
+        tracing::debug!(status, latency_ms, body = %text, "Steam response received");
         Ok((status, text, latency_ms))
     }
 

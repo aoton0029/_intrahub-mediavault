@@ -1,21 +1,10 @@
 //! api_credentials（外部APIキー管理）モデル定義
 //!
-//! TASK-0022: api_credentials（外部APIキー管理）CRUD実装
-//!
-//! 【信頼性レベル】: 🔵 要件定義書 第2章・note.md L13-15・database-schema.sql L348-353より
-//! DB上のenum値は全バリアントとも小文字（`'tmdb'`/`'igdb'`/`'ndl'`/`'steam'`/`'openlibrary'`/`'anilist'`、
-//! 実マイグレーション確認済み）。`#[serde(rename_all = "snake_case")]`はJSON側（API文字列表現）にのみ
-//! 効きsqlx::Typeのderiveには適用されないため、DBエンコード用に全バリアントへ明示的に
-//! `#[sqlx(rename = ...)]`を付与し、DB格納値と一致させる。
-//! API文字列表現（`open_library`/`ani_list`等）はserde側の設定のみで定まり、DB格納値とは独立している。
-
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 /// 外部APIキーのプロバイダ種別
 ///
-/// 【機能概要】: PUT /settings/api-keys/:provider のパスパラメータ文字列をデシリアライズする対象enum
-/// 🔵 信頼性レベル: 要件定義書L34・types.rs L86-94・database-schema.sql L26より
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "api_provider")]
 #[serde(rename_all = "snake_case")]
@@ -40,12 +29,10 @@ pub enum ApiProvider {
 /// 【機能概要】: snake_case文字列（tmdb/igdb/ndl/steam/open_library/ani_list）のみを許可し、
 /// それ以外（jikan・大文字TMDB等）は `None` を返す
 /// 【実装方針】: TC-015-01-A・TC-015-02-A・TC-NEW-02・TC-NEW-03 を通すための変換関数
-/// 🔵 信頼性レベル: 要件定義書L33-35・テストケース定義書TC-015-01-A/TC-015-02-Aより
 pub fn parse_api_provider(raw: &str) -> Option<ApiProvider> {
     // 【実装内容】: 許可された6つのsnake_case文字列のみを厳密一致でenumへ変換する。
     // match文による完全一致のため、大文字・末尾空白等のケース不一致は自動的にNoneとなる。
     // 【実装方針】: serde_json経由の変換も可能だが、match文の方が依存追加不要でシンプルなため採用。
-    // 🔵 信頼性レベル: 要件定義書L34・REQ-0022-01・テストケース定義書TC-015-01-A/TC-015-02-Aより
     match raw {
         "tmdb" => Some(ApiProvider::Tmdb),
         "igdb" => Some(ApiProvider::Igdb),
@@ -59,8 +46,6 @@ pub fn parse_api_provider(raw: &str) -> Option<ApiProvider> {
 }
 
 /// api_credentials テーブル1行を表すモデル
-///
-/// 🔵 信頼性レベル: types.rs L236-240・database-schema.sql L348-353より
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
 pub struct ApiCredential {
     pub provider: ApiProvider,
@@ -69,8 +54,6 @@ pub struct ApiCredential {
 }
 
 /// PUT /settings/api-keys/:provider のリクエストボディDTO
-///
-/// 🔵 信頼性レベル: 要件定義書L36-43・api-endpoints.md L384-386より
 #[derive(Debug, Clone, Deserialize)]
 pub struct UpdateApiKeyRequest {
     pub api_key: String,
@@ -85,7 +68,6 @@ mod tests {
     // ============================================================
 
     /// TC-015-01-A: 全6 provider文字列が`ApiProvider` enumに正しく変換される
-    /// 🔵 信頼性レベル: 要件定義書「許可値」L34・REQ-0022-01、note.md L15より
     #[test]
     fn parse_api_provider_converts_all_six_allowed_strings() {
         // 【テスト目的】: provider文字列→enum変換ロジックが許可された全6種のsnake_case文字列を正しくマッピングするかを確認する

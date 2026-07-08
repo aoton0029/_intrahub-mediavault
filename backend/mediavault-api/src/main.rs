@@ -12,7 +12,9 @@ use tower_http::cors::{Any, CorsLayer};
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    tracing_subscriber::fmt::init();
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,api_client_lib=debug"));
+    tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let internal_api_key = std::env::var("INTERNAL_API_KEY").unwrap_or_default();
@@ -30,6 +32,11 @@ async fn main() {
             std::process::exit(1);
         }
     };
+
+    if let Err(err) = db::run_migrations(&db).await {
+        tracing::error!("マイグレーションの適用に失敗しました: {err}");
+        std::process::exit(1);
+    }
 
     let state = AppState {
         db,

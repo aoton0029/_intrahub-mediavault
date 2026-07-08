@@ -111,7 +111,7 @@ impl AniListClient {
         &self,
         body: &serde_json::Value,
     ) -> Result<(u16, String, u64), ApiError> {
-        tracing::trace!(url = %self.base_url, "AniList GraphQL request sending");
+        tracing::debug!(url = %self.base_url, body = %body, "AniList request sending");
 
         let mut builder = self
             .http
@@ -138,7 +138,7 @@ impl AniListClient {
         // 4xx/5xx は直接エラー
         if status >= 400 {
             let body_text = response.text().await.unwrap_or_default();
-            tracing::warn!(status, "AniList HTTP error");
+            tracing::warn!(status, body = %body_text, "AniList HTTP error");
             return Err(ApiError::Http {
                 status,
                 body: body_text,
@@ -150,13 +150,7 @@ impl AniListClient {
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
 
-        tracing::trace!(
-            status,
-            latency_ms,
-            response_len = text.len(),
-            "AniList response received"
-        );
-        tracing::debug!(body = %text, "AniList response body");
+        tracing::debug!(status, latency_ms, body = %text, "AniList response received");
 
         Ok((status, text, latency_ms))
     }

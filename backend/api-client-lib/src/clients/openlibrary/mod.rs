@@ -41,7 +41,7 @@ impl OpenLibraryClient {
     // ── 内部ヘルパー ────────────────────────────────────────────────────
 
     async fn get_json(&self, url: &str) -> Result<(u16, String, u64), ApiError> {
-        tracing::trace!(url, "OpenLibrary GET request sending");
+        tracing::debug!(url, "OpenLibrary request sending");
         let start = std::time::Instant::now();
         let response = self
             .http
@@ -62,7 +62,7 @@ impl OpenLibraryClient {
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            tracing::warn!(status, "OpenLibrary HTTP error");
+            tracing::warn!(status, body = %body, "OpenLibrary HTTP error");
             return Err(ApiError::Http { status, body });
         }
 
@@ -70,8 +70,7 @@ impl OpenLibraryClient {
             .text()
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
-        tracing::trace!(status, latency_ms, "OpenLibrary response received");
-        tracing::debug!(body = %text, "OpenLibrary response body");
+        tracing::debug!(status, latency_ms, body = %text, "OpenLibrary response received");
         Ok((status, text, latency_ms))
     }
 

@@ -12,9 +12,6 @@
 use std::sync::Arc;
 
 use api_client_lib::auth::AuthStrategy;
-use api_client_lib::clients::igdb::IgdbClient;
-use api_client_lib::clients::igdb::models::IgdbModel;
-use api_client_lib::clients::igdb::requests::{IgdbRequest, IgdbSearchRequest};
 use api_client_lib::clients::jikan::JikanClient;
 use api_client_lib::clients::jikan::requests::{
     JikanAnimeSearchRequest, JikanMangaSearchRequest, JikanRequest,
@@ -22,6 +19,8 @@ use api_client_lib::clients::jikan::requests::{
 use api_client_lib::clients::ndl::NdlClient;
 use api_client_lib::clients::ndl::models::NdlModel;
 use api_client_lib::clients::ndl::requests::{NdlRequest, NdlSearchRequest};
+use api_client_lib::clients::steam::SteamClient;
+use api_client_lib::clients::steam::requests::{SteamRequest, SteamStoreSearchRequest};
 use api_client_lib::clients::tmdb::TmdbClient;
 use api_client_lib::clients::tmdb::requests::{SearchMovieRequest, SearchTvRequest, TmdbRequest};
 use api_client_lib::traits::ApiClient;
@@ -38,14 +37,6 @@ use crate::repositories::api_credential_repository;
 
 /// キー必須プロバイダのAPIキー解決を行うDIポイント（テスト用差し替え可能）
 ///
-/// 【設計判断】: tdd-red段階で発覚した問題（`find_by_provider`が実PgPoolを要求するため、
-/// HTTPモックのみで完結すべきユニットテストがDATABASE_URL未設定時にpanicしていた）を解消するため、
-/// 本クロージャ型を介して認証情報解決を注入可能にする。
-/// 本番経路では `ApiCredentialLookup::Pool` がDBへ実アクセスし、ユニットテストでは
-/// `ApiCredentialLookup::Fixed` で固定の `Option<ApiCredential>` を即時返すことでDB非依存とする。
-/// 既存コードベースの慣習（AppStateがPgPoolを直接保持しトレイト抽象を持たない・main.rs参照）に
-/// 合わせ、トレイトではなくenumベースの軽量DIで最小限の変更とする。
-/// 🟡 信頼性レベル: tdd-red指摘事項（DB依存ユニットテストのpanic回避）からの設計判断
 #[derive(Clone)]
 pub enum ApiCredentialLookup {
     /// 本番経路: 実際のPgPoolへ`find_by_provider`を発行する
@@ -56,9 +47,6 @@ pub enum ApiCredentialLookup {
 
 /// `ApiResponse.raw`（`RawData::Json`/`Xml`）を`serde_json::Value`へ変換する共通ヘルパー
 ///
-/// 【設計判断】: domain マッパー（`from_jikan_details`/`from_tmdb` 等）は raw JSON の
-/// 検索結果要素を入力に取るため、レスポンス全体のraw文字列をそのまま`serde_json::Value`へ変換する。
-/// XMLの場合はテキストとしてラップし、パース失敗時はNullへフォールバックする（panic防止）。
 fn raw_data_to_value(raw: &api_client_lib::response::RawData) -> serde_json::Value {
     match raw {
         api_client_lib::response::RawData::Json(text) => {
@@ -113,7 +101,7 @@ struct TestBaseUrls {
     jikan: Option<String>,
     tmdb: Option<String>,
     ndl: Option<String>,
-    igdb: Option<(String, String)>,
+    steam: Option<String>,
 }
 
 /// media_type→provider振り分けディスパッチサービス
@@ -175,7 +163,7 @@ impl ExternalSearchService {
             MediaType::Movie => self.dispatch_tmdb_movie(query).await,
             MediaType::Drama => self.dispatch_tmdb_drama(query).await,
             MediaType::Novel => self.dispatch_ndl_for(query, MediaType::Novel).await,
-            MediaType::Game => self.dispatch_igdb(query).await,
+            MediaType::Game => self.dispatch_steam(query).await,
             MediaType::AcademicBook => self.dispatch_ndl_for(query, MediaType::AcademicBook).await,
             MediaType::Paper => self.dispatch_ndl_for(query, MediaType::Paper).await,
         }
@@ -212,23 +200,18 @@ impl ExternalSearchService {
         NdlClient::new().map_err(ExternalSearchError::ExternalApiError)
     }
 
-    /// IGDBクライアントを構築する（テスト時はAPIベースURL・TwitchトークンURLの双方を差し替え可能） 🟡
-    fn build_igdb_client(
-        &self,
-        client_id: String,
-        client_secret: String,
-    ) -> Result<IgdbClient, ExternalSearchError> {
+    /// Steamクライアントを構築する（テスト時はベースURL差し替え可能。ストア検索は認証不要のため`AuthStrategy::None`固定） 🟡
+    fn build_steam_client(&self) -> Result<SteamClient, ExternalSearchError> {
         #[cfg(test)]
-        if let Some((base_url, twitch_token_url)) = &self.test_base_urls.igdb {
-            return IgdbClient::new_with_urls(
-                client_id,
-                client_secret,
+        if let Some(base_url) = &self.test_base_urls.steam {
+            return SteamClient::new_with_base_urls(
+                AuthStrategy::None,
                 base_url.clone(),
-                twitch_token_url.clone(),
+                base_url.clone(),
             )
             .map_err(ExternalSearchError::ExternalApiError);
         }
-        IgdbClient::new(client_id, client_secret).map_err(ExternalSearchError::ExternalApiError)
+        SteamClient::new(AuthStrategy::None).map_err(ExternalSearchError::ExternalApiError)
     }
 
     /// Jikan（anime）へディスパッチする。キー不要のため `find_by_provider` は呼ばない（REQ-0023-102）。
@@ -331,39 +314,27 @@ impl ExternalSearchService {
         }))
     }
 
-    /// IGDB（game、設計判断B：Steamは対象外）へディスパッチする。
+    /// Steam（game）へディスパッチする。ストア検索はキー不要のため `find_by_provider` は呼ばない。
     ///
-    /// 【設計判断】: IGDBはTwitch OAuth2クライアント資格情報（client_id/client_secret）を要求するが、
-    /// `api_credentials` テーブルは単一の`api_key`列のみを保持する。本実装ではDB保存値を
-    /// `"client_id:client_secret"`形式として解釈し、区切り文字が無い場合はclient_id/secret双方に
-    /// 同一値を用いる（テスト・簡易運用向けのフォールバック）。
-    /// 🟡 信頼性レベル: api_credentialsスキーマがIGDBの2値資格情報を直接表現できないことからの設計判断
-    async fn dispatch_igdb(&self, query: &str) -> Result<Vec<MediaDetails>, ExternalSearchError> {
-        let api_key = self.ensure_key(ApiProvider::Igdb).await?;
-        let (client_id, client_secret) = match api_key.split_once(':') {
-            Some((id, secret)) => (id.to_string(), secret.to_string()),
-            None => (api_key.clone(), api_key),
-        };
-        let client = self.build_igdb_client(client_id, client_secret)?;
-        let escaped_query = query.replace('"', "\\\"");
-        // 【フィールド指定】: GameDetails::from_igdbが読む全フィールドをApicalypseクエリで要求する 🟡
-        let request = IgdbRequest::Search(IgdbSearchRequest {
-            query: format!(
-                r#"search "{escaped_query}"; fields id,name,summary,storyline,first_release_date,cover.url,genres.name,platforms.name,involved_companies.company.name,involved_companies.developer,involved_companies.publisher,rating,screenshots.url,url,alternative_names.name; limit 20;"#
-            ),
+    /// 【設計判断】: `store_search` はid/name/tiny_imageのみを返し、説明・評価・画像等の詳細情報を
+    /// 含まない。一覧表示にはこれで十分なため`GameDetails::from_steam_search`で軽量マッピングする。
+    /// 詳細情報はユーザーがインポートを確定した時点で別途`get_app_details`から取得する想定。
+    /// 🟡 信頼性レベル: ユーザー指示（ゲームはSteam検索を使用）・設計判断
+    async fn dispatch_steam(&self, query: &str) -> Result<Vec<MediaDetails>, ExternalSearchError> {
+        let client = self.build_steam_client()?;
+        let request = SteamRequest::StoreSearch(SteamStoreSearchRequest {
+            term: query.to_string(),
+            page: None,
         });
         let response = client
             .execute(request)
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
-        let IgdbModel::SearchResults(values) = response.model else {
-            return Ok(Vec::new());
-        };
-        // 【ドメイン変換】: Igdbの/searchはserde_json::Valueの配列を返すため、要素ごとにGameDetailsへノーマライズする 🟡
-        Ok(values
-            .iter()
-            .map(|v| MediaDetails::Game(GameDetails::from_igdb(v)))
-            .collect())
+        // 【ドメイン変換】: raw JSONの"items"配列要素をGameDetailsへノーマライズする 🟡
+        let raw_data = raw_data_to_value(&response.raw);
+        Ok(map_array_items(&raw_data, "items", |item| {
+            MediaDetails::Game(GameDetails::from_steam_search(item))
+        }))
     }
 
     /// NDLディスパッチの内部実装（media_typeを明示的に受け取る。academic_book/paper共通）
@@ -620,41 +591,70 @@ mod tests {
         assert_eq!(ndl_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: NDLモックへの到達回数が1であることを確認する 🔵
     }
 
-    /// TC-002-GAME: media_type=Game → IGDBへディスパッチ（Steam非到達・ユニット）
-    /// 🟡 信頼性レベル: 要件定義書 設計判断B・EDGE-0023-02より
+    /// TC-002-GAME: media_type=Game → Steamストア検索へディスパッチ（キー不要・ユニット）
+    /// 🟡 信頼性レベル: ユーザー指示（ゲームはSteam検索を使用）より
     #[tokio::test]
-    async fn search_game_dispatches_to_igdb_only() {
-        // 【テスト目的】: 設計判断BによりMediaType::GameがIGDBへ固定写像され、Steamへ到達しないかを確認する
-        // 【テスト内容】: IGDBキーをDBへ事前投入した状態でsearch(Game, "ゼルダの伝説")を呼ぶ
-        // 【期待される動作】: IGDBモック受信==1、Steamモック受信==0
-        // 🟡 信頼性レベル: 要件定義書 設計判断B・EDGE-0023-02より
+    async fn search_game_dispatches_to_steam_only() {
+        // 【テスト目的】: MediaType::GameがSteamストア検索へ写像され、キー不要で動作するかを確認する
+        // 【テスト内容】: キー未設定resolverでsearch(Game, "ゼルダの伝説")を呼ぶ
+        // 【期待される動作】: Steamモック受信==1、find_by_provider経由の失敗が起きない
+        // 🟡 信頼性レベル: ユーザー指示（ゲームはSteam検索を使用）より
 
-        let igdb_mock = MockServer::start().await;
-        Mock::given(method("POST"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
-            .mount(&igdb_mock)
-            .await;
         let steam_mock = MockServer::start().await;
-        // 【Twitchトークンモック】: IgdbClientはTwitch OAuth2クライアント資格情報フローで
-        // トークンを取得するため、apicalypseエンドポイントとは別にトークン取得先もモックする必要がある 🟡
-        let twitch_mock = MockServer::start().await;
-        Mock::given(method("POST"))
+        Mock::given(method("GET"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "access_token": "test-token",
-                "expires_in": 3600,
-                "token_type": "bearer"
+                "total": 0,
+                "items": []
             })))
-            .mount(&twitch_mock)
+            .mount(&steam_mock)
             .await;
 
-        let service = service_with_single_key(ApiProvider::Igdb, "test-igdb-key")
-            .with_test_base_urls(|u| u.igdb = Some((igdb_mock.uri(), twitch_mock.uri())));
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.steam = Some(steam_mock.uri()));
 
         let result = service.search(MediaType::Game, "ゼルダの伝説").await;
 
-        assert!(result.is_ok()); // 【確認内容】: Green実装後はOkが返ることを確認する 🟡
-        assert_eq!(igdb_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: IGDBモックへの到達回数が1であることを確認する 🟡
-        assert_eq!(steam_mock.received_requests().await.unwrap().len(), 0); // 【確認内容】: Steamモックへの到達回数が0（最重要）であることを確認する 🟡
+        assert!(result.is_ok()); // 【確認内容】: キー未設定でもOkが返ることを確認する 🟡
+        assert_eq!(steam_mock.received_requests().await.unwrap().len(), 1); // 【確認内容】: Steamモックへの到達回数が1であることを確認する 🟡
+    }
+
+    /// TC-002-GAME-RESULT: Steamストア検索結果がid/name/tiny_imageのみでGameDetailsへノーマライズされる（ユニット）
+    /// 🟡 信頼性レベル: ユーザー指示（検索一覧はid/name/tiny_imageのみ返す）より
+    #[tokio::test]
+    async fn search_game_converts_steam_search_result_to_media_details() {
+        let steam_mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "total": 1,
+                "items": [{
+                    "id": 400,
+                    "name": "Portal",
+                    "type": "game",
+                    "tiny_image": "https://example.com/tiny/400.jpg"
+                }]
+            })))
+            .mount(&steam_mock)
+            .await;
+
+        let service =
+            service_with_no_keys().with_test_base_urls(|u| u.steam = Some(steam_mock.uri()));
+
+        let result = service
+            .search(MediaType::Game, "Portal")
+            .await
+            .expect("Okが返るはず");
+
+        let first = result.first().expect("少なくとも1件の結果が返るはず");
+        assert!(matches!(first, MediaDetails::Game(_))); // 【確認内容】: Game variantへディスパッチされることを確認する 🟡
+        let core = first.core();
+        assert_eq!(core.provider, Some(ApiProvider::Steam)); // 【確認内容】: providerがSteamであることを確認する 🟡
+        assert_eq!(core.external_id, "400"); // 【確認内容】: external_idがモックのidと一致することを確認する 🟡
+        assert_eq!(core.title, "Portal"); // 【確認内容】: titleがモックのnameと一致することを確認する 🟡
+        assert_eq!(
+            core.image_url.as_deref(),
+            Some("https://example.com/tiny/400.jpg")
+        ); // 【確認内容】: image_urlがtiny_imageから設定されることを確認する 🟡
+        assert!(core.description.is_none()); // 【確認内容】: 検索結果には詳細情報が含まれないことを確認する 🟡
     }
 
     /// TC-002-ACADEMIC: media_type=AcademicBook → NDLへディスパッチ（ユニット・HTTPモック）
@@ -800,18 +800,19 @@ mod tests {
     /// TC-002-E01-B: 各キー必須プロバイダで未設定時に対応providerのApiKeyNotConfiguredを返す（ユニット・パラメタライズド）
     ///
     /// 【tdd-red指摘事項対応】: TC-002-E01-Aと同様、実DB依存をDB非依存固定resolverへ置き換えた。
+    /// 【設計変更】: GameはSteamストア検索（キー不要）へ変更されたため、本テストの対象から除外した
+    /// （キー不要であることは`search_game_dispatches_to_steam_only`で確認済み）。
     /// 🔵 信頼性レベル: 要件定義書 REQ-0023-101（キー必須プロバイダ列挙）より
     #[tokio::test]
     async fn search_returns_api_key_not_configured_for_each_key_required_provider() {
-        // 【テスト目的】: IGDB/NDLそれぞれでキー未登録時にApiKeyNotConfigured(該当provider)を返すかを確認する
-        // 【テスト内容】: (Game,None)→Igdb、(Paper,None)→Ndl、(Novel,None)→Ndlの3組をキー未設定resolverで検証する
-        // 【期待される動作】: それぞれErr(ApiKeyNotConfigured(Igdb))/(Ndl)/(Ndl)を返す
-        // 🔵 信頼性レベル: 要件定義書 REQ-0023-101・マッピング表・設計判断Bより
+        // 【テスト目的】: NDLでキー未登録時にApiKeyNotConfigured(該当provider)を返すかを確認する
+        // 【テスト内容】: (Paper,None)→Ndl、(Novel,None)→Ndlの2組をキー未設定resolverで検証する
+        // 【期待される動作】: それぞれErr(ApiKeyNotConfigured(Ndl))を返す
+        // 🔵 信頼性レベル: 要件定義書 REQ-0023-101・マッピング表より
 
         let service = service_with_no_keys();
 
         let cases = [
-            (MediaType::Game, ApiProvider::Igdb),
             (MediaType::Paper, ApiProvider::Ndl),
             (MediaType::Novel, ApiProvider::Ndl),
         ];
@@ -955,13 +956,13 @@ mod tests {
     async fn search_maps_all_eight_media_type_variants_to_exactly_one_provider() {
         // 【テスト目的】: 8 variant全てが第2章マッピング表どおり単一プロバイダへ写像されるかを確認する
         // 【テスト内容】: [(Anime,Jikan),(Movie,Tmdb),(Drama,Tmdb),(Manga,Jikan),(Novel,Ndl),
-        //   (Game,Igdb),(AcademicBook,Ndl),(Paper,Ndl)] の対応表を網羅検証する
+        //   (Game,Steam),(AcademicBook,Ndl),(Paper,Ndl)] の対応表を網羅検証する
         // 【期待される動作】: 各variantで期待provider「のみ」にリクエストが到達し、他provider到達==0
         // 🔵 信頼性レベル: 要件定義書 第2章 マッピング表・REQ-0023-01・REQ-0023-501・REQ-0023-402より
 
-        // キー不要provider（Jikan）のみ到達不能プールで検証し、キー必須providerは個別テストケースで検証済みのため、
+        // キー不要provider（Jikan/Steam）は到達不能プールで検証し、キー必須providerは個別テストケースで検証済みのため、
         // 本テストではJikan系2variant（Anime/Manga）の一意写像のみを境界網羅として確認する
-        // （キー必須6 providerはTC-002-02-B/NOVEL/GAME/ACADEMIC/PAPERで個別に確認済み）。
+        // （キー必須providerはTC-002-02-B/NOVEL/ACADEMIC/PAPERで、Steam(Game)はTC-002-GAMEで個別に確認済み）。
         let jikan_mock = MockServer::start().await;
         Mock::given(method("GET"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))

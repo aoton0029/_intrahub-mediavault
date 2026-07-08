@@ -107,6 +107,42 @@ impl GameDetails {
         }
     }
 
+    /// Steam `storesearch` の検索結果1件（`{"id":.., "name":.., "tiny_image":..}`）から構築する。
+    ///
+    /// 検索結果には説明・評価・画像等の詳細情報が含まれないため、一覧表示に必要な
+    /// id/name/tiny_image（サムネイル用）のみをマッピングする軽量版。詳細情報はインポート確定時に
+    /// `get_app_details` + `from_steam_app` で別途取得する想定。
+    pub fn from_steam_search(data: &Value) -> Self {
+        let core = MediaCore {
+            media_type: MediaType::Game,
+            provider: Some(ApiProvider::Steam),
+            external_id: data
+                .get("id")
+                .and_then(Value::as_u64)
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+            title: json_str(data, "name").unwrap_or_default(),
+            original_title: None,
+            alternative_titles: Vec::new(),
+            description: None,
+            release_date: None,
+            image_url: json_str(data, "tiny_image"),
+            genres: Vec::new(),
+            rating: None,
+            url: None,
+        };
+        GameDetails {
+            core,
+            platforms: Vec::new(),
+            developers: Vec::new(),
+            publishers: Vec::new(),
+            screenshots: Vec::new(),
+            metacritic: None,
+            steam_appid: data.get("id").and_then(Value::as_u64),
+            storyline: None,
+        }
+    }
+
     /// Steam `appdetails` の `data` オブジェクトから構築する。
     pub fn from_steam_app(data: &Value) -> Self {
         let metacritic = data
@@ -190,6 +226,29 @@ mod tests {
         assert!(!details.platforms.is_empty());
         assert!(!details.publishers.is_empty());
         assert!(!details.screenshots.is_empty());
+    }
+
+    #[test]
+    fn from_steam_search_maps_id_name_tiny_image_only() {
+        let json = serde_json::json!({
+            "id": 400,
+            "name": "Portal",
+            "type": "game",
+            "tiny_image": "https://example.com/tiny/400.jpg"
+        });
+        let details = GameDetails::from_steam_search(&json);
+
+        assert_eq!(details.core.provider, Some(ApiProvider::Steam));
+        assert_eq!(details.core.external_id, "400");
+        assert_eq!(details.core.title, "Portal");
+        assert_eq!(
+            details.core.image_url.as_deref(),
+            Some("https://example.com/tiny/400.jpg")
+        );
+        assert_eq!(details.steam_appid, Some(400));
+        assert!(details.core.description.is_none());
+        assert!(details.core.rating.is_none());
+        assert!(details.platforms.is_empty());
     }
 
     #[test]

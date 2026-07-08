@@ -281,9 +281,6 @@ pub async fn update_item_status_handler(
 /// 【機能概要】: `GET /items/search` ハンドラ。外部API（Jikan/TMDb/NDL/IGDB）を検索し、
 /// ノーマライズ済み`MediaDetails`（media_typeが判別子）の候補一覧を返す
 /// 【実装方針】: AppStateはExternalSearchServiceを保持しないため、ハンドラ内で都度構築する。
-/// `?`演算子で`ExternalSearchError`を`From`実装経由で`ApiError`へ自動変換し、422/502へ伝播させる
-/// 【テスト対応】: TC-0024-N01相当（200成功）、TC-0024-E01相当（422 APIキー未設定）に対応
-/// 🔵 信頼性レベル: note.md「Greenフェーズで実装すべき内容」・item-search-red-phase.md 4章に直接対応
 pub async fn search_items_handler(
     State(state): State<AppState>,
     Query(query): Query<ItemSearchQuery>,

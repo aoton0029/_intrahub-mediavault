@@ -81,14 +81,7 @@ pub struct CreateItemRequest {
     /// メディア別詳細（anime_details等）。ハンドラ側でmedia_typeに応じて振り分ける。
     #[serde(default)]
     pub details: Option<serde_json::Value>,
-    /// 消費（読了・視聴）日。TASK-0030 設計判断#1により追加。
-    ///
-    /// 【機能概要】: ブクログCSVインポートの「読了日」を`items.consumed_date`へ永続化するための
-    /// フィールド追加。`#[serde(default)]`により既存の手動作成（TASK-0009）リクエストJSONに
-    /// このキーが含まれない場合は`None`となり、後方互換を維持する
-    /// 【実装方針】: `Option<NaiveDate>`とし、JSON未指定時はNone（デフォルト）にする
-    /// 【テスト対応】: TC-N-04（デシリアライズ＋後方互換）、TC-N-05（DB永続化）、TC-REG-01（既存回帰）
-    /// 🔵 信頼性レベル: テストケース定義書0章 設計判断#1（ユーザー確定）に基づく
+    /// 消費（読了・視聴）日
     #[serde(default)]
     pub consumed_date: Option<NaiveDate>,
 }

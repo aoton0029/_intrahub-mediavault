@@ -74,8 +74,7 @@ impl NdlClient {
         }
 
         let url_str = url.to_string();
-        tracing::debug!(operation = "search", "NDL request start");
-        tracing::trace!(url = %url_str, "NDL search request sending");
+        tracing::debug!(operation = "search", url = %url_str, "NDL request sending");
         let start = std::time::Instant::now();
         let response = self
             .http
@@ -96,7 +95,7 @@ impl NdlClient {
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            tracing::warn!(status, "NDL HTTP error");
+            tracing::warn!(status, body = %body, "NDL HTTP error");
             return Err(ApiError::Http { status, body });
         }
 
@@ -105,8 +104,7 @@ impl NdlClient {
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
 
-        tracing::trace!(response_len = xml_text.len(), "NDL parsing XML");
-        tracing::debug!(body = %xml_text, "NDL response body");
+        tracing::debug!(status, latency_ms, body = %xml_text, "NDL response received");
         let model = parse_ndl_xml(&xml_text)?;
 
         tracing::debug!(status, latency_ms, count = model.len(), "NDL search OK");

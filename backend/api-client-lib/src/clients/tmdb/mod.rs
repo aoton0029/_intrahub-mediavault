@@ -74,7 +74,7 @@ impl TmdbClient {
 
         let (url_with_auth, bearer) = self.apply_auth(url);
         let url_str = url_with_auth.to_string();
-        tracing::trace!(url = %url_str, "TMDb GET request sending");
+        tracing::debug!(url = %url_str, "TMDb request sending");
 
         let mut builder = self.http.get(&url_str).timeout(REQUEST_TIMEOUT);
         if let Some(token) = bearer {
@@ -95,7 +95,7 @@ impl TmdbClient {
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            tracing::warn!(status, "TMDb HTTP error");
+            tracing::warn!(status, body = %body, "TMDb HTTP error");
             return Err(ApiError::Http { status, body });
         }
 
@@ -103,8 +103,7 @@ impl TmdbClient {
             .text()
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
-        tracing::trace!(status, latency_ms, "TMDb response received");
-        tracing::debug!(body = %text, "TMDb response body");
+        tracing::debug!(status, latency_ms, body = %text, "TMDb response received");
         Ok((status, text, latency_ms))
     }
 

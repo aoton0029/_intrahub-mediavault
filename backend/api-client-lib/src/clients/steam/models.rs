@@ -34,6 +34,7 @@ pub struct SteamStoreSearchResultModel {
     pub name: Option<String>,
     #[serde(rename = "type")]
     pub result_type: Option<String>,
+    pub tiny_image: Option<String>,
 }
 
 /// Steam クライアントが返すモデル列挙型。

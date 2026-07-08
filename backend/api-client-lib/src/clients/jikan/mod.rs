@@ -58,7 +58,7 @@ impl JikanClient {
     // ── 内部ヘルパー ────────────────────────────────────────────────────
 
     async fn get_json(&self, url: &str) -> Result<(u16, String, u64), ApiError> {
-        tracing::trace!(url, "Jikan GET request sending");
+        tracing::debug!(url, "Jikan request sending");
         let start = std::time::Instant::now();
         let response = self
             .http
@@ -79,7 +79,7 @@ impl JikanClient {
 
         if !response.status().is_success() {
             let body = response.text().await.unwrap_or_default();
-            tracing::warn!(status, "Jikan HTTP error");
+            tracing::warn!(status, body = %body, "Jikan HTTP error");
             return Err(ApiError::Http { status, body });
         }
 
@@ -87,8 +87,7 @@ impl JikanClient {
             .text()
             .await
             .map_err(|e| ApiError::Network(e.to_string()))?;
-        tracing::trace!(status, latency_ms, "Jikan response received");
-        tracing::debug!(body = %text, "Jikan response body");
+        tracing::debug!(status, latency_ms, body = %text, "Jikan response received");
         Ok((status, text, latency_ms))
     }
 

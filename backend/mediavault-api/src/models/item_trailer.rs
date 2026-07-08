@@ -1,6 +1,5 @@
 //! item_trailers（トレーラー動画リンク）のモデル・リクエストDTO・バリデーション
 //!
-//! TASK-0021: item_trailers CRUD実装（models/item_link.rsと対称な構造。labelはoptional）
 
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
