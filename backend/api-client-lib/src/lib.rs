@@ -10,6 +10,7 @@
 //! - [`clients::jikan`]   — Jikan (REST)
 //! - [`clients::ndl`]     — NDL OpenSearch (REST + XML)
 //! - [`clients::openlibrary`] — Open Library (REST)
+//! - [`clients::rakuten`] — 楽天ブックス書籍検索API (REST)
 //! - [`clients::steam`]   — Steam Web API (REST)
 //! - [`clients::tmdb`]    — TMDb (REST)
 

@@ -21,12 +21,13 @@ use api_client_lib::clients::annict::AnnictClient;
 use api_client_lib::clients::annict::models::WorkModel;
 use api_client_lib::clients::annict::requests::ListWorksRequest;
 use api_client_lib::clients::jikan::JikanClient;
-use api_client_lib::clients::jikan::requests::{
-    JikanAnimeDetailsRequest, JikanMangaDetailsRequest, JikanMangaSearchRequest, JikanRequest,
-};
+use api_client_lib::clients::jikan::requests::{JikanAnimeDetailsRequest, JikanRequest};
 use api_client_lib::clients::ndl::NdlClient;
 use api_client_lib::clients::ndl::models::{NdlItemModel, NdlModel};
 use api_client_lib::clients::ndl::requests::{NdlRequest, NdlSearchRequest};
+use api_client_lib::clients::rakuten::RakutenClient;
+use api_client_lib::clients::rakuten::models::BookModel;
+use api_client_lib::clients::rakuten::requests::SearchBooksRequest;
 use api_client_lib::clients::steam::SteamClient;
 use api_client_lib::clients::steam::requests::{
     SteamAppDetailsRequest, SteamRequest, SteamStoreSearchRequest,
@@ -168,20 +169,17 @@ fn search_item_from_annict_work(work: &WorkModel) -> SearchResultItem {
     }
 }
 
-fn search_item_from_jikan_manga(data: &Value) -> SearchResultItem {
+fn search_item_from_rakuten_book(book: &BookModel, media_type: MediaType) -> SearchResultItem {
     SearchResultItem {
-        id: data
-            .get("mal_id")
-            .and_then(Value::as_u64)
-            .map(|id| id.to_string())
-            .unwrap_or_default(),
-        media_type: MediaType::Manga,
-        provider: None,
-        title: json_str(data, "title").unwrap_or_default(),
-        thumbnail_url: data
-            .get("images")
-            .and_then(|i| i.get("jpg"))
-            .and_then(|j| json_str(j, "image_url")),
+        id: book.isbn.clone().unwrap_or_default(),
+        media_type,
+        provider: Some(ApiProvider::Rakuten),
+        title: book.title.clone().unwrap_or_default(),
+        thumbnail_url: book
+            .large_image_url
+            .clone()
+            .or_else(|| book.medium_image_url.clone())
+            .or_else(|| book.small_image_url.clone()),
     }
 }
 
@@ -319,36 +317,47 @@ fn build_anime_create_request(work: &WorkModel, jikan_data: Option<&Value>) -> C
     }
 }
 
-/// Jikan `GET /manga/{id}/full` の `data` オブジェクトから`CreateItemRequest`を構築する。
-fn build_manga_create_request(data: &Value) -> CreateItemRequest {
-    let release_date_str = data
-        .get("published")
-        .and_then(|p| json_str(p, "from"))
-        .map(|d| d.chars().take(10).collect::<String>());
+/// 楽天ブックスの`salesDate`（例: "1997年12月24日"、精度は年のみ〜年月日で揺れる）を`NaiveDate`へ変換する。
+///
+/// 数字部分のみを抽出し年/月/日として解釈する。月・日が欠けている場合は1で補完する。
+fn parse_rakuten_sales_date(raw: &str) -> Option<NaiveDate> {
+    let digits: Vec<i32> = raw
+        .split(|c: char| !c.is_ascii_digit())
+        .filter(|s| !s.is_empty())
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    match digits.as_slice() {
+        [y, m, d] => NaiveDate::from_ymd_opt(*y, *m as u32, *d as u32),
+        [y, m] => NaiveDate::from_ymd_opt(*y, *m as u32, 1),
+        [y] => NaiveDate::from_ymd_opt(*y, 1, 1),
+        _ => None,
+    }
+}
 
+/// 楽天ブックス`BookModel`（manga/novel/academic_book共通）から`CreateItemRequest`を構築する。
+fn build_book_create_request(book: &BookModel, media_type: MediaType) -> CreateItemRequest {
     let details = serde_json::json!({
-        "chapters": json_u32(data, "chapters"),
-        "volumes": json_u32(data, "volumes"),
-        "status": json_str(data, "status"),
-        "authors": json_names(data, "authors", "name"),
-        "serializations": json_names(data, "serializations", "name"),
-        "genres": json_names(data, "genres", "name"),
-        "rating": json_f64(data, "score"),
-        "url": json_str(data, "url"),
-        "alternative_titles": json_str(data, "title_english").into_iter().collect::<Vec<_>>(),
+        "authors": book.author.clone(),
+        "publisher": book.publisher_name.clone(),
+        "isbn": book.isbn.clone(),
+        "series_name": book.series_name.clone(),
     });
 
     CreateItemRequest {
-        media_type: MediaType::Manga,
-        title: json_str(data, "title").unwrap_or_default(),
-        original_title: json_str(data, "title_japanese"),
-        description: json_str(data, "synopsis"),
-        cover_image_url: data
-            .get("images")
-            .and_then(|i| i.get("jpg"))
-            .and_then(|j| json_str(j, "image_url")),
-        release_date: release_date_str.as_deref().and_then(parse_release_date),
-        homepage_url: json_str(data, "url"),
+        media_type,
+        title: book.title.clone().unwrap_or_default(),
+        original_title: None,
+        description: book.item_caption.clone(),
+        cover_image_url: book
+            .large_image_url
+            .clone()
+            .or_else(|| book.medium_image_url.clone())
+            .or_else(|| book.small_image_url.clone()),
+        release_date: book
+            .sales_date
+            .as_deref()
+            .and_then(parse_rakuten_sales_date),
+        homepage_url: book.item_url.clone(),
         rating: None,
         is_favorite: None,
         details: Some(details),
@@ -507,6 +516,7 @@ struct TestBaseUrls {
     ndl: Option<String>,
     steam: Option<String>,
     annict: Option<String>,
+    rakuten: Option<String>,
 }
 
 /// media_type→provider振り分けディスパッチサービス
@@ -582,12 +592,15 @@ impl ExternalSearchService {
     ) -> Result<Vec<SearchResultItem>, ExternalSearchError> {
         match media_type {
             MediaType::Anime => self.dispatch_annict_anime(query).await,
-            MediaType::Manga => self.dispatch_jikan_manga(query).await,
+            MediaType::Manga => self.dispatch_rakuten_books(query, MediaType::Manga).await,
             MediaType::Movie => self.dispatch_tmdb_movie(query).await,
             MediaType::Drama => self.dispatch_tmdb_drama(query).await,
-            MediaType::Novel => self.dispatch_ndl_for(query, MediaType::Novel).await,
+            MediaType::Novel => self.dispatch_rakuten_books(query, MediaType::Novel).await,
             MediaType::Game => self.dispatch_steam(query).await,
-            MediaType::AcademicBook => self.dispatch_ndl_for(query, MediaType::AcademicBook).await,
+            MediaType::AcademicBook => {
+                self.dispatch_rakuten_books(query, MediaType::AcademicBook)
+                    .await
+            }
             MediaType::Paper => self.dispatch_ndl_for(query, MediaType::Paper).await,
         }
     }
@@ -601,16 +614,19 @@ impl ExternalSearchService {
     ) -> Result<CreateItemRequest, ExternalSearchError> {
         match media_type {
             MediaType::Anime => self.fetch_anime_import_details(external_id).await,
-            MediaType::Manga => self.fetch_manga_import_details(external_id).await,
+            MediaType::Manga => {
+                self.fetch_rakuten_import_details(external_id, MediaType::Manga)
+                    .await
+            }
             MediaType::Movie => self.fetch_movie_import_details(external_id).await,
             MediaType::Drama => self.fetch_drama_import_details(external_id).await,
             MediaType::Game => self.fetch_game_import_details(external_id).await,
             MediaType::Novel => {
-                self.fetch_novel_import_details(external_id, MediaType::Novel)
+                self.fetch_rakuten_import_details(external_id, MediaType::Novel)
                     .await
             }
             MediaType::AcademicBook => {
-                self.fetch_novel_import_details(external_id, MediaType::AcademicBook)
+                self.fetch_rakuten_import_details(external_id, MediaType::AcademicBook)
                     .await
             }
             MediaType::Paper => {
@@ -663,6 +679,29 @@ impl ExternalSearchService {
         }
         AnnictClient::new(AuthStrategy::ApiKey(api_key))
             .map_err(ExternalSearchError::ExternalApiError)
+    }
+
+    /// 楽天ブックスクライアントを構築する（テスト時はベースURL差し替え可能）。
+    ///
+    /// `api_key`は`"applicationId:accessKey"`形式で1つの文字列にエンコードして保存する
+    /// （`api_credentials.api_key`が単一文字列カラムのため、楽天が要求する2値をこの区切り文字で格納する規約）。
+    fn build_rakuten_client(&self, api_key: String) -> Result<RakutenClient, ExternalSearchError> {
+        let (application_id, access_key) = api_key.split_once(':').ok_or_else(|| {
+            ExternalSearchError::ExternalApiError(api_client_lib::ApiError::Auth(
+                "invalid Rakuten credential format (expected \"applicationId:accessKey\")"
+                    .to_string(),
+            ))
+        })?;
+        let auth = AuthStrategy::RakutenAppAuth {
+            application_id: application_id.to_string(),
+            access_key: access_key.to_string(),
+        };
+        #[cfg(test)]
+        if let Some(base_url) = &self.test_base_urls.rakuten {
+            return RakutenClient::new_with_base_url(auth, base_url.clone())
+                .map_err(ExternalSearchError::ExternalApiError);
+        }
+        RakutenClient::new(auth).map_err(ExternalSearchError::ExternalApiError)
     }
 
     /// Steamクライアントを構築する（テスト時はベースURL差し替え可能。ストア検索は認証不要のため`AuthStrategy::None`固定） 🟡
@@ -754,51 +793,51 @@ impl ExternalSearchService {
         }
     }
 
-    /// Jikan（manga、設計判断A）へディスパッチする。キー不要のため `find_by_provider` は呼ばない。
-    /// 🟡 信頼性レベル: 要件定義書 設計判断A・REQ-0023-04より
-    async fn dispatch_jikan_manga(
+    /// 楽天ブックス（manga/novel/academic_book共通）へディスパッチする。`find_by_provider(Rakuten)` でキーを取得する。
+    async fn dispatch_rakuten_books(
         &self,
         query: &str,
+        media_type: MediaType,
     ) -> Result<Vec<SearchResultItem>, ExternalSearchError> {
-        let client = self.build_jikan_client()?;
-        let request = JikanRequest::SearchManga(JikanMangaSearchRequest {
-            q: Some(query.to_string()),
-            page: None,
-            limit: None,
-            manga_type: None,
-        });
+        let api_key = self.ensure_key(ApiProvider::Rakuten).await?;
+        let client = self.build_rakuten_client(api_key)?;
         let response = client
-            .execute(request)
+            .search_books(SearchBooksRequest {
+                title: Some(query.to_string()),
+                ..Default::default()
+            })
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
-        let raw_data = raw_data_to_value(&response.raw);
-        Ok(map_array_items(
-            &raw_data,
-            "data",
-            search_item_from_jikan_manga,
-        ))
+        Ok(response
+            .model
+            .iter()
+            .map(|book| search_item_from_rakuten_book(book, media_type))
+            .collect())
     }
 
-    /// インポート確定時: Jikan `GET /manga/{id}/full` から詳細を取得し`CreateItemRequest`を構築する。
-    async fn fetch_manga_import_details(
+    /// インポート確定時: 楽天ブックスをISBN検索し、書誌詳細から`CreateItemRequest`を構築する
+    /// （manga/novel/academic_book共通、`external_id`はISBN）。
+    async fn fetch_rakuten_import_details(
         &self,
         external_id: &str,
+        media_type: MediaType,
     ) -> Result<CreateItemRequest, ExternalSearchError> {
-        let id: u32 = external_id.trim().parse().map_err(|_| {
-            ExternalSearchError::ExternalApiError(api_client_lib::ApiError::Parse(format!(
-                "invalid manga id: {external_id}"
-            )))
-        })?;
-        let client = self.build_jikan_client()?;
+        let api_key = self.ensure_key(ApiProvider::Rakuten).await?;
+        let client = self.build_rakuten_client(api_key)?;
         let response = client
-            .execute(JikanRequest::GetMangaDetails(JikanMangaDetailsRequest {
-                id,
-            }))
+            .search_books(SearchBooksRequest {
+                isbn: Some(external_id.to_string()),
+                ..Default::default()
+            })
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
-        let raw_data = raw_data_to_value(&response.raw);
-        let data = raw_data.get("data").cloned().unwrap_or(raw_data);
-        Ok(build_manga_create_request(&data))
+        let book = response.model.into_iter().next().ok_or_else(|| {
+            ExternalSearchError::ExternalApiError(api_client_lib::ApiError::Http {
+                status: 404,
+                body: format!("Rakuten book not found: {external_id}"),
+            })
+        })?;
+        Ok(build_book_create_request(&book, media_type))
     }
 
     /// TMDb（movie）へディスパッチする。`find_by_provider(Tmdb)` でキーを取得する。
@@ -1159,44 +1198,40 @@ mod tests {
         assert_eq!(tmdb_mock.received_requests().await.unwrap().len(), 1);
     }
 
-    /// TC-002-MANGA: media_type=Manga → Jikanへディスパッチ（キー取得スキップ・ユニット）
-    /// 🟡 信頼性レベル: 要件定義書 設計判断A・EDGE-0023-01・REQ-0023-04より
+    /// TC-002-MANGA: media_type=Manga → 楽天ブックスへディスパッチする（キー必須・ユニット）
     #[tokio::test]
-    async fn search_manga_dispatches_to_jikan_and_skips_key_lookup() {
-        let jikan_mock = MockServer::start().await;
+    async fn search_manga_dispatches_to_rakuten_only() {
+        let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
-            .mount(&jikan_mock)
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .mount(&rakuten_mock)
             .await;
 
-        let service =
-            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service = service_with_single_key(ApiProvider::Rakuten, "app-id:access-key")
+            .with_test_base_urls(|u| u.rakuten = Some(rakuten_mock.uri()));
 
         let result = service.search(MediaType::Manga, "ワンピース").await;
 
         assert!(result.is_ok());
-        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1);
+        assert_eq!(rakuten_mock.received_requests().await.unwrap().len(), 1);
     }
 
-    /// TC-002-NOVEL: media_type=Novel → NDLへディスパッチ（ユニット・HTTPモック）
-    /// 🔵 信頼性レベル: 要件定義書 マッピング表 L39より
+    /// TC-002-NOVEL: media_type=Novel → 楽天ブックスへディスパッチする（ユニット・HTTPモック）
     #[tokio::test]
-    async fn search_novel_dispatches_to_ndl_only() {
-        let ndl_mock = MockServer::start().await;
+    async fn search_novel_dispatches_to_rakuten_only() {
+        let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_string("<rss><channel></channel></rss>"),
-            )
-            .mount(&ndl_mock)
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .mount(&rakuten_mock)
             .await;
 
-        let service = service_with_single_key(ApiProvider::Ndl, "test-ndl-key")
-            .with_test_base_urls(|u| u.ndl = Some(ndl_mock.uri()));
+        let service = service_with_single_key(ApiProvider::Rakuten, "app-id:access-key")
+            .with_test_base_urls(|u| u.rakuten = Some(rakuten_mock.uri()));
 
         let result = service.search(MediaType::Novel, "タイトル").await;
 
         assert!(result.is_ok());
-        assert_eq!(ndl_mock.received_requests().await.unwrap().len(), 1);
+        assert_eq!(rakuten_mock.received_requests().await.unwrap().len(), 1);
     }
 
     /// TC-002-GAME: media_type=Game → Steamストア検索へディスパッチ（キー不要・ユニット）
@@ -1258,25 +1293,22 @@ mod tests {
         );
     }
 
-    /// TC-002-ACADEMIC: media_type=AcademicBook → NDLへディスパッチ（ユニット・HTTPモック）
-    /// 🔵 信頼性レベル: 要件定義書 マッピング表 L41・EDGE-0023-03より
+    /// TC-002-ACADEMIC: media_type=AcademicBook → 楽天ブックスへディスパッチする（ユニット・HTTPモック）
     #[tokio::test]
-    async fn search_academic_book_dispatches_to_ndl_only() {
-        let ndl_mock = MockServer::start().await;
+    async fn search_academic_book_dispatches_to_rakuten_only() {
+        let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_string("<rss><channel></channel></rss>"),
-            )
-            .mount(&ndl_mock)
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .mount(&rakuten_mock)
             .await;
 
-        let service = service_with_single_key(ApiProvider::Ndl, "test-ndl-key")
-            .with_test_base_urls(|u| u.ndl = Some(ndl_mock.uri()));
+        let service = service_with_single_key(ApiProvider::Rakuten, "app-id:access-key")
+            .with_test_base_urls(|u| u.rakuten = Some(rakuten_mock.uri()));
 
         let result = service.search(MediaType::AcademicBook, "量子力学").await;
 
         assert!(result.is_ok());
-        assert_eq!(ndl_mock.received_requests().await.unwrap().len(), 1);
+        assert_eq!(rakuten_mock.received_requests().await.unwrap().len(), 1);
     }
 
     /// TC-002-PAPER: media_type=Paper → NDLへディスパッチ（ユニット・HTTPモック）
@@ -1377,7 +1409,9 @@ mod tests {
 
         let cases = [
             (MediaType::Paper, ApiProvider::Ndl),
-            (MediaType::Novel, ApiProvider::Ndl),
+            (MediaType::Novel, ApiProvider::Rakuten),
+            (MediaType::Manga, ApiProvider::Rakuten),
+            (MediaType::AcademicBook, ApiProvider::Rakuten),
         ];
 
         for (media_type, expected_provider) in cases {
@@ -1484,60 +1518,65 @@ mod tests {
     /// 🔵 信頼性レベル: 要件定義書 第2章 マッピング表・REQ-0023-01・REQ-0023-501より
     #[tokio::test]
     async fn search_maps_all_eight_media_type_variants_to_exactly_one_provider() {
-        let jikan_mock = MockServer::start().await;
+        let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
-            .mount(&jikan_mock)
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .mount(&rakuten_mock)
             .await;
 
-        let service =
-            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+        let service = service_with_single_key(ApiProvider::Rakuten, "app-id:access-key")
+            .with_test_base_urls(|u| u.rakuten = Some(rakuten_mock.uri()));
 
         let result = service.search(MediaType::Manga, "クエリ").await;
         assert!(result.is_ok(), "media_type=Manga");
-        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1);
+        assert_eq!(rakuten_mock.received_requests().await.unwrap().len(), 1);
     }
 
     /// TC-002-B04: 隣接enum variant誤ディスパッチ検証（Manga/Novel・AcademicBook/Paper・Anime/Movie 非混同・ユニット）
     /// 🔵 信頼性レベル: 要件定義書 REQ-0023-402・設計判断A/Bより
     #[tokio::test]
     async fn search_manga_does_not_reach_ndl_mock() {
-        let jikan_mock = MockServer::start().await;
+        let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
-            .mount(&jikan_mock)
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .mount(&rakuten_mock)
             .await;
         let ndl_mock = MockServer::start().await;
 
-        let service = service_with_no_keys().with_test_base_urls(|u| {
-            u.jikan = Some(jikan_mock.uri());
-            u.ndl = Some(ndl_mock.uri());
-        });
+        let service = service_with_single_key(ApiProvider::Rakuten, "app-id:access-key")
+            .with_test_base_urls(|u| {
+                u.rakuten = Some(rakuten_mock.uri());
+                u.ndl = Some(ndl_mock.uri());
+            });
 
         let result = service.search(MediaType::Manga, "ワンピース").await;
 
         assert!(result.is_ok());
-        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1);
+        assert_eq!(rakuten_mock.received_requests().await.unwrap().len(), 1);
         assert_eq!(ndl_mock.received_requests().await.unwrap().len(), 0);
     }
 
-    /// TC-002-B05: Manga（Jikan）はキー取得を一切行わない（境界・ユニット）
-    /// 🔵 信頼性レベル: 要件定義書 REQ-0023-102・設計判断A/Cより
+    /// TC-002-B05: Manga（楽天ブックス）はキー未設定時にApiKeyNotConfigured(Rakuten)を返す（境界・ユニット）
     #[tokio::test]
-    async fn search_manga_never_calls_find_by_provider() {
-        let jikan_mock = MockServer::start().await;
+    async fn search_manga_returns_api_key_not_configured_when_rakuten_key_missing() {
+        let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data": []})))
-            .mount(&jikan_mock)
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .mount(&rakuten_mock)
             .await;
 
         let service =
-            service_with_no_keys().with_test_base_urls(|u| u.jikan = Some(jikan_mock.uri()));
+            service_with_no_keys().with_test_base_urls(|u| u.rakuten = Some(rakuten_mock.uri()));
 
         let manga_result = service.search(MediaType::Manga, "クエリ").await;
 
-        assert!(manga_result.is_ok());
-        assert_eq!(jikan_mock.received_requests().await.unwrap().len(), 1);
+        match manga_result {
+            Err(ExternalSearchError::ApiKeyNotConfigured(provider)) => {
+                assert_eq!(provider, ApiProvider::Rakuten);
+            }
+            other => panic!("ApiKeyNotConfigured(Rakuten)が返るはずだったが: {other:?}"),
+        }
+        assert_eq!(rakuten_mock.received_requests().await.unwrap().len(), 0);
     }
 
     /// media_type=Anime → Annictキー未設定時にApiKeyNotConfigured(Annict)を返す（ユニット）

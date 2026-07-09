@@ -16,6 +16,11 @@ pub enum AuthStrategy {
         client_id: String,
         client_secret: String,
     },
+    /// 楽天ウェブサービス方式（`applicationId` + `accessKey` の2値。楽天ブックス専用）
+    RakutenAppAuth {
+        application_id: String,
+        access_key: String,
+    },
 }
 
 impl std::fmt::Debug for AuthStrategy {
@@ -28,6 +33,9 @@ impl std::fmt::Debug for AuthStrategy {
                 f,
                 "AuthStrategy::TwitchOAuth2 {{ client_id: {client_id:?}, client_secret: [REDACTED] }}"
             ),
+            AuthStrategy::RakutenAppAuth { .. } => {
+                write!(f, "AuthStrategy::RakutenAppAuth {{ [REDACTED] }}")
+            }
         }
     }
 }

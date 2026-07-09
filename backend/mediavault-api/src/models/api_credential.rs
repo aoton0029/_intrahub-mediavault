@@ -21,6 +21,8 @@ pub enum ApiProvider {
     OpenLibrary,
     #[sqlx(rename = "annict")]
     Annict,
+    #[sqlx(rename = "rakuten")]
+    Rakuten,
     // Jikanはキー不要のため対象外 🔵 requirements.mdより
 }
 
@@ -40,6 +42,7 @@ pub fn parse_api_provider(raw: &str) -> Option<ApiProvider> {
         "steam" => Some(ApiProvider::Steam),
         "open_library" => Some(ApiProvider::OpenLibrary),
         "annict" => Some(ApiProvider::Annict),
+        "rakuten" => Some(ApiProvider::Rakuten),
         // 【対象外provider】: jikanはキー不要のためenumに存在せず、ここでNoneとなる 🔵
         _ => None,
     }
@@ -67,9 +70,9 @@ mod tests {
     // 正常系（ユニット）
     // ============================================================
 
-    /// TC-015-01-A: 全6 provider文字列が`ApiProvider` enumに正しく変換される
+    /// TC-015-01-A: 全7 provider文字列が`ApiProvider` enumに正しく変換される
     #[test]
-    fn parse_api_provider_converts_all_six_allowed_strings() {
+    fn parse_api_provider_converts_all_seven_allowed_strings() {
         // 【テスト目的】: provider文字列→enum変換ロジックが許可された全6種のsnake_case文字列を正しくマッピングするかを確認する
         // 【テスト内容】: tmdb/igdb/ndl/steam/open_library/ani_listの6文字列それぞれをparse_api_providerに渡す
         // 【期待される動作】: 各文字列が対応するenumバリアントに変換されSomeを返す
@@ -84,6 +87,7 @@ mod tests {
             ("steam", ApiProvider::Steam),
             ("open_library", ApiProvider::OpenLibrary),
             ("annict", ApiProvider::Annict),
+            ("rakuten", ApiProvider::Rakuten),
         ];
 
         for (input, expected) in cases {

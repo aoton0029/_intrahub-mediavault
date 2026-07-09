@@ -2,9 +2,17 @@
  * PUT /settings/api-keys/{provider} の対象プロバイダ（docs/backend/mediavault-api/settings.md）。
  * jikanはAPIキー不要のため対象外。
  */
-export type ApiProvider = 'tmdb' | 'igdb' | 'ndl' | 'steam' | 'open_library' | 'ani_list';
+export type ApiProvider = 'tmdb' | 'igdb' | 'ndl' | 'steam' | 'open_library' | 'ani_list' | 'rakuten';
 
-export const apiProviders: ApiProvider[] = ['tmdb', 'igdb', 'ndl', 'steam', 'open_library', 'ani_list'];
+export const apiProviders: ApiProvider[] = [
+  'tmdb',
+  'igdb',
+  'ndl',
+  'steam',
+  'open_library',
+  'ani_list',
+  'rakuten',
+];
 
 export const apiProviderLabels: Record<ApiProvider, string> = {
   tmdb: 'TMDB',
@@ -13,6 +21,7 @@ export const apiProviderLabels: Record<ApiProvider, string> = {
   steam: 'Steam',
   open_library: 'Open Library',
   ani_list: 'AniList',
+  rakuten: '楽天ブックス（applicationId:accessKey形式で入力）',
 };
 
 export interface ApiCredential {
