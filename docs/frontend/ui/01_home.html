@@ -4,40 +4,43 @@
 <meta charset="UTF-8">
 <title>MediaVault — ホーム</title>
 <link rel="stylesheet" href="_shared.css">
+<script src="_shared.js" defer></script>
 </head>
 <body>
 <div class="app-shell">
-
-  <!-- サイドバー(他ページと共通、「全体一覧」をactiveに) -->
+  <!--Reactで実装する際はreact-iconsのアイコンを使用 -->
   <aside class="sidebar">
     <div class="brand"><span class="dot"></span>MediaVault</div>
 
     <div class="nav-section">
-      <a href="01_home.html" class="nav-item active" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
-      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　漫画<span class="count">15</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　小説<span class="count">7</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ゲーム<span class="count">3</span></a>
+      <a href="01_home.html" class="nav-item active" style="text-decoration:none;">📚 ホーム<span class="count">128</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">メディア</div>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 すべて<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎥 映画<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📽️ ドラマ</a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📺 アニメ<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📘 漫画<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📖 小説<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎮 ゲーム<span class="count">3</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">リサーチ</div>
       <a href="03_academic_books.html" class="nav-item" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
       <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
     </div>
 
     <div class="nav-section">
-      <div class="nav-section-label">ライブラリ</div>
+      <div class="nav-section-label">コレクション</div>
       <a href="06_mylists.html" class="nav-item" style="text-decoration:none;">⭐ マイリスト</a>
-      <a href="07_tags.html" class="nav-item" style="text-decoration:none;">🏷️ タグ</a>
-      <a href="14_categories.html" class="nav-item" style="text-decoration:none;">📁 カテゴリ</a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　積読<span class="count">12</span></a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　お気に入り原作<span class="count">6</span></a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　2026年鑑賞予定<span class="count">4</span></a>
-      <a href="08_staff.html" class="nav-item" style="text-decoration:none;">👤 スタッフ</a>
     </div>
 
     <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-section-label">Misc</div>
       <a href="19_settings.html" class="nav-item" style="text-decoration:none;">⚙️ 設定</a>
+      <button type="button" class="theme-toggle" data-theme-toggle aria-label="表示モード切替">🌓 ライトモードに切り替え</button>
     </div>
   </aside>
 
@@ -49,9 +52,6 @@
 
     <div class="content">
 
-      <!-- 集計タイル: 総件数は GET /items/counts-by-media-type の total、
-           進行中/読了/お気に入りは GET /items/counts-by-status (新設、実装時に追加が必要) の
-           in_progress / completed / favorite に対応 -->
       <div class="stat-grid">
         <div class="stat-card">
           <div class="stat-value">128</div>
@@ -180,32 +180,6 @@
           </div>
         </div>
 
-      </div>
-
-      <!-- タグ・カテゴリ: GET /tags(item_count降順で上位8件) / GET /categories(item_count降順で上位6件) -->
-      <div class="section-heading">タグ・カテゴリ</div>
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-        <div>
-          <div style="font-size:12px; color:var(--text-faint); margin-bottom:10px;">よく使うタグ</div>
-          <div class="prop-taglist">
-            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">続編待ち<span style="margin-left:4px; opacity:0.6;">18</span></a>
-            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">神作画<span style="margin-left:4px; opacity:0.6;">12</span></a>
-            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">傑作<span style="margin-left:4px; opacity:0.6;">9</span></a>
-            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">泣ける<span style="margin-left:4px; opacity:0.6;">8</span></a>
-            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">サスペンス<span style="margin-left:4px; opacity:0.6;">7</span></a>
-            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">社会派<span style="margin-left:4px; opacity:0.6;">5</span></a>
-            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">お気に入り原作<span style="margin-left:4px; opacity:0.6;">4</span></a>
-            <a href="07_tags.html" class="tag-pill" style="text-decoration:none;">積読<span style="margin-left:4px; opacity:0.6;">3</span></a>
-          </div>
-        </div>
-        <div>
-          <div style="font-size:12px; color:var(--text-faint); margin-bottom:10px;">カテゴリ</div>
-          <div class="prop-taglist">
-            <a href="14_categories.html" class="tag-pill" style="text-decoration:none;">積読<span style="margin-left:4px; opacity:0.6;">12</span></a>
-            <a href="14_categories.html" class="tag-pill" style="text-decoration:none;">お気に入り原作<span style="margin-left:4px; opacity:0.6;">6</span></a>
-            <a href="14_categories.html" class="tag-pill" style="text-decoration:none;">2026年鑑賞予定<span style="margin-left:4px; opacity:0.6;">4</span></a>
-          </div>
-        </div>
       </div>
 
     </div>

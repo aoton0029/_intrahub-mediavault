@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>MediaVault — 星屑のシンフォニア</title>
 <link rel="stylesheet" href="_shared.css">
+<script src="_shared.js" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -13,31 +14,34 @@
     <div class="brand"><span class="dot"></span>MediaVault</div>
 
     <div class="nav-section">
-      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
-      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　漫画<span class="count">15</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　小説<span class="count">7</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ゲーム<span class="count">3</span></a>
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 ホーム<span class="count">128</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">メディア</div>
+      <a href="02_general_media.html" class="nav-item active" style="text-decoration:none;">🎬 すべて<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎥 映画<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📽️ ドラマ</a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📺 アニメ<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📘 漫画<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📖 小説<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎮 ゲーム<span class="count">3</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">リサーチ</div>
       <a href="03_academic_books.html" class="nav-item" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
       <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
     </div>
 
     <div class="nav-section">
-      <div class="nav-section-label">ライブラリ</div>
+      <div class="nav-section-label">コレクション</div>
       <a href="06_mylists.html" class="nav-item" style="text-decoration:none;">⭐ マイリスト</a>
-      <a href="07_tags.html" class="nav-item" style="text-decoration:none;">🏷️ タグ</a>
-      <a href="14_categories.html" class="nav-item" style="text-decoration:none;">📁 カテゴリ</a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　積読<span class="count">12</span></a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　お気に入り原作<span class="count">6</span></a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　2026年鑑賞予定<span class="count">4</span></a>
-      <a href="08_staff.html" class="nav-item" style="text-decoration:none;">👤 スタッフ</a>
     </div>
 
     <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-section-label">Misc</div>
       <a href="19_settings.html" class="nav-item" style="text-decoration:none;">⚙️ 設定</a>
+      <button type="button" class="theme-toggle" data-theme-toggle aria-label="表示モード切替">🌓 ライトモードに切り替え</button>
     </div>
   </aside>
 
@@ -45,7 +49,6 @@
   <main class="main">
     <div class="titlebar">
       <div class="breadcrumb"><a href="02_general_media.html">一般メディア</a> <span>/ アニメ</span></div>
-      <a href="09_general_media_form.html" class="btn btn-accent">編集する</a>
     </div>
 
     <div class="content">
@@ -60,25 +63,48 @@
           <!-- クイックファクト(状態/評価/お気に入り/発売日/登録方法)。
                ステータス変更は PATCH /items/{id}/status、それ以外は PATCH /items/{id} に対応 -->
           <div class="rail-facts">
-            <span class="meta-item">
-              <!-- react-icons/fi: FiPlayCircle -->
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
-              視聴中
-            </span>
-            <span class="rating-stars">
+            <div class="status-switcher">
+              <button type="button" class="meta-item status-trigger" data-status-trigger data-current="in_progress">
+                <!-- react-icons/fi: FiPlayCircle -->
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                <span class="label">視聴中</span>
+                <!-- react-icons/fi: FiChevronDown -->
+                <svg class="icon chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+              <div class="status-popover" hidden>
+                <button type="button" class="status-option" data-status="not_started">
+                  <!-- react-icons/fi: FiCircle -->
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle></svg>
+                  <span class="label">未着手</span>
+                </button>
+                <button type="button" class="status-option" data-status="in_progress">
+                  <!-- react-icons/fi: FiPlayCircle -->
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                  <span class="label">視聴中</span>
+                </button>
+                <button type="button" class="status-option" data-status="done">
+                  <!-- react-icons/fi: FiCheckCircle -->
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  <span class="label">視聴済</span>
+                </button>
+              </div>
+            </div>
+            <!-- 評価: クリックで即時変更(整数のみ。半星表示は非対応)。PATCH /items/{id} { rating } を想定 -->
+            <span class="rating-stars" data-rating="4">
               <!-- react-icons/fi: FiStar ×5 (評価に応じて塗り分け) -->
-              <svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              <svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              <svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              <svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              <svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              <button type="button" class="star-btn" data-rating="1"><svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>
+              <button type="button" class="star-btn" data-rating="2"><svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>
+              <button type="button" class="star-btn" data-rating="3"><svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>
+              <button type="button" class="star-btn" data-rating="4"><svg class="icon is-full" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>
+              <button type="button" class="star-btn" data-rating="5"><svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>
               <span class="val">4.5</span>
             </span>
-            <span class="meta-item favorite-toggle is-active">
+            <!-- お気に入り: クリックでトグル。PATCH /items/{id} { is_favorite } を想定 -->
+            <button type="button" class="meta-item favorite-toggle is-active" data-favorite-toggle>
               <!-- react-icons/fi: FiHeart(登録済み) -->
               <svg class="icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
               お気に入り
-            </span>
+            </button>
             <span class="meta-item">
               <!-- react-icons/fi: FiCalendar -->
               <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -93,7 +119,7 @@
 
           <hr class="rail-divider">
 
-          <!-- タグ: POST/DELETE /items/{id}/tags/{tag_id} -->
+          <!-- タグ: POST/DELETE /items/{id}/tags/{tag_id}。追加は入力欄でEnter(POST /items/{id}/tags {name})、削除は各タグの×ボタン -->
           <div class="rail-section">
             <h3>
               <!-- react-icons/fi: FiTag -->
@@ -101,12 +127,13 @@
               タグ
             </h3>
             <div class="prop-taglist">
-              <span class="tag-pill">神作画</span>
-              <span class="tag-pill">続編待ち</span>
+              <span class="tag-pill">神作画<button type="button" class="tag-remove" data-remove-tag aria-label="削除">×</button></span>
+              <span class="tag-pill">続編待ち<button type="button" class="tag-remove" data-remove-tag aria-label="削除">×</button></span>
+              <button type="button" class="tag-add-trigger" data-tag-add>+ タグを追加</button>
             </div>
           </div>
 
-          <!-- カテゴリ: POST/DELETE /items/{id}/categories/{category_id} -->
+          <!-- カテゴリ: POST/DELETE /items/{id}/categories/{category_id}。追加は入力欄でEnter(POST /items/{id}/categories {name})、削除は各カテゴリの×ボタン -->
           <div class="rail-section">
             <h3>
               <!-- react-icons/fi: FiFolder -->
@@ -114,7 +141,8 @@
               カテゴリ
             </h3>
             <div class="prop-taglist">
-              <span class="tag-pill">2026年鑑賞予定</span>
+              <span class="tag-pill">2026年鑑賞予定<button type="button" class="tag-remove" data-remove-category aria-label="削除">×</button></span>
+              <button type="button" class="tag-add-trigger" data-category-add>+ カテゴリを追加</button>
             </div>
           </div>
 

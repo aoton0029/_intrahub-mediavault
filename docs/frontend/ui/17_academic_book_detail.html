@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>MediaVault — 分散システム設計の原理</title>
 <link rel="stylesheet" href="_shared.css">
+<script src="_shared.js" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -13,31 +14,34 @@
     <div class="brand"><span class="dot"></span>MediaVault</div>
 
     <div class="nav-section">
-      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 全体一覧<span class="count">128</span></a>
-      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 一般メディア<span class="count">96</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　アニメ<span class="count">34</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　映画<span class="count">28</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ドラマ<span class="count">9</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　漫画<span class="count">15</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　小説<span class="count">7</span></a>
-      <a href="02_general_media.html" class="nav-item indent" style="text-decoration:none;">　ゲーム<span class="count">3</span></a>
-      <a href="03_academic_books.html" class="nav-item" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 ホーム<span class="count">128</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">メディア</div>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎬 すべて<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎥 映画<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📽️ ドラマ</a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📺 アニメ<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📘 漫画<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📖 小説<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎮 ゲーム<span class="count">3</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">リサーチ</div>
+      <a href="03_academic_books.html" class="nav-item active" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
       <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
     </div>
 
     <div class="nav-section">
-      <div class="nav-section-label">ライブラリ</div>
+      <div class="nav-section-label">コレクション</div>
       <a href="06_mylists.html" class="nav-item" style="text-decoration:none;">⭐ マイリスト</a>
-      <a href="07_tags.html" class="nav-item" style="text-decoration:none;">🏷️ タグ</a>
-      <a href="14_categories.html" class="nav-item" style="text-decoration:none;">📁 カテゴリ</a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　積読<span class="count">12</span></a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　お気に入り原作<span class="count">6</span></a>
-      <a href="14_categories.html" class="nav-item indent" style="text-decoration:none;">　2026年鑑賞予定<span class="count">4</span></a>
-      <a href="08_staff.html" class="nav-item" style="text-decoration:none;">👤 スタッフ</a>
     </div>
 
     <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-section-label">Misc</div>
       <a href="19_settings.html" class="nav-item" style="text-decoration:none;">⚙️ 設定</a>
+      <button type="button" class="theme-toggle" data-theme-toggle aria-label="表示モード切替">🌓 ライトモードに切り替え</button>
     </div>
   </aside>
 
