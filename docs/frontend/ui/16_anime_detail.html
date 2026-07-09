@@ -251,6 +251,50 @@
             </button>
           </div>
 
+          <!-- 配信: GET/POST /items/{id}/streaming-links, DELETE /items/{id}/streaming-links/{link_id}
+               platform は netflix/amazon_prime/disney_plus/dmm_tv/apple_tv のいずれか -->
+          <div class="doc-section">
+            <h3>
+              <!-- react-icons/fi: FiTv -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+              配信
+            </h3>
+            <div class="prop-list-item">
+              <span class="label">
+                <!-- react-icons/fi: FiPlayCircle -->
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                Netflix
+              </span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="sub">https://www.netflix.com/title/81234567</span>
+                <button class="btn btn-danger btn-sm">
+                  <!-- react-icons/fi: FiTrash2 -->
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  削除
+                </button>
+              </div>
+            </div>
+            <div class="prop-list-item">
+              <span class="label">
+                <!-- react-icons/fi: FiPlayCircle -->
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+                Amazon Prime Video
+              </span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="sub">https://www.amazon.co.jp/gp/video/detail/xxxxx</span>
+                <button class="btn btn-danger btn-sm">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  削除
+                </button>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="margin-top: 10px;">
+              <!-- react-icons/fi: FiPlus -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              配信サイトを追加
+            </button>
+          </div>
+
           <!-- リンク・ファイル・トレーラー: POST/DELETE /items/{id}/links, /items/{id}/files, /items/{id}/trailers
                (構造が共通の3リストのため、単一セクション内のタブ切替に統合。JS不要のCSSのみタブ) -->
           <div class="doc-section">
