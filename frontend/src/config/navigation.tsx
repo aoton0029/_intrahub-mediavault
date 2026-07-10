@@ -21,12 +21,12 @@ export const navigationSections: NavigationSection[] = [
     label: "メディア",
     items: [
       { label: "すべて", to: "/media", icon: FiFilm, count: 96 },
-      { label: "映画", to: "/media/movies", icon: FiFilm, count: 9 },
-      { label: "ドラマ", to: "/media/dramas", icon: FiTv },
-      { label: "アニメ", to: "/media/anime", icon: FiTv, count: 28 },
-      { label: "漫画", to: "/media/manga", icon: FiBookOpen, count: 34 },
-      { label: "小説", to: "/media/novels", icon: FiBook, count: 15 },
-      { label: "ゲーム", to: "/media/games", icon: FiMonitor, count: 3 },
+      { label: "映画", to: "/media?media_type=movie", icon: FiFilm, count: 9 },
+      { label: "ドラマ", to: "/media?media_type=drama", icon: FiTv },
+      { label: "アニメ", to: "/media?media_type=anime", icon: FiTv, count: 28 },
+      { label: "漫画", to: "/media?media_type=manga", icon: FiBookOpen, count: 34 },
+      { label: "小説", to: "/media?media_type=novel", icon: FiBook, count: 15 },
+      { label: "ゲーム", to: "/media?media_type=game", icon: FiMonitor, count: 3 },
     ],
   },
   {

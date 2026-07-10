@@ -1,7 +1,33 @@
-import { NavLink } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { navigationSections, type NavigationItem, type NavigationSection } from "@/config/navigation";
 import { cn } from "@/lib/cn";
 import { ThemeToggle } from "./ThemeToggle";
+
+function isNavItemActive(currentPathname: string, currentSearch: string, target: string) {
+  const [targetPathname, targetSearch = ""] = target.split("?");
+  const currentParams = new URLSearchParams(currentSearch);
+  const targetParams = new URLSearchParams(targetSearch);
+
+  if (currentPathname !== targetPathname) {
+    return false;
+  }
+
+  if ([...targetParams.keys()].length === 0) {
+    return [...currentParams.keys()].length === 0;
+  }
+
+  if ([...currentParams.keys()].length !== [...targetParams.keys()].length) {
+    return false;
+  }
+
+  for (const [key, value] of targetParams.entries()) {
+    if (currentParams.get(key) !== value) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 function Brand() {
   return (
@@ -14,16 +40,19 @@ function Brand() {
 
 function NavItem({ item }: { item: NavigationItem }) {
   const Icon = item.icon;
+  const location = useLocation();
+  const isActive = isNavItemActive(location.pathname, location.search, item.to);
 
   return (
-    <NavLink
+    <Link
       to={item.to}
-      className={({ isActive }) => cn("nav-item", item.indent && "indent", isActive && "active")}
+      aria-current={isActive ? "page" : undefined}
+      className={cn("nav-item", item.indent && "indent", isActive && "active")}
     >
       <Icon className="icon" />
       <span>{item.label}</span>
       {typeof item.count === "number" ? <span className="count">{item.count}</span> : null}
-    </NavLink>
+    </Link>
   );
 }
 

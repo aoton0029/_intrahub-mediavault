@@ -33,6 +33,30 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: /設定/ })).toHaveAttribute("aria-current", "page");
   });
 
+  it("marks only the all-media item active on /media", () => {
+    renderWithRoute("/media");
+
+    expect(screen.getByRole("link", { name: /すべて/ })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /映画/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /アニメ/ })).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks only the matching media_type item active on /media?media_type=movie", () => {
+    renderWithRoute("/media?media_type=movie");
+
+    expect(screen.getByRole("link", { name: /映画/ })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /すべて/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /アニメ/ })).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks only the matching media_type item active on /media?media_type=anime", () => {
+    renderWithRoute("/media?media_type=anime");
+
+    expect(screen.getByRole("link", { name: /アニメ/ })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /映画/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /すべて/ })).not.toHaveAttribute("aria-current");
+  });
+
   it("renders titlebar actions", () => {
     renderWithRoute();
     expect(screen.getByRole("button", { name: "編集" })).toBeInTheDocument();
