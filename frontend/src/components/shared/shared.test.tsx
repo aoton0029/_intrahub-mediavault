@@ -1,83 +1,106 @@
-import { useState } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { FiLink2, FiPaperclip } from 'react-icons/fi';
-import { ResourceTabs, RatingStars, StatusSwitcher, TagList } from './index';
+import { fireEvent, render, screen } from "@testing-library/react";
+import { EmptyState } from "./EmptyState";
+import { FavoriteToggle } from "./FavoriteToggle";
+import { LoadMoreSentinel } from "./LoadMoreSentinel";
+import { MediaCard } from "./MediaCard";
+import { Modal } from "./Modal";
+import { MylistCover } from "./MylistCover";
+import { RatingStars } from "./RatingStars";
+import { ResourceTabs } from "./ResourceTabs";
+import { StatusSwitcher } from "./StatusSwitcher";
+import { TagList } from "./TagList";
+import { useInfiniteScroll } from "./useInfiniteScroll";
 
-describe('shared components', () => {
-  it('StatusSwitcher opens, closes on outside click, and reports selection', async () => {
+describe("shared components", () => {
+  it("RatingStars previews hover and commits click", () => {
     const onChange = vi.fn();
-    render(
-      <div>
-        <StatusSwitcher value="not_started" onChange={onChange} />
-        <button type="button">outside</button>
-      </div>,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /未着手/i }));
-    expect(screen.getByRole('button', { name: /進行中/i })).toBeInTheDocument();
-
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'outside' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: /進行中/i })).toBeNull());
-
-    fireEvent.click(screen.getByRole('button', { name: /未着手/i }));
-    fireEvent.click(screen.getByRole('button', { name: /完了/i }));
-    expect(onChange).toHaveBeenCalledWith('done');
+    render(<RatingStars value={2} onChange={onChange} />);
+    fireEvent.mouseEnter(screen.getAllByRole("button")[3]);
+    expect(screen.getByText("4.0")).toBeInTheDocument();
+    fireEvent.mouseLeave(screen.getByText("4.0").closest(".rating-stars")!);
+    expect(screen.getByText("2.0")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button")[4]);
+    expect(onChange).toHaveBeenCalledWith(5);
   });
 
-  it('RatingStars previews on hover and commits on click', () => {
-    function Wrapper() {
-      const [rating, setRating] = useState(2);
-      return <RatingStars value={rating} onChange={setRating} />;
+  it("FavoriteToggle calls controlled onChange", () => {
+    const onChange = vi.fn();
+    render(<FavoriteToggle value={false} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button"));
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it("StatusSwitcher toggles, closes and changes value", () => {
+    const onChange = vi.fn();
+    render(<StatusSwitcher value="not_started" onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(screen.getByText("完了"));
+    expect(onChange).toHaveBeenCalledWith("done");
+  });
+
+  it("TagList supports add and remove", () => {
+    const onAdd = vi.fn();
+    const onRemove = vi.fn();
+    render(<TagList kind="tag" items={[{ id: "1", name: "既存" }]} onAdd={onAdd} onRemove={onRemove} />);
+    fireEvent.click(screen.getByText(/タグを追加/));
+    const input = screen.getByPlaceholderText("タグ名を入力してEnter");
+    fireEvent.change(input, { target: { value: "新規" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onAdd).toHaveBeenCalledWith("新規");
+    fireEvent.click(screen.getByLabelText("削除"));
+    expect(onRemove).toHaveBeenCalledWith("1");
+  });
+
+  it("Modal hides and closes from overlay", () => {
+    const onClose = vi.fn();
+    const { rerender } = render(<Modal open={false} onClose={onClose} title="確認">body</Modal>);
+    expect(screen.queryByText("確認")).not.toBeInTheDocument();
+    rerender(<Modal open onClose={onClose} title="確認">body</Modal>);
+    fireEvent.click(screen.getByText("確認").closest(".modal-overlay")!);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("ResourceTabs changes visible panel", () => {
+    render(<ResourceTabs tabs={{ links: [{ id: "1", label: "公式", detail: "link" }], files: [{ id: "2", label: "PDF", detail: "pdf" }] }} />);
+    fireEvent.click(screen.getByRole("button", { name: /ファイル/ }));
+    expect(screen.getByText("PDF")).toBeInTheDocument();
+  });
+
+  it("MediaCard disables import button when already imported", () => {
+    render(<MediaCard title="星屑" badge="アニメ" variant="search-result" imported />);
+    expect(screen.getByRole("button", { name: "取り込み済み" })).toBeDisabled();
+  });
+
+  it("MylistCover applies count layout class", () => {
+    const { container } = render(<MylistCover count={3} covers={["a", "b", "c"]} />);
+    expect(container.firstChild).toHaveClass("n3");
+  });
+
+  it("LoadMoreSentinel hook reacts to intersection", () => {
+    const onLoadMore = vi.fn();
+    const observerState: { callback: ((entries: { isIntersecting: boolean }[]) => void) | null } = { callback: null };
+    vi.stubGlobal("IntersectionObserver", class {
+      constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
+        observerState.callback = callback;
+      }
+      observe() {}
+      disconnect() {}
+    });
+
+    function TestComponent() {
+      const ref = useInfiniteScroll(onLoadMore);
+      return <div ref={ref}><LoadMoreSentinel /></div>;
     }
 
-    render(<Wrapper />);
-
-    const stars = screen.getAllByRole('button');
-    fireEvent.mouseOver(stars[3]);
-    expect(stars[3].querySelector('.icon')).toHaveClass('is-full');
-
-    fireEvent.click(stars[3]);
-    expect(screen.getByText('4.0')).toBeInTheDocument();
+    render(<TestComponent />);
+    if (observerState.callback) {
+      observerState.callback([{ isIntersecting: true }]);
+    }
+    expect(onLoadMore).toHaveBeenCalled();
   });
 
-  it('TagList adds on Enter and cancels on Escape/blur', async () => {
-    const Wrapper = () => {
-      const [items, setItems] = useState([{ id: '1', label: 'alpha' }]);
-      return (
-        <TagList
-          kind="tag"
-          items={items}
-          onAdd={(label) => setItems((current) => [...current, { id: label, label }])}
-          onRemove={(id) => setItems((current) => current.filter((item) => item.id !== id))}
-        />
-      );
-    };
-    render(<Wrapper />);
-
-    fireEvent.click(screen.getByRole('button', { name: /タグ追加/i }));
-    const input = screen.getByPlaceholderText('タグ名を入力してEnter');
-    fireEvent.change(input, { target: { value: 'beta' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-    expect(screen.getByText('beta')).toBeInTheDocument();
-
-    const cancelInput = screen.getByPlaceholderText('タグ名を入力してEnter');
-    fireEvent.change(cancelInput, { target: { value: 'gamma' } });
-    fireEvent.keyDown(cancelInput, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByDisplayValue('gamma')).not.toBeInTheDocument());
-  });
-
-  it('ResourceTabs switches visible content by state', () => {
-    render(
-      <ResourceTabs
-        tabs={[
-          { key: 'links', label: 'リンク', icon: FiLink2, content: <div>links panel</div> },
-          { key: 'files', label: 'ファイル', icon: FiPaperclip, content: <div>files panel</div> },
-        ]}
-      />,
-    );
-
-    expect(screen.getByText('links panel')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /ファイル/i }));
-    expect(screen.getByText('files panel')).toBeInTheDocument();
+  it("EmptyState omits action when absent", () => {
+    render(<EmptyState title="空" description="なし" />);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });

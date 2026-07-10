@@ -1,52 +1,41 @@
-import {
-  FiBookOpen,
-  FiBookmark,
-  FiFileText,
-  FiFilm,
-  FiGrid,
-  FiHome,
-  FiMonitor,
-  FiSettings,
-  FiTv,
-} from 'react-icons/fi';
-import type { NavSectionConfig } from '@/types/ui';
+import type { IconType } from "react-icons";
+import { FiBook, FiBookOpen, FiFileText, FiFilm, FiFolder, FiHome, FiMonitor, FiSettings, FiTv } from "react-icons/fi";
 
-export const navigationSections: NavSectionConfig[] = [
+export type NavigationItem = {
+  label: string;
+  to: string;
+  icon: IconType;
+  count?: number;
+  indent?: boolean;
+};
+
+export type NavigationSection = {
+  label?: string;
+  items: NavigationItem[];
+  grow?: boolean;
+};
+
+export const navigationSections: NavigationSection[] = [
+  { items: [{ label: "ホーム", to: "/", icon: FiHome, count: 128 }] },
   {
-    label: 'Dashboard',
-    items: [{ label: 'ホーム', to: '/', count: 128, icon: FiHome, match: (pathname) => pathname === '/' }],
-  },
-  {
-    label: '一般メディア',
+    label: "メディア",
     items: [
-      {
-        label: 'すべて',
-        to: '/media',
-        count: 96,
-        icon: FiGrid,
-        match: (pathname) => pathname === '/media' || pathname.startsWith('/media/'),
-      },
-      { label: '映画', to: '/media/movies/movie-001', count: 9, indent: true, icon: FiFilm },
-      { label: 'ドラマ', to: '/media/dramas/drama-001', count: 0, indent: true, icon: FiTv },
-      { label: 'アニメ', to: '/media/anime/anime-001', count: 28, indent: true, icon: FiTv },
-      { label: '漫画', to: '/media/manga/manga-001', count: 34, indent: true, icon: FiBookOpen },
-      { label: '小説', to: '/media/novels/novel-001', count: 15, indent: true, icon: FiBookOpen },
-      { label: 'ゲーム', to: '/media/games/game-001', count: 3, indent: true, icon: FiMonitor },
+      { label: "すべて", to: "/media", icon: FiFilm, count: 96 },
+      { label: "映画", to: "/media/movies", icon: FiFilm, count: 9 },
+      { label: "ドラマ", to: "/media/dramas", icon: FiTv },
+      { label: "アニメ", to: "/media/anime", icon: FiTv, count: 28 },
+      { label: "漫画", to: "/media/manga", icon: FiBookOpen, count: 34 },
+      { label: "小説", to: "/media/novels", icon: FiBook, count: 15 },
+      { label: "ゲーム", to: "/media/games", icon: FiMonitor, count: 3 },
     ],
   },
   {
-    label: 'リサーチ',
+    label: "リサーチ",
     items: [
-      { label: '学術書・専門書', to: '/academic-books', count: 21, icon: FiBookOpen },
-      { label: '論文・文献', to: '/papers', count: 11, icon: FiFileText },
+      { label: "学術書・専門書", to: "/research/books", icon: FiBookOpen, count: 21 },
+      { label: "論文・文献", to: "/research/papers", icon: FiFileText, count: 11 },
     ],
   },
-  {
-    label: 'Collections',
-    items: [{ label: 'マイリスト', to: '/mylists', icon: FiBookmark }],
-  },
-  {
-    label: 'System',
-    items: [{ label: '設定', to: '/settings', icon: FiSettings }],
-  },
+  { label: "コレクション", items: [{ label: "マイリスト", to: "/mylists", icon: FiFolder }] },
+  { label: "Misc", grow: true, items: [{ label: "設定", to: "/settings", icon: FiSettings }] },
 ];

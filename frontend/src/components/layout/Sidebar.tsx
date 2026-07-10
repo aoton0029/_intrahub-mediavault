@@ -1,49 +1,51 @@
-import { NavLink, useLocation } from 'react-router-dom';
-import { navigationSections } from '@/config/navigation';
-import { cn } from '@/lib/cn';
-import { ThemeToggle } from './ThemeToggle';
+import { NavLink } from "react-router-dom";
+import { navigationSections, type NavigationItem, type NavigationSection } from "@/config/navigation";
+import { cn } from "@/lib/cn";
+import { ThemeToggle } from "./ThemeToggle";
 
-function isActivePath(pathname: string, to: string) {
-  return pathname === to || (to !== '/' && pathname.startsWith(`${to}/`));
+function Brand() {
+  return (
+    <div className="brand">
+      <span className="dot" />
+      <span>MediaVault</span>
+    </div>
+  );
+}
+
+function NavItem({ item }: { item: NavigationItem }) {
+  const Icon = item.icon;
+
+  return (
+    <NavLink
+      to={item.to}
+      className={({ isActive }) => cn("nav-item", item.indent && "indent", isActive && "active")}
+    >
+      <Icon className="icon" />
+      <span>{item.label}</span>
+      {typeof item.count === "number" ? <span className="count">{item.count}</span> : null}
+    </NavLink>
+  );
+}
+
+function NavSection({ section }: { section: NavigationSection }) {
+  return (
+    <div className="nav-section" style={section.grow ? { marginTop: "auto" } : undefined}>
+      {section.label ? <div className="nav-section-label">{section.label}</div> : null}
+      {section.items.map((item) => (
+        <NavItem key={item.to} item={item} />
+      ))}
+    </div>
+  );
 }
 
 export function Sidebar() {
-  const location = useLocation();
-
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <span className="dot" />
-        <span>MediaVault</span>
-      </div>
-
-      {navigationSections.map((section) => (
-        <div className="nav-section" key={section.label}>
-          <div className="nav-section-label">{section.label}</div>
-          {section.items.map((item) => {
-            const active = item.match
-              ? item.match(location.pathname)
-              : isActivePath(location.pathname, item.to);
-
-            return (
-              <NavLink
-                key={`${section.label}-${item.label}`}
-                to={item.to}
-                className={cn('nav-item', active && 'active', item.indent && 'indent')}
-                style={{ textDecoration: 'none' }}
-              >
-                <item.icon className="icon" />
-                <span>{item.label}</span>
-                {typeof item.count === 'number' ? <span className="count">{item.count}</span> : null}
-              </NavLink>
-            );
-          })}
-        </div>
+      <Brand />
+      {navigationSections.map((section, index) => (
+        <NavSection key={section.label ?? `section-${index}`} section={section} />
       ))}
-
-      <div className="mt-auto pt-4">
-        <ThemeToggle />
-      </div>
+      <ThemeToggle />
     </aside>
   );
 }

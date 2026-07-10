@@ -1,14 +1,51 @@
-# 05. 未確定事項（要確認）の集約
+# 05. 要確認事項の追跡
 
-実装時に発見した要確認事項はここに追記していく運用とする。各画面設計書側にも個別の【要確認】がある可能性があるため、実装着手時に該当設計書を確認し、見つかったものは随時ここへ追加すること。
+設計書 `docs/frontend/design/00_common.md` 中の【要確認】項目、および実装中に新たに生じた未確定事項を記録する。Codexは実装をブロックする判断が必要な場合、ここに追記してからClaudeのレビューを待つ。ブロッキングでない場合は妥当な仮決定を行いメモを残した上で先に進んでよい。
 
-## 共通設計（00_common.md）由来
+## 記入フォーマット
 
-- [ ] **ライトモードの実現方式**: `prefers-color-scheme` ではなく `data-theme` 属性による明示的トグルで実現する方針。Tailwindの `dark:` バリアントは使わず `[data-theme="light"]` セレクタベースのCSSに寄せる（[00_common.md §2](../design/00_common.md#2-tailwind-v4-theme-トークン対応表)）
-- [ ] **解除（マイリスト/関連作品）アイコン**: モックSVGは箱アイコンのため、実装時に `FiPackage`/`FiX` 等、モックのpath形状に近いものを選定する必要あり（[00_common.md §4](../design/00_common.md#4-アイコンreact-icons)）
-- [ ] **並び替えアイコン**: モックはカスタムpathで `react-icons` に厳密一致するものが無い場合、最も近いソート系アイコンを選定する（[00_common.md §4](../design/00_common.md#4-アイコンreact-icons)）
-- [ ] **API仕様の未確定箇所**: `docs/frontend/PRD.md` の「バックエンドAPI」節は現状未記載。各画面設計書の「API連携」章の記載はPRDの機能一覧からの推測であり、実装時に `docs/backend/mediavault-api/*.md` と突き合わせて確定させる必要がある（[00_common.md §7](../design/00_common.md#7-api連携についての注記)）
+```
+### <連番>. <一言タイトル>
+- 出典: 設計書 §<節番号> / 実装中に発見
+- 論点: ...
+- 選択肢: A) ... B) ...
+- 仮決定（あれば）: ...
+- 状態: [ ] 未決定 / [x] 決定
+- 決定内容（決定後に記入）: ...
+```
 
-## 画面別設計書由来
+## 一覧
 
-（実装着手時に各設計書を確認し、見つかった項目をここに追記する）
+### 1. ライトモード切替方式（Tailwind `dark:` を使わない件）
+- 出典: 設計書 §2
+- 論点: `prefers-color-scheme`ではなく`data-theme`属性による明示的トグルのため、Tailwindの`dark:`バリアントを使わず`[data-theme="light"]`セレクタベースに寄せる方針が示されている
+- 状態: [x] 決定
+- 決定内容: [01_foundation.md](01_foundation.md) の方針に従い実装する。追加の意思決定は不要。
+
+### 2. フォント調達方法（Inter / Source Serif 4 / JetBrains Mono）
+- 出典: 設計書 §2, [01_foundation.md](01_foundation.md)
+- 論点: `--font-ui`/`--font-display`/`--font-mono`に対応する実フォントが現行`package.json`に未導入（`@fontsource-variable/geist`のみ導入済み）
+- 選択肢: A) `@fontsource-variable/inter`等を追加導入する B) 既存の`geist`等で代替する
+- 仮決定（あれば）: `npm install`前提の新規依存追加は避け、既存の `@fontsource-variable/geist` を UI / Display に流用し、Mono は system monospace fallback を使用
+- 状態: [x] 決定
+- 決定内容（決定後に記入）: `frontend/src/index.css` で `--font-ui` / `--font-display` に `Geist Variable` を採用し、`--font-mono` は `ui-monospace` 系 fallback とした。
+
+### 3. 解除アイコン（マイリスト/関連作品からの解除ボタン）
+- 出典: 設計書 §4
+- 論点: モックSVGは箱アイコンで`react-icons`に厳密一致がない
+- 選択肢: A) `FiPackage` B) `FiX`
+- 仮決定（あれば）: destructive action と視認性を優先して `FiTrash2` を採用
+- 状態: [x] 決定
+- 決定内容（決定後に記入）: 関連作品・リスト解除ボタンは `FiTrash2` ベースで統一した。意味が明確で、既存モックの破壊的操作ボタンとも整合するため。
+
+### 4. 並び替えアイコン
+- 出典: 設計書 §4
+- 論点: モックはカスタムpathで`FiArrowUpDown`相当だが厳密一致がない場合がある
+- 仮決定（あれば）: `react-icons/fi` に厳密一致がないため `FiArrowDown` を近似採用
+- 状態: [x] 決定
+- 決定内容（決定後に記入）: `FilterToolbar` の sort icon は `FiArrowDown` を使用。上下ソート専用アイコン不在のため、最も近い Feather 系の矢印アイコンで代替した。
+
+### 5. バックエンドAPI仕様との突き合わせ
+- 出典: 設計書 §7
+- 論点: 各画面ドキュメントのAPI連携章はPRDからの推測。`docs/backend/mediavault-api/`の実仕様と突き合わせて確定させる必要がある
+- 状態: [ ] 未決定（本common実装タスクの範囲では影響なし。画面タスク側で解消する）

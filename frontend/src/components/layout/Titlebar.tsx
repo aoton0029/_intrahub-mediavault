@@ -1,45 +1,34 @@
-import { Link, useMatches } from 'react-router-dom';
-import type { AppRouteHandle } from '@/types/ui';
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 
-function hasHandle(value: unknown): value is AppRouteHandle {
-  return Boolean(value) && typeof value === 'object' && 'title' in (value as Record<string, unknown>);
-}
+export type BreadcrumbItem = {
+  label: string;
+  to?: string;
+};
 
-export function Breadcrumb() {
-  const matches = useMatches();
-  const currentHandle = matches.map((match) => match.handle).filter(hasHandle).at(-1);
+type TitlebarProps = {
+  title?: ReactNode;
+  breadcrumbs?: BreadcrumbItem[];
+  actions?: ReactNode;
+};
 
-  if (!currentHandle) {
-    return null;
-  }
-
+export function Titlebar({ title, breadcrumbs, actions }: TitlebarProps) {
   return (
-    <div className="breadcrumb">
-      {currentHandle.breadcrumb.map((item, index) => (
-        <span key={`${item.label}-${index}`}>
-          {index > 0 ? ' / ' : null}
-          {item.to ? <Link to={item.to}>{item.label}</Link> : <span>{item.label}</span>}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-export function Titlebar() {
-  const matches = useMatches();
-  const currentHandle = matches.map((match) => match.handle).filter(hasHandle).at(-1);
-
-  if (!currentHandle) {
-    return null;
-  }
-
-  return (
-    <header className="titlebar">
+    <div className="titlebar">
       <div>
-        <Breadcrumb />
-        <h1>{currentHandle.title}</h1>
+        {breadcrumbs?.length ? (
+          <div className="breadcrumb">
+            {breadcrumbs.map((item, index) => (
+              <span key={`${item.label}-${index}`}>
+                {index > 0 ? " / " : null}
+                {item.to ? <Link to={item.to}>{item.label}</Link> : <span>{item.label}</span>}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {title ? <h1>{title}</h1> : null}
       </div>
-      <div>{currentHandle.actions ?? null}</div>
-    </header>
+      {actions ? <div>{actions}</div> : null}
+    </div>
   );
 }

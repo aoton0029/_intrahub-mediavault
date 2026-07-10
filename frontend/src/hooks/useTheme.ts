@@ -1,28 +1,30 @@
-import { useEffect, useState } from 'react';
-import type { Theme } from '@/types/ui';
+import { useEffect, useState } from "react";
 
-const STORAGE_KEY = 'mediavault-theme';
+export const THEME_STORAGE_KEY = "mediavault-theme";
+export type ThemeMode = "dark" | "light";
 
-function getInitialTheme(): Theme {
-  if (typeof window === 'undefined') {
-    return 'dark';
+function getInitialTheme(): ThemeMode {
+  if (typeof window === "undefined") {
+    return "dark";
   }
 
-  const savedTheme = window.localStorage.getItem(STORAGE_KEY);
-  return savedTheme === 'light' ? 'light' : 'dark';
+  const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+  return saved === "light" ? "light" : "dark";
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem(STORAGE_KEY, theme);
+    document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
   return {
     theme,
     setTheme,
-    toggle: () => setTheme((current) => (current === 'dark' ? 'light' : 'dark')),
+    toggle() {
+      setTheme((current) => (current === "light" ? "dark" : "light"));
+    },
   };
 }

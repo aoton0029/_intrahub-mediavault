@@ -1,37 +1,29 @@
-# 01. フェーズ0: 基盤構築
+# 01. Foundation（トークン・グローバルCSS・アイコン基盤）
 
-依存: なし（最初に着手）
-参照: [design/00_common.md](../design/00_common.md) §1, §2, §5-1
+対応: 設計書 §2, §4
+
+## 前提ファイル
+
+- 参照: `docs/frontend/ui/_shared.css`, `docs/frontend/design/00_common.md`
+- 出力: `frontend/src/index.css`, `frontend/src/lib/cn.ts`, `frontend/vite.config.ts`（Tailwind v4プラグイン確認）
+- 参照範囲はこの節に列挙したファイルとそこから直接importされるファイルに限る。それ以外のファイルを探すための横断的な探索は行わない。
 
 ## タスク一覧
 
-- [ ] **トークン定義**: `frontend/src/index.css`（または新規グローバルCSS）に共通設計 §2 の `@theme` ブロックと `:root[data-theme="light"]` オーバーライドを追加する
-  - 参照: [00_common.md §2](../design/00_common.md#2-tailwind-v4-theme-トークン対応表)
-  - 完了条件: `bg-bg-app` / `text-text-primary` / `border-border-soft` 等のTailwindユーティリティが生成され、コンポーネントから利用できる
-  - 【要確認】ライトモードは `prefers-color-scheme` ではなく `data-theme` 属性の明示的トグルで実現する方針（`dark:`バリアントは使わない）。詳細は [05_open_questions.md](05_open_questions.md) 参照
+- [x] `frontend/src/index.css` に `@import "tailwindcss";` と `@theme { ... }` ブロックを設計書 §2 のとおり定義する（color / font / layout トークン全量）
+- [x] `:root[data-theme="light"]` オーバーライドブロックを設計書 §2 のとおり定義する
+- [x] ダークをデフォルト（`:root` 直下の値）として採用し、`dark:` バリアントではなく `[data-theme="light"]` セレクタ方式で統一する（設計書§2の【要確認】方針に準拠）
+- [x] Google Fonts等の外部フォント読込ではなく、`@fontsource-variable/geist` など既存依存を踏まえて `--font-ui` / `--font-display` / `--font-mono` の実フォント調達方法を決定する（Inter/Source Serif 4/JetBrains Monoが未導入なら追加 or 代替を選定し、Codexメモに記載）
+- [x] `frontend/src/lib/cn.ts` を作成する（`clsx` + `tailwind-merge` を使った `cn()` ヘルパー、`tailwind-merge`は導入済み）
+- [x] `main.tsx`（または相当のエントリ）で `index.css` をimportする
+- [x] `react-icons/fi` の使用方針をコードコメントまたはREADMEに明記し、`lucide-react` は使用しない旨をlintルールやコードレビューで担保できるようにする（ESLintルール追加は任意、Codexメモに判断を記載）
 
-- [ ] **AppShellの実装**: `.app-shell`（grid: sidebar + main）に対応するコンポーネントを作成
-  - 構成: `<AppShell><Sidebar/><main className="main"><Titlebar/><div className="content">{children}</div></main></AppShell>`
-  - 参照: [00_common.md §1](../design/00_common.md#1-アプリシェル構成)
-  - `AppShell` は React Router v7 の共通レイアウトルートとして実装（`<Outlet>` を content 内に配置）
+## テストリスト
 
-- [ ] **Sidebarの実装**: `<Brand/>`（`.dot` + アプリ名）、`<NavSection label>` + `<NavItem active? count? indent?>`、`<ThemeToggle/>` を実装
-  - ナビ項目・件数（`.count`）は全画面共通のため、ここで確定させる
+- [x] `yarn build` でTailwindのビルドエラーが出ないことを確認する
+- [x] 簡易コンポーネントに `bg-bg-app` `text-text-primary` 等のユーティリティクラスを当て、ブラウザ/vitest上で意図した色（ダーク値）が適用されることを確認する
+- [x] `document.documentElement.setAttribute('data-theme', 'light')` を行った状態で同コンポーネントの色がライト値に切り替わることを確認する（vitest + jsdom、またはStorybook等の手動確認）
+- [x] `cn()` のユニットテスト（`frontend/src/lib/cn.test.ts`）: 重複クラスのマージ、条件付きクラスの結合を検証する
 
-- [ ] **Titlebarの実装**: `<Breadcrumb/>` + `<h1/>` + アクション領域（例:「編集する」`btn-accent`）を実装
-  - `.titlebar` は sticky
-
-- [ ] **useTheme() フックの実装**
-  - `useState` 初期値を `localStorage['mediavault-theme']` から読込
-  - `useEffect` で `<html data-theme>` に反映
-  - 参照: [00_common.md §5-1](../design/00_common.md#5-インタラクション-react状態への変換方針)
-
-- [ ] **ThemeToggle コンポーネントの実装**: `useTheme()` の `toggle()` を呼ぶのみの薄いコンポーネントにする
-
-- [ ] **ルーティング骨格の実装**: React Router v7 で `AppShell` をレイアウトルートとし、18画面ぶんの空ルート（プレースホルダ）を用意する
-  - 各ルートのpathは対応する画面設計書のURL想定に合わせる（各画面設計書の「ルーティング」記載を参照。未記載の場合は画面実装時に確定し、本タスクへ差し戻す）
-
-## 完了条件
-
-- `npm run dev` で `AppShell` が表示され、サイドバーのテーマ切替ボタンでライト/ダークが切り替わり `localStorage` に永続化される
-- 空のルートに対してブレッドクラムとタイトルが表示される
+> Codexメモ: フォントは既存依存のみで完結させるため `Geist Variable` を UI / Display に採用し、Mono は system fallback とした。
+> Codexメモ: `react-icons/fi` 統一は `frontend/README.md` と `frontend/eslint.config.js` の `no-restricted-imports` で担保した。
