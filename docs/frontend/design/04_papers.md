@@ -37,7 +37,6 @@
 interface PaperListItem {
   id: string;
   title: string;
-  journalName: string;   // 掲載誌名 Vol.x No.y
   doi: string;
   isFavorite: boolean;
   tags?: string[];        // 一部のみ表示（例: 「積読」）

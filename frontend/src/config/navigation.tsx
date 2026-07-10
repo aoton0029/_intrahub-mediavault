@@ -32,7 +32,7 @@ export const navigationSections: NavigationSection[] = [
   {
     label: "リサーチ",
     items: [
-      { label: "学術書・専門書", to: "/research/books", icon: FiBookOpen, count: 21 },
+      { label: "学術書・専門書", to: "/academic-books", icon: FiBookOpen, count: 21 },
       { label: "論文・文献", to: "/research/papers", icon: FiFileText, count: 11 },
     ],
   },

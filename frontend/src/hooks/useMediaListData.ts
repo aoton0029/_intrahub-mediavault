@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery, type InfiniteData } from "@tanstack/react-query";
 import type { MediaCardProps } from "@/components/shared";
 
-export type MediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game";
+export type MediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game" | "academic_book";
 type ItemStatus = "not_started" | "in_progress" | "done" | "completed" | string;
 
 type TagRef = {
@@ -70,6 +70,13 @@ const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   manga: "Manga",
   novel: "Novel",
   game: "Game",
+  academic_book: "Academic Book",
+};
+
+type UseMediaListDataOptions = {
+  mediaTypeOverride?: MediaType;
+  getBadgeLabel?: (item: ItemWithRefs) => string;
+  getItemHref?: (item: ItemWithRefs) => string;
 };
 
 function buildQueryString(params: Record<string, string | number | boolean | undefined | null>) {
@@ -129,21 +136,25 @@ async function fetchCategories() {
   return json.data;
 }
 
-function mapItemToMediaCard(item: ItemWithRefs): MediaCardProps {
+function mapItemToMediaCard(item: ItemWithRefs, options?: UseMediaListDataOptions): MediaCardProps {
   return {
     title: item.title,
-    badge: MEDIA_TYPE_LABELS[item.media_type],
+    badge: options?.getBadgeLabel?.(item) ?? MEDIA_TYPE_LABELS[item.media_type],
     rating: item.rating ?? undefined,
     favorite: item.is_favorite,
-    href: `/media/${item.id}`,
+    href: options?.getItemHref?.(item) ?? `/media/${item.id}`,
     variant: "compact",
   };
 }
 
-export function useMediaListData(filters: MediaListFilters) {
+export function useMediaListData(filters: MediaListFilters, options?: UseMediaListDataOptions) {
+  const effectiveFilters = options?.mediaTypeOverride
+    ? { ...filters, mediaType: options.mediaTypeOverride }
+    : filters;
+
   const itemsQuery = useInfiniteQuery<PaginatedItemsResponse, Error, InfiniteData<PaginatedItemsResponse, Cursor>, [string, MediaListFilters], Cursor>({
-    queryKey: ["media-list", filters],
-    queryFn: ({ pageParam }) => fetchItemsPage(filters, pageParam),
+    queryKey: ["media-list", effectiveFilters],
+    queryFn: ({ pageParam }) => fetchItemsPage(effectiveFilters, pageParam),
     initialPageParam: { afterCreatedAt: null, afterId: null },
     getNextPageParam: (lastPage) => {
       if (!lastPage.pagination.has_more) {
@@ -171,7 +182,7 @@ export function useMediaListData(filters: MediaListFilters) {
 
   return {
     items,
-    mediaCards: items.map(mapItemToMediaCard),
+    mediaCards: items.map((item) => mapItemToMediaCard(item, options)),
     hasNextPage: itemsQuery.hasNextPage,
     fetchNextPage: itemsQuery.fetchNextPage,
     isFetchingNextPage: itemsQuery.isFetchingNextPage,

@@ -8,8 +8,9 @@ export type FilterChip = {
   active?: boolean;
   removable?: boolean;
   add?: boolean;
-  /** Set to render an icon-only chip (label is still used as the accessible name). */
   icon?: ReactNode;
+  /** Set to render an icon-only chip (label is still used as the accessible name). */
+  iconOnly?: boolean;
   onClick?: () => void;
   onRemove?: () => void;
 };
@@ -52,6 +53,7 @@ export function FilterToolbar({
             return (
               <span key={chip.id} className={`chip${chip.active ? " active" : ""}`}>
                 <button type="button" onClick={chip.onClick}>
+                  {chip.icon}
                   {chip.label}
                 </button>
                 <button type="button" aria-label={`${chip.label}を解除`} className="chip-remove" onClick={chip.onRemove}>
@@ -61,7 +63,7 @@ export function FilterToolbar({
             );
           }
 
-          if (chip.icon) {
+          if (chip.iconOnly && chip.icon) {
             return (
               <button key={chip.id} type="button" className={`chip${chip.active ? " active" : ""}`} title={chip.label} aria-label={chip.label} onClick={chip.onClick}>
                 {chip.icon}
@@ -71,6 +73,7 @@ export function FilterToolbar({
 
           return (
             <button key={chip.id} type="button" className={`chip${chip.active ? " active" : ""}${chip.add ? " chip-add" : ""}`} onClick={chip.onClick}>
+              {chip.icon}
               {chip.add ? <FiPlus className="icon" /> : null}
               {chip.label}
             </button>
