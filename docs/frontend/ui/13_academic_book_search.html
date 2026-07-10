@@ -53,17 +53,11 @@
     </div>
 
     <div class="content">
-      <!-- GET /items/search?media_type=academic_book&q= に対応。学術書・専門書は単一種別・単一プロバイダ(NDL)のため
-           種別セレクトは無い。レスポンスは title・external_id・provider・raw_data のみで、
-           著者・出版社・ISBN等はここでは raw_data から抽出した想定の参考情報として表示している。 -->
       <div class="filter-bar">
         <div class="search-box" style="margin-left: 0; flex: 1;">🔍 <input type="text" placeholder="タイトル・著者名で検索…" value="分散システム設計"></div>
         <button class="btn btn-accent">検索</button>
       </div>
 
-      <!-- 検索結果一覧。01_home.htmlの card-grid / media-card を流用し、サムネイル・原題・年・種別を表示。
-           和書のみで原題が無い場合は原題行を省略する(2件目の例)。各カードの「取り込む」は
-           POST /items/import { media_type: academic_book, external_id, title, ... } に対応 -->
       <div class="card-grid is-compact">
 
         <div class="media-card search-result is-compact">

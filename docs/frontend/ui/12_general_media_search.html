@@ -53,10 +53,6 @@
     </div>
 
     <div class="content">
-      <!-- GET /items/search?media_type=&q= に対応。種別によって使用プロバイダが自動で切り替わる:
-           アニメ・漫画 → Jikan(APIキー不要) / 映画・ドラマ → TMDB / 小説 → OpenLibrary / ゲーム → IGDB
-           レスポンスは title・external_id・provider・raw_data のみで、表紙画像等の正規化フィールドは無いため、
-           一覧表示に使うカバー画像・原題などは raw_data からフロントエンドが抽出する必要がある。 -->
       <div class="filter-bar">
         <div class="filter-select">
           種別
@@ -73,9 +69,6 @@
         <button class="btn btn-accent">検索</button>
       </div>
 
-      <!-- 検索結果一覧。01_home.htmlの card-grid / media-card を流用し、サムネイル・原題・年・種別を表示。
-           評価・お気に入り・タグはまだ取り込んでいないため無し。各カードの「取り込む」は
-           POST /items/import { media_type, external_id, title, ... } に対応(raw_dataから抽出した値を送信) -->
       <div class="card-grid is-compact">
 
         <div class="media-card search-result is-compact">
