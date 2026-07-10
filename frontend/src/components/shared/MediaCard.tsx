@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { FavoriteToggle } from "./FavoriteToggle";
 import { RatingStarsMini } from "./RatingStars";
 import { cn } from "@/lib/cn";
@@ -15,6 +16,7 @@ export type MediaCardProps = {
   imported?: boolean;
   actionLabel?: string;
   onAction?: () => void;
+  href?: string;
 };
 
 export function MediaCard({
@@ -29,9 +31,12 @@ export function MediaCard({
   imported = false,
   actionLabel = "取り込む",
   onAction,
+  href,
 }: MediaCardProps) {
-  return (
-    <article className={cn("media-card", variant === "compact" && "is-compact", variant === "search-result" && "search-result is-compact")}>
+  const className = cn("media-card", variant === "compact" && "is-compact", variant === "search-result" && "search-result is-compact");
+
+  const body = (
+    <>
       <div className="cover">
         <span className="badge">{badge}</span>
         {variant !== "search-result" && onFavoriteChange ? <FavoriteToggle value={favorite} onChange={onFavoriteChange} label="" /> : null}
@@ -47,6 +52,20 @@ export function MediaCard({
           </button>
         ) : null}
       </div>
+    </>
+  );
+
+  if (href && variant !== "search-result") {
+    return (
+      <Link className={className} style={{ display: "block", color: "inherit", textDecoration: "none" }} to={href}>
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <article className={className}>
+      {body}
     </article>
   );
 }

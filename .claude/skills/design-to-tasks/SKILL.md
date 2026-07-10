@@ -66,6 +66,7 @@ description: docs/frontend/design/*.md の設計書1件からdocs/frontend/tasks
 - [ ] `yarn build`（`tsc -b && vite build`）が型エラーなく通る
 - [ ] 設計書の該当セクションで定義されたprops/クラス名/挙動と実装が一致している（差異があればCodexメモに記載）
 - [ ] `docs/frontend/ui/*.html` + `_shared.css` の見た目・DOM構造とTailwind実装がセマンティックに一致している（対応モックがある場合）
+- [ ] 対応モックがあるタスクは `yarn test:e2e` の実装⇔モック レイアウト一致テストが通る
 ```
 
 `yarn lint` / `yarn test` / `yarn build` はこのリポジトリの `frontend/package.json` を確認し、実際に定義されているスクリプト名に置き換える。無ければ同等のコマンドを調べて使う。
@@ -96,12 +97,14 @@ description: docs/frontend/design/*.md の設計書1件からdocs/frontend/tasks
 - [ ] <テストファイル名>: <検証内容1>
 - [ ] <テストファイル名>: <検証内容2>
 - ...
+- [ ] `tests/e2e/<画面名>.spec.ts`: `yarn dev`起動下で対象画面/コンポーネントを実描画し、対応モック `docs/frontend/ui/<対応html>` とレイアウトが一致することを確認する（対応モックが無いタスクは省略可。省略する場合はその旨をタスク一覧末尾に一言添える）
 
 > Codexメモ: (なし)
 ```
 
 - 「タスク一覧」「テストリスト」の各項目は、設計書の記述（props型・クラス名・API・インタラクション仕様など）を具体的に反映させる。抽象的な「〜を実装する」だけで終わらせず、設計書のどの情報を使うべきかがCodexだけで判断できるレベルまで書き下す。
 - 「前提ファイル」の「参照」には、設計書自身・対応するUIモック（`docs/frontend/ui/*.html`, `_shared.css`）・依存する前段タスクの出力ファイルなど、実際に必要なものだけを列挙する。過不足なく絞ることが「実装に関係ないファイルを参照させない」制約の核心。
+- **モックとのレイアウト一致確認テストは必須**。対応するUIモック（`docs/frontend/ui/*.html`）が存在するタスクでは、`yarn test:e2e`（Playwright, `frontend/playwright.config.ts` で `webServer: yarn dev` が既に設定済み）で実描画結果とモックのレイアウトを突き合わせるe2eテストを必ずテストリストに含める。比較観点は最低限「主要な構造要素（grid/section/カード等）の有無と並び順」「モックのクラス名相当の要素が対応する位置に存在すること」。ピクセル単位のスクリーンショット比較まで求める必要はなく、DOM構造・主要領域のレイアウト一致で十分。具体的な比較手段（`getByRole`/`locator`でのDOM構造アサーション、もしくはスクリーンショット比較のどちらを使うか）は各タスクの複雑さに応じてタスク一覧側で指定する。
 
 ### `NN_open_questions.md`
 
@@ -122,5 +125,6 @@ description: docs/frontend/design/*.md の設計書1件からdocs/frontend/tasks
 ## 注意点
 
 - 設計書に明示のない実装詳細を勝手に補完しない。判断が必要な箇所は `open_questions.md` に回す。
+- **`frontend/src/index.css` の拡張について**: コンポーネント単位で機能分割した結果、`docs/frontend/ui/_shared.css`に定義が無いクラス/タグ（コンポーネント内部でのみ使う補助クラスなど）が必要になることがある。この場合、`frontend/src/index.css`への追加自体は許可するが、`_shared.css`が定義しているレイアウト（`.app-shell`/`.card-grid`/`.detail-layout`等の既存クラスのgrid構成・余白・ブレークポイント等）を上書き・変更してはならない。該当タスクの「前提ファイル」の「参照」に `docs/frontend/ui/_shared.css` と `frontend/src/index.css` を含め、タスク一覧に「`_shared.css`に対応クラスが無い場合のみ`frontend/src/index.css`に追加してよい。既存クラスの値は変更しない」旨を明記する。
 - 既存の `frontend/src/` 構成（コンポーネント配置、`cn`ユーティリティ、テスト方針など）を軽く確認し、出力ファイルパスの提案が既存の慣習と矛盾しないようにする。ただし詳細な実装コードは書かない（実装はCodexの仕事）。
 - 生成後、ユーザーに分割方針とフォルダ名を短く報告し、次の設計書に進むかを確認する。

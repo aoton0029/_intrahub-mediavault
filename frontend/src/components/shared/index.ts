@@ -1,5 +1,6 @@
 export * from "./MediaCard";
 export * from "./MediaGrid";
+export type { MediaCardProps } from "./MediaCard";
 export * from "./LiteratureList";
 export * from "./MylistCover";
 export * from "./PropertyList";
