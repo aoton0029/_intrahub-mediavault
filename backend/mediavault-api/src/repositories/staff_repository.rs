@@ -77,6 +77,32 @@ pub async fn create_staff(
     .map_err(db_error)
 }
 
+/// 【機能概要】: external_id一致の既存staffを返すか、無ければ新規作成する
+/// 【実装方針】: インポート連携（Annict等）でのスタッフ重複登録を避けるため、
+/// external_id（"annict-person-<id>"等の一意キー）で既存行を検索し、あればそれを再利用する
+pub async fn find_or_create_staff_by_external_id(
+    pool: &PgPool,
+    external_id: Option<String>,
+    name: String,
+    image_url: Option<String>,
+) -> Result<Staff, ApiError> {
+    if let Some(ext_id) = &external_id {
+        let existing: Option<Staff> = sqlx::query_as(
+            "SELECT id, external_id, name, image_url, created_at FROM staff WHERE external_id = $1",
+        )
+        .bind(ext_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(db_error)?;
+
+        if let Some(staff) = existing {
+            return Ok(staff);
+        }
+    }
+
+    create_staff(pool, name, external_id, image_url).await
+}
+
 /// 【機能概要】: item_id/staff_idの存在を確認し、item_staffへ新規紐付けレコードをINSERTする
 /// 【実装方針】: staff_id不存在はSTAFF_NOT_FOUND、item_id不存在はITEM_NOT_FOUNDへマッピングする。
 /// アプリ側で事前存在確認を行うことで、FK制約違反より詳細なエラーコードを返す（staff-requirements.md 3）。

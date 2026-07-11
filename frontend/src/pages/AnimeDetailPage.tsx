@@ -4,7 +4,7 @@ import { FiCalendar, FiExternalLink, FiLink2, FiPlus } from "react-icons/fi";
 import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
-import { EmptyState, FavoriteToggle, RatingStars, StatusSwitcher } from "@/components/shared";
+import { EmptyState, FavoriteToggle, InlineAddForm, RatingStars, StatusSwitcher } from "@/components/shared";
 import { useAnimeDetailData } from "@/hooks/useAnimeDetailData";
 
 function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
@@ -49,17 +49,9 @@ export function AnimeDetailPage() {
     }
   }
 
-  function promptValue(message: string, defaultValue = "") {
-    const value = window.prompt(message, defaultValue);
-    return value?.trim() || "";
-  }
-
   const relatedWorks = detail.relatedWorks.map((relation) => ({
     ...relation,
     onRemove: (relationId: string) => {
-      if (!window.confirm("この関連作品を解除しますか？")) {
-        return;
-      }
       void runAction(() => detail.removeRelation(relationId), "関連作品を解除しました。");
     },
   }));
@@ -68,9 +60,6 @@ export function AnimeDetailPage() {
     ...staff,
     actionLabel: "解除",
     onAction: (staffId: string) => {
-      if (!window.confirm("このスタッフを解除しますか？")) {
-        return;
-      }
       void runAction(() => detail.removeStaff(staffId), "スタッフを解除しました。");
     },
   }));
@@ -79,61 +68,74 @@ export function AnimeDetailPage() {
     ...link,
     actionLabel: "削除",
     onAction: (linkId: string) => {
-      if (!window.confirm("この配信リンクを削除しますか？")) {
-        return;
-      }
       void runAction(() => detail.removeStreamingLink(linkId), "配信リンクを削除しました。");
     },
   }));
 
+  const resourceTabs = {
+    links: detail.resourceTabs.links?.map((entry) => ({
+      ...entry,
+      onRemove: (linkId: string) => void runAction(() => detail.removeLink(linkId), "リンクを削除しました。"),
+    })),
+    files: detail.resourceTabs.files?.map((entry) => ({
+      ...entry,
+      onRemove: (fileId: string) => void runAction(() => detail.removeFile(fileId), "ファイルを削除しました。"),
+    })),
+    trailers: detail.resourceTabs.trailers?.map((entry) => ({
+      ...entry,
+      onRemove: (trailerId: string) => void runAction(() => detail.removeTrailer(trailerId), "トレーラーを削除しました。"),
+    })),
+  };
+
   const resourceFooter = (
-    <div className="filter-bar" style={{ marginTop: 10 }}>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => {
-          const label = promptValue("リンク名を入力してください", "公式サイト");
-          const url = promptValue("URL を入力してください", item.homepage_url ?? "https://");
-          if (!label || !url) {
-            return;
-          }
-          void runAction(() => detail.addLink(label, url), "リンクを追加しました。");
+    <div className="filter-bar" style={{ marginTop: 10, gap: 8 }}>
+      <InlineAddForm
+        triggerLabel="リンクを追加"
+        fields={[
+          { name: "label", placeholder: "リンク名", defaultValue: "公式サイト" },
+          { name: "url", placeholder: "URL", defaultValue: item.homepage_url ?? "https://" },
+        ]}
+        onSubmit={(values) => {
+          if (!values.label || !values.url) return;
+          void runAction(() => detail.addLink(values.label, values.url), "リンクを追加しました。");
         }}
-      >
-        <FiPlus className="icon" />
-        リンクを追加
-      </button>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => {
-          const label = promptValue("ファイル名を入力してください", "パンフレットPDF");
-          const path = promptValue("ファイルパスを入力してください");
-          const fileType = promptValue("file_type を入力してください (pdf / image / other)", "pdf") as "pdf" | "image" | "other";
-          if (!path || !fileType) {
-            return;
-          }
-          void runAction(() => detail.addFile(path, label || undefined, fileType), "ファイルを追加しました。");
+      />
+      <InlineAddForm
+        triggerLabel="ファイルを追加"
+        fields={[
+          { name: "path", placeholder: "ファイルパス" },
+          { name: "label", placeholder: "ファイル名", defaultValue: "パンフレットPDF" },
+          {
+            name: "fileType",
+            placeholder: "種別",
+            type: "select",
+            defaultValue: "pdf",
+            options: [
+              { value: "pdf", label: "pdf" },
+              { value: "image", label: "image" },
+              { value: "other", label: "other" },
+            ],
+          },
+        ]}
+        onSubmit={(values) => {
+          if (!values.path || !values.fileType) return;
+          void runAction(
+            () => detail.addFile(values.path, values.label || undefined, values.fileType as "pdf" | "image" | "other"),
+            "ファイルを追加しました。",
+          );
         }}
-      >
-        <FiPlus className="icon" />
-        ファイルを追加
-      </button>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => {
-          const label = promptValue("トレーラー名を入力してください", "本予告編");
-          const url = promptValue("トレーラー URL を入力してください", "https://");
-          if (!url) {
-            return;
-          }
-          void runAction(() => detail.addTrailer(url, label || undefined), "トレーラーを追加しました。");
+      />
+      <InlineAddForm
+        triggerLabel="トレーラーを追加"
+        fields={[
+          { name: "url", placeholder: "トレーラー URL", defaultValue: "https://" },
+          { name: "label", placeholder: "トレーラー名", defaultValue: "本予告編" },
+        ]}
+        onSubmit={(values) => {
+          if (!values.url) return;
+          void runAction(() => detail.addTrailer(values.url, values.label || undefined), "トレーラーを追加しました。");
         }}
-      >
-        <FiPlus className="icon" />
-        トレーラーを追加
-      </button>
+      />
       {detail.files.some((file) => file.file_type === "pdf") ? (
         <button
           type="button"
@@ -189,96 +191,106 @@ export function AnimeDetailPage() {
           groups={detail.groups}
           groupTitle="シーズン構成"
           groupActions={(group) => (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const episodeNumber = Number(promptValue("追加する話数番号を入力してください", String(group.episodes.length + 1)));
-                const title = promptValue("話数タイトルを入力してください");
+            <InlineAddForm
+              triggerLabel="話数を追加"
+              fields={[
+                { name: "episodeNumber", placeholder: "話数番号", type: "number", defaultValue: String(group.episodes.length + 1) },
+                { name: "title", placeholder: "話数タイトル" },
+              ]}
+              onSubmit={(values) => {
+                const episodeNumber = Number(values.episodeNumber);
                 if (!Number.isFinite(episodeNumber)) {
                   toast.error("話数番号は数値で入力してください。");
                   return;
                 }
-                void runAction(() => detail.addEpisode(group.id, episodeNumber, title || undefined), "話数を追加しました。");
+                void runAction(() => detail.addEpisode(group.id, episodeNumber, values.title || undefined), "話数を追加しました。");
               }}
-            >
-              <FiPlus className="icon" />
-              話数を追加
-            </button>
+            />
           )}
           groupFooter={(
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const nextNumber = detail.groups.length + 1;
-                const name = promptValue("シーズン名を入力してください", `シーズン${nextNumber}`);
-                if (!name) {
-                  return;
-                }
-                void runAction(() => detail.addGroup(name, nextNumber), "シーズンを追加しました。");
+            <InlineAddForm
+              triggerLabel="シーズンを追加"
+              fields={[{ name: "name", placeholder: "シーズン名", defaultValue: `シーズン${detail.groups.length + 1}` }]}
+              onSubmit={(values) => {
+                if (!values.name) return;
+                void runAction(() => detail.addGroup(values.name, detail.groups.length + 1), "シーズンを追加しました。");
               }}
-            >
-              <FiPlus className="icon" />
-              シーズンを追加
-            </button>
+            />
           )}
           staffList={staffList}
           staffFooter={(
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const staffId = promptValue("スタッフ ID を入力してください");
-                const role = promptValue("役職を入力してください", "監督");
-                const characterName = promptValue("キャラクター名があれば入力してください");
-                if (!staffId || !role) {
-                  return;
-                }
-                void runAction(() => detail.addStaff(staffId, role, characterName || undefined), "スタッフを追加しました。");
+            <InlineAddForm
+              triggerLabel="スタッフを追加"
+              fields={[
+                { name: "staffId", placeholder: "スタッフ ID" },
+                { name: "role", placeholder: "役職", defaultValue: "監督" },
+                { name: "characterName", placeholder: "キャラクター名" },
+              ]}
+              onSubmit={(values) => {
+                if (!values.staffId || !values.role) return;
+                void runAction(
+                  () => detail.addStaff(values.staffId, values.role, values.characterName || undefined),
+                  "スタッフを追加しました。",
+                );
               }}
-            >
-              <FiPlus className="icon" />
-              スタッフを追加
-            </button>
+            />
           )}
           relatedWorks={relatedWorks}
           relatedWorksFooter={(
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const relatedItemId = promptValue("関連作品の item_id を入力してください");
-                const relationType = promptValue("relation_type を入力してください (reference / dlc)", "reference") as "reference" | "dlc";
-                if (!relatedItemId || !relationType) {
-                  return;
-                }
-                void runAction(() => detail.addRelation(relatedItemId, relationType), "関連作品を追加しました。");
+            <InlineAddForm
+              triggerLabel="関連作品を追加"
+              fields={[
+                { name: "relatedItemId", placeholder: "関連作品の item_id" },
+                {
+                  name: "relationType",
+                  placeholder: "関係性",
+                  type: "select",
+                  defaultValue: "reference",
+                  options: [
+                    { value: "reference", label: "reference" },
+                    { value: "dlc", label: "dlc" },
+                  ],
+                },
+              ]}
+              onSubmit={(values) => {
+                if (!values.relatedItemId || !values.relationType) return;
+                void runAction(
+                  () => detail.addRelation(values.relatedItemId, values.relationType as "reference" | "dlc"),
+                  "関連作品を追加しました。",
+                );
               }}
-            >
-              <FiPlus className="icon" />
-              関連作品を追加
-            </button>
+            />
           )}
           streaming={streaming}
           streamingFooter={(
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const platform = promptValue("platform を入力してください (netflix / amazon_prime / disney_plus / dmm_tv / apple_tv)", "netflix") as Parameters<typeof detail.addStreamingLink>[0];
-                const url = promptValue("配信 URL を入力してください", "https://");
-                if (!platform || !url) {
-                  return;
-                }
-                void runAction(() => detail.addStreamingLink(platform, url), "配信リンクを追加しました。");
+            <InlineAddForm
+              triggerLabel="配信サイトを追加"
+              fields={[
+                {
+                  name: "platform",
+                  placeholder: "配信サービス",
+                  type: "select",
+                  defaultValue: "netflix",
+                  options: [
+                    { value: "netflix", label: "Netflix" },
+                    { value: "amazon_prime", label: "Amazon Prime Video" },
+                    { value: "disney_plus", label: "Disney+" },
+                    { value: "dmm_tv", label: "DMM TV" },
+                    { value: "apple_tv", label: "Apple TV" },
+                  ],
+                },
+                { name: "url", placeholder: "配信 URL", defaultValue: "https://" },
+              ]}
+              onSubmit={(values) => {
+                if (!values.platform || !values.url) return;
+                void runAction(
+                  () => detail.addStreamingLink(values.platform as Parameters<typeof detail.addStreamingLink>[0], values.url),
+                  "配信リンクを追加しました。",
+                );
               }}
-            >
-              <FiPlus className="icon" />
-              配信サイトを追加
-            </button>
+            />
           )}
-          resourceTabs={detail.resourceTabs}
+          resourceTabs={resourceTabs}
           resourceFooter={resourceFooter}
         />
       )}

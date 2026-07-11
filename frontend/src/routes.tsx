@@ -5,6 +5,7 @@ import { AcademicBookListPage } from "@/pages/AcademicBookListPage";
 import { MediaDetailPage } from "@/pages/MediaDetailPage";
 import { MediaListPage } from "@/pages/MediaListPage";
 import { MediaSearchPage } from "@/pages/MediaSearchPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 
 export const router = createBrowserRouter([
   {
@@ -12,7 +13,14 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <HomePage />, handle: { title: "ホーム" } },
-      { path: "media", element: <MediaListPage />, handle: { title: "一般メディア" } },
+      {
+        path: "media",
+        element: <MediaListPage />,
+        handle: {
+          title: "一般メディア",
+          actions: <Link className="btn btn-accent" to="/media/search">＋ 作品を追加</Link>,
+        },
+      },
       {
         path: "media/:id",
         element: <MediaDetailPage />,
@@ -33,7 +41,7 @@ export const router = createBrowserRouter([
           actions: <Link className="btn btn-accent" to="/academic-books/search">＋ 作品を追加</Link>,
         },
       },
-      { path: "settings", element: <div>設定画面のプレースホルダ</div>, handle: { title: "設定" } },
+      { path: "settings", element: <SettingsPage />, handle: { title: "設定" } },
     ],
   },
 ]);

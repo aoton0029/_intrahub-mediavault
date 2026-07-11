@@ -10,17 +10,22 @@ use axum::response::IntoResponse;
 use crate::AppState;
 use crate::models::external_search::SearchResultItem;
 use crate::models::item::{
-    Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaTypeCounts, UpdateItemRequest,
-    UpdateStatusRequest, deserialize_request, parse_create_item_request, parse_item_id,
-    validate_update_title,
+    Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaType, MediaTypeCounts,
+    UpdateItemRequest, UpdateStatusRequest, deserialize_request, parse_create_item_request,
+    parse_item_id, validate_update_title,
 };
+use crate::models::item_episode::CreateItemEpisodeRequest;
+use crate::models::item_group::{CreateItemGroupRequest, GroupType};
 use crate::models::item_import::parse_import_by_id_request;
 use crate::models::item_search::ItemSearchQuery;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk, PaginatedOk, Pagination};
+use crate::repositories::item_episode_repository;
 use crate::repositories::item_file_repository;
+use crate::repositories::item_group_repository;
 use crate::repositories::item_repository;
 use crate::repositories::item_streaming_link_repository;
-use crate::services::external_search::ExternalSearchService;
+use crate::repositories::staff_repository;
+use crate::services::external_search::{AnimeRelatedData, ExternalSearchService};
 
 /// 【機能概要】: `POST /items` ハンドラ。フォーム入力によるアイテム手動作成を行う
 /// 【実装方針】: TASK-0008の`parse_create_item_request`でバリデーションし、
@@ -302,13 +307,97 @@ pub async fn import_item_handler(
     let item = item_repository::import_item(
         &state.db,
         request.media_type,
-        request.external_id,
+        request.external_id.clone(),
         create_request,
     )
     .await?;
 
+    // 【関連データ登録】: アニメはAnnictからシーズン/話数/スタッフ・声優情報を取得し
+    // item_groups/item_episodes/staff+item_staffへ紐付ける。取得・登録の失敗はitem本体の
+    // インポート成功を妨げないよう、ログのみでエラーを握りつぶす（Annict障害耐性） 🟡
+    if request.media_type == MediaType::Anime {
+        import_anime_related_data(&state.db, &service, item.id, &request.external_id).await;
+    }
+
     // 【成功レスポンス】: 既存create_item_handlerと同一のcreated_responseを再利用し201で返す 🔵
     Ok(created_response(item))
+}
+
+/// 【機能概要】: アニメインポート時、Annictのシーズン/話数/スタッフ・声優情報をDBへ紐付ける
+/// 【実装方針】: シーズン用item_group作成 → 話数一括登録 → スタッフ/声優をfind_or_create+紐付け、の順で処理する。
+/// いずれかの段階で失敗しても以降の項目登録は継続し、警告ログのみ出力する
+/// （Annict側の欠落データや一時的なAPI障害でインポート全体を失敗させないための設計）。
+async fn import_anime_related_data(
+    db: &sqlx::PgPool,
+    service: &ExternalSearchService,
+    item_id: uuid::Uuid,
+    annict_work_id: &str,
+) {
+    let related: AnimeRelatedData = match service.fetch_anime_related_data(annict_work_id).await {
+        Ok(data) => data,
+        Err(err) => {
+            tracing::warn!(item_id = %item_id, error = ?err, "Annict関連データの取得に失敗しました");
+            return;
+        }
+    };
+
+    let group_request = CreateItemGroupRequest {
+        group_type: GroupType::Season,
+        group_name: related.season_group_name,
+        number: None,
+        display_order: 0,
+        parent_item_id: None,
+    };
+    let group = match item_group_repository::create_item_group(db, item_id, group_request).await {
+        Ok(group) => group,
+        Err(err) => {
+            tracing::warn!(item_id = %item_id, error = ?err, "シーズングループの作成に失敗しました");
+            return;
+        }
+    };
+
+    for episode in related.episodes {
+        let episode_request = CreateItemEpisodeRequest {
+            episode_number: episode.number,
+            title: episode.title,
+            original_title: None,
+            air_date: None,
+            description: None,
+        };
+        if let Err(err) =
+            item_episode_repository::create_item_episode(db, group.id, episode_request).await
+        {
+            tracing::warn!(item_id = %item_id, error = ?err, "話数の登録に失敗しました");
+        }
+    }
+
+    for member in related.staff {
+        let staff = match staff_repository::find_or_create_staff_by_external_id(
+            db,
+            Some(member.external_id),
+            member.name,
+            None,
+        )
+        .await
+        {
+            Ok(staff) => staff,
+            Err(err) => {
+                tracing::warn!(item_id = %item_id, error = ?err, "スタッフの登録に失敗しました");
+                continue;
+            }
+        };
+        if let Err(err) = staff_repository::link_staff(
+            db,
+            item_id,
+            staff.id,
+            member.role,
+            member.character_name,
+        )
+        .await
+        {
+            tracing::warn!(item_id = %item_id, error = ?err, "スタッフの紐付けに失敗しました");
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RelatedWork, ResourceTabKey, TagListItem } from "@/components/shared";
 import type { Group, StaffMember, StreamingLinkItem } from "@/components/detail";
+import { apiFetch } from "@/lib/apiClient";
 
 type ApiOk<T> = { success: boolean; data: T };
 type ItemStatus = "not_started" | "in_progress" | "completed";
@@ -146,7 +147,7 @@ async function parseJson<T>(response: Response) {
 }
 
 async function fetchApi<T>(input: RequestInfo, init?: RequestInit) {
-  const json = await parseJson<ApiOk<T>>(await fetch(input, init));
+  const json = await parseJson<ApiOk<T>>(await apiFetch(input, init));
   return json.data;
 }
 
@@ -250,7 +251,7 @@ export function useAnimeDetailData(id: string | undefined) {
 
   const tagRemoveMutation = useMutation({
     mutationFn: async (tagId: string) => {
-    await parseJson(await fetch(`/items/${id}/tags/${tagId}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/items/${id}/tags/${tagId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
@@ -268,14 +269,14 @@ export function useAnimeDetailData(id: string | undefined) {
 
   const categoryRemoveMutation = useMutation({
     mutationFn: async (categoryId: string) => {
-    await parseJson(await fetch(`/items/${id}/categories/${categoryId}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/items/${id}/categories/${categoryId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
 
   const mylistRemoveMutation = useMutation({
     mutationFn: async (mylistId: string) => {
-    await parseJson(await fetch(`/mylists/${mylistId}/items/${id}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/mylists/${mylistId}/items/${id}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
@@ -315,7 +316,7 @@ export function useAnimeDetailData(id: string | undefined) {
 
   const staffRemoveMutation = useMutation({
     mutationFn: async (itemStaffId: string) => {
-    await parseJson(await fetch(`/items/${id}/staff/${itemStaffId}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/items/${id}/staff/${itemStaffId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
@@ -333,7 +334,7 @@ export function useAnimeDetailData(id: string | undefined) {
 
   const relationRemoveMutation = useMutation({
     mutationFn: async (relationId: string) => {
-    await parseJson(await fetch(`/item-relations/${relationId}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/item-relations/${relationId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
@@ -351,7 +352,7 @@ export function useAnimeDetailData(id: string | undefined) {
 
   const streamingRemoveMutation = useMutation({
     mutationFn: async (linkId: string) => {
-    await parseJson(await fetch(`/items/${id}/streaming-links/${linkId}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/items/${id}/streaming-links/${linkId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
@@ -369,7 +370,7 @@ export function useAnimeDetailData(id: string | undefined) {
 
   const linkRemoveMutation = useMutation({
     mutationFn: async (linkId: string) => {
-    await parseJson(await fetch(`/items/${id}/links/${linkId}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/items/${id}/links/${linkId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
@@ -387,7 +388,7 @@ export function useAnimeDetailData(id: string | undefined) {
 
   const fileRemoveMutation = useMutation({
     mutationFn: async (fileId: string) => {
-    await parseJson(await fetch(`/items/${id}/files/${fileId}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/items/${id}/files/${fileId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
@@ -405,7 +406,7 @@ export function useAnimeDetailData(id: string | undefined) {
 
   const trailerRemoveMutation = useMutation({
     mutationFn: async (trailerId: string) => {
-    await parseJson(await fetch(`/items/${id}/trailers/${trailerId}`, { method: "DELETE" }));
+    await parseJson(await apiFetch(`/items/${id}/trailers/${trailerId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });

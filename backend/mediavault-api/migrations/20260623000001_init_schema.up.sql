@@ -22,7 +22,7 @@ CREATE TYPE relation_type AS ENUM ('reference', 'dlc');
 
 CREATE TYPE file_type AS ENUM ('pdf', 'image', 'other');
 
-CREATE TYPE api_provider AS ENUM ('tmdb', 'igdb', 'ndl', 'steam', 'openlibrary', 'anilist');
+CREATE TYPE api_provider AS ENUM ('tmdb', 'igdb', 'ndl', 'steam', 'openlibrary', 'anilist', 'annict', 'rakuten');
 
 -- ========================================
 -- Core tables

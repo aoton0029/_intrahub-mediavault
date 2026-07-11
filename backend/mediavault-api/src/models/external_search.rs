@@ -27,6 +27,8 @@ pub struct SearchResultItem {
     /// タイトル（日本語優先）
     pub title: String,
     pub thumbnail_url: Option<String>,
+    /// 発売・公開年（取得できない場合は`None`）
+    pub year: Option<i32>,
 }
 
 /// ExternalSearchService が返すエラー型

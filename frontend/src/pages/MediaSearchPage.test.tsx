@@ -27,6 +27,10 @@ function renderWithRouter() {
         element: <MediaSearchPage />,
       },
       {
+        path: "/media/:id",
+        element: <div>detail page</div>,
+      },
+      {
         path: "/settings",
         element: <div>settings</div>,
       },
@@ -58,7 +62,7 @@ describe("MediaSearchPage", () => {
     const searchRequests: string[] = [];
 
     server.use(
-      http.get("/items/search", ({ request }) => {
+      http.get("/api/v1/items/search", ({ request }) => {
         const url = new URL(request.url);
         searchRequests.push(url.search);
 
@@ -92,11 +96,11 @@ describe("MediaSearchPage", () => {
     expect(screen.getByRole("button", { name: "取り込む" })).toBeInTheDocument();
   });
 
-  it("marks an item as imported after a successful import response", async () => {
+  it("navigates to the imported item's detail page after a successful import response", async () => {
     const importBodies: Array<{ media_type: string; provider: string | null; external_id: string }> = [];
 
     server.use(
-      http.get("/items/search", () =>
+      http.get("/api/v1/items/search", () =>
         HttpResponse.json({
           success: true,
           data: [
@@ -110,9 +114,9 @@ describe("MediaSearchPage", () => {
           ],
         }),
       ),
-      http.post("/items/import", async ({ request }) => {
+      http.post("/api/v1/items/import", async ({ request }) => {
         importBodies.push((await request.json()) as { media_type: string; provider: string | null; external_id: string });
-        return HttpResponse.json({ success: true }, { status: 201 });
+        return HttpResponse.json({ success: true, data: { id: "item-uuid-1" } }, { status: 201 });
       }),
     );
 
@@ -125,13 +129,13 @@ describe("MediaSearchPage", () => {
 
     await user.click(screen.getByRole("button", { name: "取り込む" }));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "取り込み済み" })).toBeDisabled());
+    await screen.findByText("detail page");
     expect(importBodies).toEqual([{ media_type: "anime", provider: "annict", external_id: "anime-1" }]);
   });
 
   it("marks an item as imported when the API returns ITEM_ALREADY_IMPORTED", async () => {
     server.use(
-      http.get("/items/search", () =>
+      http.get("/api/v1/items/search", () =>
         HttpResponse.json({
           success: true,
           data: [
@@ -145,7 +149,7 @@ describe("MediaSearchPage", () => {
           ],
         }),
       ),
-      http.post("/items/import", () =>
+      http.post("/api/v1/items/import", () =>
         HttpResponse.json(
           {
             code: "ITEM_ALREADY_IMPORTED",
@@ -170,7 +174,7 @@ describe("MediaSearchPage", () => {
 
   it("shows only the API key empty state when search returns API_KEY_NOT_CONFIGURED", async () => {
     server.use(
-      http.get("/items/search", () =>
+      http.get("/api/v1/items/search", () =>
         HttpResponse.json(
           {
             code: "API_KEY_NOT_CONFIGURED",

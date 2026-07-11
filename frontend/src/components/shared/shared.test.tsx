@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { ApiKeyCard } from "./ApiKeyCard";
 import { EmptyState } from "./EmptyState";
 import { FavoriteToggle } from "./FavoriteToggle";
 import { LoadMoreSentinel } from "./LoadMoreSentinel";
@@ -110,5 +111,23 @@ describe("shared components", () => {
   it("EmptyState omits action when absent", () => {
     render(<EmptyState title="空" description="なし" />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("ApiKeyCard renders inline-save controls and saves the entered key", () => {
+    const onSave = vi.fn();
+    render(<ApiKeyCard provider="TMDB" keyMasked="provider: tmdb ・ 未設定" variant="inline-save" onSave={onSave} />);
+
+    fireEvent.change(screen.getByLabelText("TMDB APIキー"), { target: { value: "secret-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(screen.getByPlaceholderText("APIキーを入力")).toHaveAttribute("type", "password");
+    expect(onSave).toHaveBeenCalledWith("secret-key");
+  });
+
+  it("ApiKeyCard shows setup hint without input when key is not required", () => {
+    render(<ApiKeyCard provider="Jikan" keyMasked="provider: jikan ・ APIキー不要(認証なしで利用可能)" variant="inline-save" requiresKey={false} />);
+
+    expect(screen.queryByPlaceholderText("APIキーを入力")).not.toBeInTheDocument();
+    expect(screen.getByText("設定不要")).toHaveClass("field-hint");
   });
 });

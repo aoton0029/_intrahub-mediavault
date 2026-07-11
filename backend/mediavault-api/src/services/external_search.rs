@@ -14,14 +14,19 @@
 //! 意味を持たなくなったため廃止した。検索結果は軽量な`SearchResultItem`を直接構築し、
 //! インポート確定時は各プロバイダの生レスポンスから`CreateItemRequest`を直接構築する。
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use api_client_lib::auth::AuthStrategy;
 use api_client_lib::clients::annict::AnnictClient;
 use api_client_lib::clients::annict::models::WorkModel;
-use api_client_lib::clients::annict::requests::ListWorksRequest;
+use api_client_lib::clients::annict::requests::{
+    ListCastsRequest, ListEpisodesRequest, ListStaffsRequest, ListWorksRequest,
+};
 use api_client_lib::clients::jikan::JikanClient;
-use api_client_lib::clients::jikan::requests::{JikanAnimeDetailsRequest, JikanRequest};
+use api_client_lib::clients::jikan::requests::{
+    JikanAnimeDetailsRequest, JikanAnimeSearchRequest, JikanRequest,
+};
 use api_client_lib::clients::ndl::NdlClient;
 use api_client_lib::clients::ndl::models::{NdlItemModel, NdlModel};
 use api_client_lib::clients::ndl::requests::{NdlRequest, NdlSearchRequest};
@@ -37,7 +42,7 @@ use api_client_lib::clients::tmdb::requests::{
     MovieDetailsRequest, SearchMovieRequest, SearchTvRequest, TmdbRequest, TvSeriesRequest,
 };
 use api_client_lib::traits::ApiClient;
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use serde_json::Value;
 use sqlx::PgPool;
 
@@ -156,17 +161,64 @@ fn map_array_items(
 
 // ── 検索結果（軽量DTO）構築関数 ────────────────────────────────────────────
 
-fn search_item_from_annict_work(work: &WorkModel) -> SearchResultItem {
+/// Annict作品情報から`SearchResultItem`を構築する。
+///
+/// `jikan_image_url`（Jikan `data.images.jpg.large_image_url`）が渡された場合はAnnictの
+/// サムネイルより優先して採用する（Jikanの方が高解像度の画像を提供するため）。
+/// Jikan側が未取得・未設定の場合はAnnictのサムネイルへフォールバックする。
+fn search_item_from_annict_work(
+    work: &WorkModel,
+    jikan_image_url: Option<String>,
+) -> SearchResultItem {
     SearchResultItem {
         id: work.id.to_string(),
         media_type: MediaType::Anime,
         provider: Some(ApiProvider::Annict),
         title: non_empty(work.title.clone()).unwrap_or_default(),
-        thumbnail_url: work
-            .images
-            .as_ref()
-            .and_then(|i| non_empty(i.recommended_url.clone())),
+        thumbnail_url: jikan_image_url.or_else(|| annict_thumbnail_url(work)),
+        year: work
+            .released_on
+            .as_deref()
+            .and_then(parse_release_date)
+            .map(|d| d.year())
+            .or_else(|| work.season_name.as_deref().and_then(parse_season_year)),
     }
+}
+
+/// Jikanの検索結果1件から`data.images.jpg.large_image_url`を取り出す。
+fn jikan_large_image_url(data: &Value) -> Option<String> {
+    data.get("images")
+        .and_then(|i| i.get("jpg"))
+        .and_then(|j| json_str(j, "large_image_url"))
+}
+
+/// Jikanの検索結果1件から`mal_id`を取り出す。
+fn jikan_mal_id(data: &Value) -> Option<u32> {
+    data.get("mal_id").and_then(Value::as_u64).map(|n| n as u32)
+}
+
+/// Annictの`season_name`（例: "2020-autumn"）から年を取り出す。
+///
+/// `released_on`が未設定の作品でも`season_name`は設定されていることが多いため、
+/// 年表示のフォールバックとして使う。
+fn parse_season_year(season_name: &str) -> Option<i32> {
+    season_name.split('-').next()?.parse().ok()
+}
+
+/// Annict作品のサムネイル画像URLを取り出す。
+///
+/// `images.recommended_url`を優先し、未設定の場合は`images.facebook.og_image_url`へ
+/// フォールバックする（`recommended_url`は投稿者による任意設定のため空のことが多いが、
+/// OGP画像はほぼ設定されている）。
+fn annict_thumbnail_url(work: &WorkModel) -> Option<String> {
+    work.images.as_ref().and_then(|images| {
+        non_empty(images.recommended_url.clone()).or_else(|| {
+            images
+                .facebook
+                .as_ref()
+                .and_then(|fb| non_empty(fb.og_image_url.clone()))
+        })
+    })
 }
 
 fn search_item_from_rakuten_book(book: &BookModel, media_type: MediaType) -> SearchResultItem {
@@ -180,6 +232,11 @@ fn search_item_from_rakuten_book(book: &BookModel, media_type: MediaType) -> Sea
             .clone()
             .or_else(|| book.medium_image_url.clone())
             .or_else(|| book.small_image_url.clone()),
+        year: book
+            .sales_date
+            .as_deref()
+            .and_then(parse_rakuten_sales_date)
+            .map(|d| d.year()),
     }
 }
 
@@ -194,6 +251,10 @@ fn search_item_from_tmdb_movie(data: &Value) -> SearchResultItem {
         provider: Some(ApiProvider::Tmdb),
         title: json_str(data, "title").unwrap_or_default(),
         thumbnail_url: tmdb_image_url(data, "poster_path"),
+        year: json_str(data, "release_date")
+            .as_deref()
+            .and_then(parse_release_date)
+            .map(|d| d.year()),
     }
 }
 
@@ -208,6 +269,10 @@ fn search_item_from_tmdb_tv(data: &Value) -> SearchResultItem {
         provider: Some(ApiProvider::Tmdb),
         title: json_str(data, "name").unwrap_or_default(),
         thumbnail_url: tmdb_image_url(data, "poster_path"),
+        year: json_str(data, "first_air_date")
+            .as_deref()
+            .and_then(parse_release_date)
+            .map(|d| d.year()),
     }
 }
 
@@ -222,6 +287,7 @@ fn search_item_from_steam_search(data: &Value) -> SearchResultItem {
         provider: Some(ApiProvider::Steam),
         title: json_str(data, "name").unwrap_or_default(),
         thumbnail_url: json_str(data, "tiny_image"),
+        year: None,
     }
 }
 
@@ -233,7 +299,36 @@ fn search_item_from_ndl_item(item: &NdlItemModel, media_type: MediaType) -> Sear
         provider: Some(ApiProvider::Ndl),
         title: item.title.clone().unwrap_or_default(),
         thumbnail_url: item.thumbnail_url.clone(),
+        year: item
+            .pub_date
+            .as_deref()
+            .and_then(parse_release_date)
+            .map(|d| d.year()),
     }
+}
+
+// ── インポート確定時: アニメ関連データ（シーズン/話数/スタッフ）構築 ──────────
+
+/// Annictから取得したアニメ1話分の情報
+pub struct AnimeEpisodeData {
+    pub number: i32,
+    pub title: Option<String>,
+}
+
+/// Annictから取得したスタッフ/声優1名分の情報
+pub struct AnimeStaffMemberData {
+    /// staff.external_id用の一意キー（"annict-person-<id>" / "annict-org-<id>"）
+    pub external_id: String,
+    pub name: String,
+    pub role: String,
+    pub character_name: Option<String>,
+}
+
+/// `fetch_anime_related_data`の戻り値。シーズングループ名・話数一覧・スタッフ/声優一覧を保持する
+pub struct AnimeRelatedData {
+    pub season_group_name: String,
+    pub episodes: Vec<AnimeEpisodeData>,
+    pub staff: Vec<AnimeStaffMemberData>,
 }
 
 // ── インポート確定時: CreateItemRequest直接構築関数 ─────────────────────────
@@ -277,11 +372,7 @@ fn build_anime_create_request(work: &WorkModel, jikan_data: Option<&Value>) -> C
     let title = non_empty(work.title.clone())
         .or(jikan_title)
         .unwrap_or_default();
-    let image_url = work
-        .images
-        .as_ref()
-        .and_then(|i| non_empty(i.recommended_url.clone()))
-        .or(jikan_image);
+    let image_url = annict_thumbnail_url(work).or(jikan_image);
     let episodes = work.episodes_count.or(jikan_episodes);
     let season = non_empty(work.season_name.clone()).or(jikan_season);
     let release_date_str = non_empty(work.released_on.clone()).or(jikan_release_date);
@@ -719,7 +810,12 @@ impl ExternalSearchService {
     }
 
     /// Annict（anime）へディスパッチする。`find_by_provider(Annict)` でキーを取得する。
-    /// 検索結果はid/title/images.recommended_urlのみを保持する軽量マッピングとする。
+    /// 検索結果はid/title/画像/年のみを保持する軽量マッピングとする。
+    ///
+    /// 同一クエリでJikan（`GET /anime`）も検索し、Annictの`mal_anime_id`とJikanの`mal_id`が
+    /// 一致する作品について、サムネイルを`data.images.jpg.large_image_url`（Jikan）優先で
+    /// 差し替える。Jikan検索が失敗した場合はAnnict単独の結果にフォールバックする
+    /// （Jikan障害で検索全体を失敗させない設計）。
     async fn dispatch_annict_anime(
         &self,
         query: &str,
@@ -733,11 +829,54 @@ impl ExternalSearchService {
             })
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
+
+        let jikan_images_by_mal_id = self.search_jikan_anime_images(query).await;
+
         Ok(response
             .model
             .iter()
-            .map(search_item_from_annict_work)
+            .map(|work| {
+                let jikan_image_url = work
+                    .mal_anime_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .and_then(|mal_id| jikan_images_by_mal_id.get(&mal_id).cloned());
+                search_item_from_annict_work(work, jikan_image_url)
+            })
             .collect())
+    }
+
+    /// Jikanで`query`をアニメ検索し、`mal_id -> data.images.jpg.large_image_url`のマップを返す。
+    /// Jikan側のエラーは呼び出し元の検索全体を失敗させないよう、空マップにフォールバックする。
+    async fn search_jikan_anime_images(&self, query: &str) -> HashMap<u32, String> {
+        let Ok(client) = self.build_jikan_client() else {
+            return HashMap::new();
+        };
+        let Ok(response) = client
+            .execute(JikanRequest::SearchAnime(JikanAnimeSearchRequest {
+                q: Some(query.to_string()),
+                ..Default::default()
+            }))
+            .await
+        else {
+            return HashMap::new();
+        };
+        let raw_data = raw_data_to_value(&response.raw);
+        raw_data
+            .get("data")
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| {
+                        let mal_id = jikan_mal_id(item)?;
+                        let image_url = jikan_large_image_url(item)?;
+                        Some((mal_id, image_url))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// インポート確定時: Annictの作品情報を再取得し、`mal_anime_id`を使ってJikanから詳細を取得、
@@ -791,6 +930,122 @@ impl ExternalSearchService {
             }
             Err(_) => Ok(build_anime_create_request(&work, None)),
         }
+    }
+
+    /// インポート確定時: Annict作品IDから話数・シーズン・スタッフ/声優情報をまとめて取得する。
+    ///
+    /// 【設計方針】: `fetch_anime_import_details`はCreateItemRequest構築のみに専念させ、
+    /// item_groups/item_episodes/staff等への保存に必要な関連データ取得は本メソッドへ分離する
+    /// （呼び出し元のimport_item_handlerがDB保存を担当する）。
+    /// スタッフはlist_staffs（監督・脚本等のスタッフロール）とlist_casts（声優＋役名）の
+    /// 両方を合成する。person/organization情報が欠落する行はスキップする。
+    pub async fn fetch_anime_related_data(
+        &self,
+        annict_work_id: &str,
+    ) -> Result<AnimeRelatedData, ExternalSearchError> {
+        let work_id: u64 = annict_work_id.trim().parse().map_err(|_| {
+            ExternalSearchError::ExternalApiError(api_client_lib::ApiError::Parse(format!(
+                "invalid annict work id: {annict_work_id}"
+            )))
+        })?;
+
+        let api_key = self.ensure_key(ApiProvider::Annict).await?;
+        let client = self.build_annict_client(api_key)?;
+
+        let work_response = client
+            .list_works(ListWorksRequest {
+                filter_ids: Some(annict_work_id.to_string()),
+                ..Default::default()
+            })
+            .await
+            .map_err(ExternalSearchError::ExternalApiError)?;
+        let season_group_name = work_response
+            .model
+            .first()
+            .and_then(|w| non_empty(w.season_name_text.clone()))
+            .unwrap_or_else(|| "本編".to_string());
+
+        let episodes_response = client
+            .list_episodes(ListEpisodesRequest {
+                filter_work_id: Some(work_id),
+                sort_sort_number: Some("asc".to_string()),
+                ..Default::default()
+            })
+            .await
+            .map_err(ExternalSearchError::ExternalApiError)?;
+        let episodes: Vec<AnimeEpisodeData> = episodes_response
+            .model
+            .iter()
+            .enumerate()
+            .map(|(idx, ep)| AnimeEpisodeData {
+                number: ep.number.map(|n| n as i32).unwrap_or((idx as i32) + 1),
+                title: non_empty(ep.title.clone()),
+            })
+            .collect();
+
+        let staffs_response = client
+            .list_staffs(ListStaffsRequest {
+                filter_work_id: Some(work_id),
+                ..Default::default()
+            })
+            .await
+            .map_err(ExternalSearchError::ExternalApiError)?;
+        let mut staff: Vec<AnimeStaffMemberData> = staffs_response
+            .model
+            .iter()
+            .filter_map(|s| {
+                let (external_id, name) = if let Some(person) = &s.person {
+                    (
+                        format!("annict-person-{}", person.id),
+                        non_empty(person.name.clone())?,
+                    )
+                } else if let Some(org) = &s.organization {
+                    (
+                        format!("annict-org-{}", org.id),
+                        non_empty(org.name.clone())?,
+                    )
+                } else {
+                    return None;
+                };
+                let role = non_empty(s.role_text.clone())
+                    .or_else(|| non_empty(s.role_other.clone()))
+                    .unwrap_or_else(|| "スタッフ".to_string());
+                Some(AnimeStaffMemberData {
+                    external_id,
+                    name,
+                    role,
+                    character_name: None,
+                })
+            })
+            .collect();
+
+        let casts_response = client
+            .list_casts(ListCastsRequest {
+                filter_work_id: Some(work_id),
+                ..Default::default()
+            })
+            .await
+            .map_err(ExternalSearchError::ExternalApiError)?;
+        staff.extend(casts_response.model.iter().filter_map(|c| {
+            let person = c.person.as_ref()?;
+            let name = non_empty(person.name.clone())?;
+            let character_name = c
+                .character
+                .as_ref()
+                .and_then(|ch| non_empty(ch.name.clone()));
+            Some(AnimeStaffMemberData {
+                external_id: format!("annict-person-{}", person.id),
+                name,
+                role: "声優".to_string(),
+                character_name,
+            })
+        }));
+
+        Ok(AnimeRelatedData {
+            season_group_name,
+            episodes,
+            staff,
+        })
     }
 
     /// 楽天ブックス（manga/novel/academic_book共通）へディスパッチする。`find_by_provider(Rakuten)` でキーを取得する。

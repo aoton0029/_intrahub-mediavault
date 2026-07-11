@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { apiFetch } from "@/lib/apiClient";
 import type { MediaCardProps } from "@/components/shared";
 import type { HomeStats } from "@/components/home/StatGrid";
 
@@ -56,7 +57,7 @@ function buildQueryString(params: Record<string, string | number | undefined | n
 }
 
 async function fetchItemsPage(params: Record<string, string | number | undefined | null>) {
-  const response = await fetch(`/items${buildQueryString(params)}`);
+  const response = await apiFetch(`/items${buildQueryString(params)}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch items: ${response.status}`);

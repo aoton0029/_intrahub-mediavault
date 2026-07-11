@@ -112,7 +112,11 @@
   .section-heading .see-all { font-size: 12px; letter-spacing: normal; text-transform: none; }
   .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px; }
   .card-grid.is-compact { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
-  .media-card, .lit-row, .result-row, .stat-card, .kv-card, .group-block { border: 1px solid var(--color-border-soft); border-radius: var(--radius-app); background: var(--color-bg-surface); }
+  .media-card, .lit-row, .result-row, .stat-card, .kv-card { border: 1px solid var(--color-border-soft); border-radius: var(--radius-app); background: var(--color-bg-surface); }
+  .group-block { border: 1px solid var(--color-border-soft); border-radius: var(--radius-app); margin-bottom: 10px; overflow: hidden; }
+  .kv-card { justify-content: space-between; margin-bottom: 10px; padding: 10px 14px; }
+  .provider { color: var(--color-text-primary); font-weight: 600; font-size: 13px; }
+  .panel-api .desc, .panel-import .desc, .panel-system .desc { margin: -4px 0 16px; }
   .media-card { overflow: hidden; transition: border-color 0.15s, transform 0.1s; }
   .media-card:hover, .lit-row:hover, .stat-card:hover { transform: translateY(-2px); border-color: var(--color-accent); }
   .media-card.search-result { display: flex; height: 100%; flex-direction: column; }
@@ -120,13 +124,15 @@
   .media-card.search-result .btn { margin-top: auto; }
   .cover, .doc-cover, .lit-row .thumb, .result-row .thumb, .mylist-cover > div { background: linear-gradient(160deg, #33304a, #232323); }
   .media-card .cover, .doc-cover { aspect-ratio: 2 / 3; }
-  .media-card .cover { position: relative; display: flex; align-items: flex-end; justify-content: flex-end; padding: 6px; }
+  .media-card .cover { position: relative; display: flex; align-items: flex-end; justify-content: flex-end; padding: 6px; overflow: hidden; }
+  .media-card .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
   .badge { position: absolute; top: 6px; left: 6px; border-radius: 4px; background: rgb(0 0 0 / 55%); padding: 2px 6px; color: var(--color-text-muted); font-family: var(--font-mono); font-size: 10px; }
   .body { padding: 10px 10px 12px; }
   .media-card.is-compact .body { padding: 8px 8px 10px; }
   .title, .doc-title { color: var(--color-text-primary); font-family: var(--font-display); font-weight: 600; }
   .media-card .title { margin: 0 0 4px; font-size: 13.5px; }
-  .meta, .sub, .field-hint { color: var(--color-text-faint); font-size: 12px; }
+  .meta, .sub, .field-hint, .key { color: var(--color-text-faint); font-size: 12px; }
+  .key { font-family: var(--font-mono); margin-top: 2px; }
   .rating-stars-mini, .rating-stars { display: inline-flex; align-items: center; gap: 2px; }
   .rating-stars-mini .icon, .rating-stars .icon { color: var(--color-border); fill: var(--color-border); }
   .rating-stars-mini .icon.is-full, .rating-stars .icon.is-full, .favorite-toggle.is-active .icon { color: var(--color-favorite); fill: var(--color-favorite); }
@@ -150,7 +156,10 @@
   .btn-sm { padding: 4px 10px; font-size: 12px; }
   .btn[disabled] { pointer-events: none; opacity: 0.5; }
   .lit-list, .settings-tabs, .rail-facts { display: flex; flex-direction: column; gap: 8px; }
-  .lit-row, .result-row, .prop-list-item, .group-header, .episode-row, .kv-card, .meta-item { display: flex; align-items: center; gap: 10px; }
+  .lit-row, .result-row, .prop-list-item, .kv-card, .meta-item { display: flex; align-items: center; gap: 10px; }
+  .group-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--color-bg-surface); font-size: 13px; font-weight: 600; flex-wrap: wrap; }
+  .episode-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--color-border-soft); font-size: 12.5px; color: var(--color-text-muted); }
+  .episode-row .num { width: 28px; color: var(--color-text-faint); font-family: var(--font-mono); }
   .lit-row, .result-row { padding: 12px 14px; }
   .lit-row .info, .result-row .info { min-width: 0; flex: 1; }
   .lit-row .title, .result-row .title { margin: 0 0 3px; font-size: 14px; }

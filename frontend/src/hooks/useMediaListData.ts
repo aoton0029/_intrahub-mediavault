@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQuery, type InfiniteData } from "@tanstack/react-query";
 import type { MediaCardProps } from "@/components/shared";
+import { apiFetch } from "@/lib/apiClient";
 
 export type MediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game" | "academic_book";
 type ItemStatus = "not_started" | "in_progress" | "done" | "completed" | string;
@@ -93,7 +94,7 @@ function buildQueryString(params: Record<string, string | number | boolean | und
 }
 
 async function fetchItemsPage(filters: MediaListFilters, pageParam: Cursor) {
-  const response = await fetch(
+  const response = await apiFetch(
     `/items${buildQueryString({
       media_type: filters.mediaType,
       is_favorite: filters.isFavorite,
@@ -115,7 +116,7 @@ async function fetchItemsPage(filters: MediaListFilters, pageParam: Cursor) {
 }
 
 async function fetchTags() {
-  const response = await fetch("/tags");
+  const response = await apiFetch("/tags");
 
   if (!response.ok) {
     throw new Error(`Failed to fetch tags: ${response.status}`);
@@ -126,7 +127,7 @@ async function fetchTags() {
 }
 
 async function fetchCategories() {
-  const response = await fetch("/categories");
+  const response = await apiFetch("/categories");
 
   if (!response.ok) {
     throw new Error(`Failed to fetch categories: ${response.status}`);

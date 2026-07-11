@@ -1,3 +1,27 @@
+/// Annict APIが文字列(""含む)・数値のどちらでも返しうるフィールド（身長/体重/年齢等）を
+/// `Option<String>`として受ける汎用デシリアライザ。
+///
+/// 例: `PersonModel.height`はある人物では`""`、別の人物では`173`（数値）として返ってくることが
+/// 実APIレスポンスで確認されている。型を`Option<String>`固定にすると数値が来た時点で
+/// デシリアライズ全体が失敗するため、文字列/数値のどちらも受理できるようにする。
+fn deserialize_flexible_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum Flexible {
+        Str(String),
+        Num(serde_json::Number),
+    }
+
+    let value = <Option<Flexible> as serde::Deserialize>::deserialize(deserializer)?;
+    Ok(value.map(|v| match v {
+        Flexible::Str(s) => s,
+        Flexible::Num(n) => n.to_string(),
+    }))
+}
+
 /// Annict 作品モデル。
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct WorkModel {
@@ -25,25 +49,38 @@ pub struct WorkModel {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct WorkImagesModel {
     pub recommended_url: Option<String>,
+    pub facebook: Option<WorkImagesFacebookModel>,
+}
+
+/// 作品画像のFacebook OGP情報。`recommended_url`が未設定の作品でも設定されていることが多い。
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct WorkImagesFacebookModel {
+    pub og_image_url: Option<String>,
 }
 
 /// エピソードの前後関係で使う簡略化された作品/エピソード情報。
+///
+/// `number`/`sort_number`はAnnict APIが整数値でも`1.0`のような浮動小数点表現で返すことがあるため、
+/// `f64`で受けてから利用側で丸める。
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct EpisodeSummaryModel {
     pub id: u64,
-    pub number: Option<i64>,
+    pub number: Option<f64>,
     pub number_text: Option<String>,
-    pub sort_number: Option<i64>,
+    pub sort_number: Option<f64>,
     pub title: Option<String>,
 }
 
 /// Annict エピソードモデル。
+///
+/// `number`/`sort_number`はAnnict APIが整数値でも`1.0`のような浮動小数点表現で返すことがあるため、
+/// `f64`で受けてから利用側で丸める。
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct EpisodeModel {
     pub id: u64,
-    pub number: Option<i64>,
+    pub number: Option<f64>,
     pub number_text: Option<String>,
-    pub sort_number: Option<i64>,
+    pub sort_number: Option<f64>,
     pub title: Option<String>,
     pub records_count: Option<u32>,
     pub record_comments_count: Option<u32>,
@@ -71,9 +108,12 @@ pub struct CharacterModel {
     pub nickname: Option<String>,
     pub nickname_en: Option<String>,
     pub birthday: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_string")]
     pub age: Option<String>,
     pub blood_type: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_string")]
     pub height: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_string")]
     pub weight: Option<String>,
     pub nationality: Option<String>,
     pub occupation: Option<String>,
@@ -104,6 +144,7 @@ pub struct PersonModel {
     pub twitter_username: Option<String>,
     pub birthday: Option<String>,
     pub blood_type: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_flexible_string")]
     pub height: Option<String>,
     pub favorite_people_count: Option<u32>,
     pub casts_count: Option<u32>,
@@ -131,7 +172,7 @@ pub struct CastModel {
     pub id: u64,
     pub name: Option<String>,
     pub name_en: Option<String>,
-    pub sort_number: Option<i64>,
+    pub sort_number: Option<f64>,
     pub work: Option<WorkModel>,
     pub character: Option<CharacterModel>,
     pub person: Option<PersonModel>,
@@ -146,7 +187,7 @@ pub struct StaffModel {
     pub role_text: Option<String>,
     pub role_other: Option<String>,
     pub role_other_en: Option<String>,
-    pub sort_number: Option<i64>,
+    pub sort_number: Option<f64>,
     pub work: Option<WorkModel>,
     pub person: Option<PersonModel>,
     pub organization: Option<OrganizationModel>,

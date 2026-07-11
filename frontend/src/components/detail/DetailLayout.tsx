@@ -206,7 +206,7 @@ export function DetailMain({
   staffList?: StaffMember[];
   relatedWorks?: RelatedWork[];
   streaming?: StreamingLinkItem[];
-  resourceTabs?: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string }[]>>;
+  resourceTabs?: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string; onRemove?: (id: string) => void }[]>>;
   groupTitle?: string;
   groupActions?: (group: Group) => ReactNode;
   groupFooter?: ReactNode;

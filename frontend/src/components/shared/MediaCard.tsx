@@ -17,6 +17,7 @@ export type MediaCardProps = {
   actionLabel?: string;
   onAction?: () => void;
   href?: string;
+  imageUrl?: string | null;
 };
 
 export function MediaCard({
@@ -32,12 +33,14 @@ export function MediaCard({
   actionLabel = "取り込む",
   onAction,
   href,
+  imageUrl,
 }: MediaCardProps) {
   const className = cn("media-card", variant === "compact" && "is-compact", variant === "search-result" && "search-result is-compact");
 
   const body = (
     <>
       <div className="cover">
+        {imageUrl ? <img src={imageUrl} alt="" loading="lazy" /> : null}
         <span className="badge">{badge}</span>
         {variant !== "search-result" && onFavoriteChange ? <FavoriteToggle value={favorite} onChange={onFavoriteChange} label="" /> : null}
       </div>

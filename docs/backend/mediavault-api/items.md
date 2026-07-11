@@ -138,6 +138,7 @@
 | `provider` | string \| null | 採用プロバイダ（`annict` / `rakuten` / `tmdb` / `steam` / `ndl`）。`POST /items/import` の `provider` にそのまま渡せる |
 | `title` | string | タイトル |
 | `thumbnail_url` | string \| null | サムネイル画像URL |
+| `year` | number \| null | 発売・公開年。取得できない場合（例: `game`のSteam検索結果）は`null` |
 
 ```json
 {
@@ -148,7 +149,8 @@
       "media_type": "anime",
       "provider": "annict",
       "title": "鬼滅の刃",
-      "thumbnail_url": "https://img.annict.com/xxx.jpg"
+      "thumbnail_url": "https://img.annict.com/xxx.jpg",
+      "year": 2019
     }
   ]
 }

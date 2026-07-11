@@ -5,6 +5,7 @@ import { usePageChrome } from "@/components/layout/usePageChrome";
 import { EmptyState } from "@/components/shared";
 import { AnimeDetailPage } from "./AnimeDetailPage";
 import { MovieDetailPage } from "./MovieDetailPage";
+import { apiFetch } from "@/lib/apiClient";
 
 type MediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game" | "academic_book" | "paper";
 type ItemDetail = {
@@ -31,7 +32,7 @@ async function parseJson<T>(response: Response) {
 }
 
 async function fetchItem(id: string) {
-  const json = await parseJson<ApiOk<ItemDetail>>(await fetch(`/items/${id}`));
+  const json = await parseJson<ApiOk<ItemDetail>>(await apiFetch(`/items/${id}`));
   return json.data;
 }
 

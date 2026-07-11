@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/apiClient";
 
 export type SearchMediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game";
 
@@ -8,6 +9,7 @@ export type SearchResultItem = {
   provider: string | null;
   title: string;
   thumbnail_url: string | null;
+  year: number | null;
 };
 
 type SearchResponse = {
@@ -50,7 +52,7 @@ function buildQueryString(params: Record<string, string | undefined>) {
 }
 
 async function fetchMediaSearch({ mediaType, query }: { mediaType: SearchMediaType; query: string }) {
-  const response = await fetch(
+  const response = await apiFetch(
     `/items/search${buildQueryString({
       media_type: mediaType,
       q: query.trim(),

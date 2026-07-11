@@ -18,3 +18,4 @@ export * from "./useInfiniteScroll";
 export * from "./Forms";
 export * from "./SettingsShell";
 export * from "./ApiKeyCard";
+export * from "./InlineAddForm";

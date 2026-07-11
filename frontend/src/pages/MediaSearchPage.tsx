@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { FiKey, FiPlusCircle, FiSearch } from "react-icons/fi";
 import { EmptyState, MediaGrid, type MediaCardProps } from "@/components/shared";
 import { MediaSearchError, useMediaSearch, type SearchMediaType } from "@/hooks/useMediaSearch";
+import { apiFetch } from "@/lib/apiClient";
 
 const MEDIA_TYPE_OPTIONS: Array<{ value: SearchMediaType; label: string }> = [
   { value: "anime", label: "アニメ" },
@@ -25,6 +26,9 @@ const PROVIDER_LABELS: Record<SearchMediaType, string> = {
 
 type ImportResponse = {
   success: boolean;
+  data: {
+    id: string;
+  };
 };
 
 type ImportApiErrorResponse = {
@@ -49,7 +53,7 @@ class ImportItemError extends Error {
 }
 
 async function importItem({ mediaType, provider, externalId }: { mediaType: SearchMediaType; provider: string | null; externalId: string }) {
-  const response = await fetch("/items/import", {
+  const response = await apiFetch("/items/import", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -80,6 +84,7 @@ async function importItem({ mediaType, provider, externalId }: { mediaType: Sear
 }
 
 export function MediaSearchPage() {
+  const navigate = useNavigate();
   const [selectedMediaType, setSelectedMediaType] = useState<SearchMediaType>("anime");
   const [query, setQuery] = useState("");
   const [submittedMediaType, setSubmittedMediaType] = useState<SearchMediaType>("anime");
@@ -101,12 +106,13 @@ export function MediaSearchPage() {
 
   const handleImport = async (item: MediaCardProps & { id: string; provider: string | null; mediaType: SearchMediaType }) => {
     try {
-      await importMutation.mutateAsync({
+      const imported = await importMutation.mutateAsync({
         mediaType: item.mediaType,
         provider: item.provider,
         externalId: item.id,
       });
       setImportedIds((current) => new Set(current).add(item.id));
+      navigate(`/media/${imported.data.id}`);
     } catch (error) {
       if (error instanceof ImportItemError && error.status === 409 && error.code === "ITEM_ALREADY_IMPORTED") {
         setImportedIds((current) => new Set(current).add(item.id));
@@ -123,6 +129,8 @@ export function MediaSearchPage() {
     mediaType: item.media_type,
     title: item.title,
     badge: MEDIA_TYPE_OPTIONS.find((option) => option.value === item.media_type)?.label ?? item.media_type,
+    meta: item.year ? String(item.year) : undefined,
+    imageUrl: item.thumbnail_url,
     variant: "search-result",
     imported: importedIds.has(item.id),
     actionLabel: "取り込む",
@@ -133,6 +141,8 @@ export function MediaSearchPage() {
         mediaType: item.media_type,
         title: item.title,
         badge: MEDIA_TYPE_OPTIONS.find((option) => option.value === item.media_type)?.label ?? item.media_type,
+        meta: item.year ? String(item.year) : undefined,
+        imageUrl: item.thumbnail_url,
         variant: "search-result",
         imported: importedIds.has(item.id),
       }),
