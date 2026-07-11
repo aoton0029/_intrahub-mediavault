@@ -16,17 +16,20 @@
 
 ## 3. 表示データ / Props型
 
+データ型はAPIレスポンス（`items.md`「details（media_type別JSON形状）」）のフィールド名をそのまま使う（snake_case、変換層なし）:
+
 ```ts
-interface MovieDetail extends ItemDetailBase {
-  mediaType: 'movie';
+interface MovieDetail {
+  media_type: 'movie';
   detail: {
-    runtimeMinutes: number;         // 上映時間
-    originalLanguage: string;       // 原語
-    productionCompanies: string;    // 制作会社
-    collection?: string;            // コレクション
-    genres: string;                 // ジャンル
-    voteCount: number;              // 評価人数
-  };
+    runtime_minutes: number;          // 上映時間
+    original_language: string;        // 原語
+    production_companies: string[];   // 制作会社
+    collection?: string;              // コレクション
+    genres: string[];                 // ジャンル
+    rating: number | null;
+    vote_count: number;                // 評価人数
+  } | null;
 }
 ```
 
@@ -47,15 +50,16 @@ interface MovieDetail extends ItemDetailBase {
 - 詳細取得: `GET /items/{id}`（Item基本情報 + detail + tags + categories + calibre_links）
 - ステータス変更: `PATCH /items/{id}/status`
 - 評価・お気に入り・その他: `PATCH /items/{id}`
-- タグ: `POST /items/{id}/tags { name }`, `DELETE /items/{id}/tags/{tag_id}`
-- カテゴリ: `POST /items/{id}/categories { name }`, `DELETE /items/{id}/categories/{category_id}`
-- マイリスト所属表示・解除: 【要確認】「この作品がどのマイリストに入っているか」を返すGETエンドポイントは未定義。UIのみ先行実装
-- 関連作品: `POST /item-relations { item_id, related_item_id, relation_type }`（`relation_type` は `reference` / `dlc` のみ。続編・前日譚等の関係もモック上は「reference」として登録する運用）
-- 配信: `GET/POST /items/{id}/streaming-links`, `DELETE /items/{id}/streaming-links/{link_id}`（`platform`: netflix/amazon_prime/disney_plus/dmm_tv/apple_tv）
-- リソース: `POST/DELETE /items/{id}/links`, `/items/{id}/files`, `/items/{id}/trailers`（`file_type`: pdf/image/other。pdfのみ `PATCH /items/{id}/files/{file_id}/calibre-link` でCalibre連携）
-- スタッフ: `POST/DELETE /items/{id}/staff`（スタッフそのものの管理は別画面）
+- タグ: `POST /items/{id}/tags/{tag_id}`（付与）, `DELETE /items/{id}/tags/{tag_id}`（削除）。新規タグ名からの作成は `POST /tags { name }` → 返った`id`で付与
+- カテゴリ: `POST /items/{id}/categories/{category_id}`（付与）, `DELETE /items/{id}/categories/{category_id}`（削除）。新規カテゴリ名からの作成は `POST /categories { name }` → 返った`id`で付与
+- マイリスト所属表示・解除: 取得 `GET /items/{id}/mylists` → `ApiOk<Mylist[]>`（`Mylist = { id, name, created_at }`）、追加 `POST /mylists/{id}/items { item_id }`、解除 `DELETE /mylists/{id}/items/{item_id}`
+- 関連作品: 取得 `GET /items/{id}/relations` → `ApiOk<ItemRelation[]>`、作成 `POST /item-relations { item_id, related_item_id, relation_type }`（`relation_type` は `reference` / `dlc` のみ。続編・前日譚等の関係もモック上は「reference」として登録する運用）、解除 `DELETE /item-relations/{id}`（`ItemRelation.id`を使う。`item_id`ではない点に注意）。`ItemRelation = { id, item_id, related_item_id, relation_type, created_at }`
+- 配信: `GET/POST /items/{id}/streaming-links`, `DELETE /items/{id}/streaming-links/{link_id}`（`ItemStreamingLink = { id, item_id, platform, url, created_at }`、`platform`: netflix/amazon_prime/disney_plus/dmm_tv/apple_tv）
+- リソース: `GET/POST/DELETE /items/{id}/links`, `/items/{id}/files`, `/items/{id}/trailers`。`ItemLink = { id, item_id, url, label, created_at }`, `ItemFile = { id, item_id, path, label, file_type: 'pdf'|'image'|'other', calibre_book_id, created_at }`, `ItemTrailer = { id, item_id, url, label, created_at }`（pdfのみ `PATCH /items/{id}/files/{file_id}/calibre-link` でCalibre連携）
+- スタッフ: 取得 `GET /items/{id}/staff` → `ApiOk<ItemStaff[]>`、追加/解除 `POST/DELETE /items/{id}/staff`（スタッフそのものの管理は別画面）。`Staff = { id, external_id, name, image_url, created_at }`, `ItemStaff = { id, item_id, staff_id, role, character_name }`
+- ステータス値（`status`）は `not_started` / `in_progress` / `completed` の3値（`data-model.md`の`ItemStatus`定義。モックHTMLの`data-status="done"`は表示上の仮値で、実際の送受信値は`completed`）
 
-参照: [items.md](../../backend/mediavault-api/items.md), [tags.md](../../backend/mediavault-api/tags.md), [categories.md](../../backend/mediavault-api/categories.md), [item-relations.md](../../backend/mediavault-api/item-relations.md), [item-streaming-links.md](../../backend/mediavault-api/item-streaming-links.md), [item-links.md](../../backend/mediavault-api/item-links.md), [item-files.md](../../backend/mediavault-api/item-files.md), [item-trailers.md](../../backend/mediavault-api/item-trailers.md), [staff.md](../../backend/mediavault-api/staff.md)
+参照: [items.md](../../backend/mediavault-api/items.md), [tags.md](../../backend/mediavault-api/tags.md), [categories.md](../../backend/mediavault-api/categories.md), [item-relations.md](../../backend/mediavault-api/item-relations.md), [item-streaming-links.md](../../backend/mediavault-api/item-streaming-links.md), [item-links.md](../../backend/mediavault-api/item-links.md), [item-files.md](../../backend/mediavault-api/item-files.md), [item-trailers.md](../../backend/mediavault-api/item-trailers.md), [staff.md](../../backend/mediavault-api/staff.md), [mylists.md](../../backend/mediavault-api/mylists.md), [data-model.md](../../backend/mediavault-api/data-model.md)
 
 ## 7. Tailwindスタイリング上の注意
 
