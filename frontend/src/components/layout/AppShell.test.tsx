@@ -1,6 +1,21 @@
+import { useMemo } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { render, screen } from "@testing-library/react";
 import { AppShell } from "./AppShell";
+import { usePageChrome } from "./usePageChrome";
+
+function DynamicChromePage() {
+  const pageChrome = useMemo(() => ({
+    breadcrumbs: [
+      { label: "一般メディア", to: "/media" },
+      { label: "映画" },
+    ],
+    actions: <button>編集する</button>,
+  }), []);
+  usePageChrome(pageChrome);
+
+  return <div>Dynamic Body</div>;
+}
 
 function renderWithRoute(path = "/media") {
   const router = createMemoryRouter(
@@ -60,5 +75,33 @@ describe("AppShell", () => {
   it("renders titlebar actions", () => {
     renderWithRoute();
     expect(screen.getByRole("button", { name: "編集" })).toBeInTheDocument();
+  });
+
+  it("prefers page-provided chrome over route handles", () => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          element: <AppShell />,
+          children: [
+            {
+              path: "media/:id",
+              element: <DynamicChromePage />,
+              handle: {
+                breadcrumbs: [{ label: "一般メディア", to: "/media" }, { label: "アニメ" }],
+                actions: <button>静的アクション</button>,
+              },
+            },
+          ],
+        },
+      ],
+      { initialEntries: ["/media/1"] },
+    );
+
+    render(<RouterProvider router={router} />);
+
+    expect(document.querySelector(".breadcrumb")?.textContent).toContain("一般メディア / 映画");
+    expect(screen.getByRole("button", { name: "編集する" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "静的アクション" })).not.toBeInTheDocument();
   });
 });

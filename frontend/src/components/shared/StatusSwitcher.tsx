@@ -3,15 +3,31 @@ import { FiCheckCircle, FiChevronDown, FiCircle, FiPlayCircle } from "react-icon
 
 export type StatusValue = "not_started" | "in_progress" | "completed";
 
-const statusConfig = {
+type StatusOption = { label: string; icon: typeof FiCircle };
+type StatusLabels = Record<StatusValue, string>;
+
+const defaultStatusConfig = {
   not_started: { label: "未着手", icon: FiCircle },
   in_progress: { label: "視聴中", icon: FiPlayCircle },
   completed: { label: "視聴済", icon: FiCheckCircle },
-} satisfies Record<StatusValue, { label: string; icon: typeof FiCircle }>;
+} satisfies Record<StatusValue, StatusOption>;
 
-export function StatusSwitcher({ value, onChange }: { value: StatusValue; onChange: (value: StatusValue) => void }) {
+export function StatusSwitcher({
+  value,
+  onChange,
+  labels,
+}: {
+  value: StatusValue;
+  onChange: (value: StatusValue) => void;
+  labels?: Partial<StatusLabels>;
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const statusConfig = {
+    not_started: { ...defaultStatusConfig.not_started, label: labels?.not_started ?? defaultStatusConfig.not_started.label },
+    in_progress: { ...defaultStatusConfig.in_progress, label: labels?.in_progress ?? defaultStatusConfig.in_progress.label },
+    completed: { ...defaultStatusConfig.completed, label: labels?.completed ?? defaultStatusConfig.completed.label },
+  } satisfies Record<StatusValue, StatusOption>;
   const CurrentIcon = statusConfig[value].icon;
 
   useEffect(() => {

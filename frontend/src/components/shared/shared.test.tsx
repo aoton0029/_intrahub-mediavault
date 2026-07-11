@@ -38,6 +38,14 @@ describe("shared components", () => {
     expect(onChange).toHaveBeenCalledWith("completed");
   });
 
+  it("StatusSwitcher uses overridden labels", () => {
+    const onChange = vi.fn();
+    render(<StatusSwitcher value="in_progress" labels={{ in_progress: "読書中", completed: "読了" }} onChange={onChange} />);
+    expect(screen.getByRole("button", { name: "読書中" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "読書中" }));
+    expect(screen.getByText("読了")).toBeInTheDocument();
+  });
+
   it("TagList supports add and remove", () => {
     const onAdd = vi.fn();
     const onRemove = vi.fn();

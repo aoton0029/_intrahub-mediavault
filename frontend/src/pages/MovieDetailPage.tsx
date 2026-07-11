@@ -4,8 +4,15 @@ import { FiCalendar, FiExternalLink, FiLink2, FiPlus } from "react-icons/fi";
 import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
+import { detailSectionMatrix } from "@/config/detailSections";
 import { EmptyState, FavoriteToggle, RatingStars, StatusSwitcher } from "@/components/shared";
-import { useAnimeDetailData } from "@/hooks/useAnimeDetailData";
+import { useMovieDetailData } from "@/hooks/useMovieDetailData";
+
+const MOVIE_STATUS_LABELS = {
+  not_started: "未着手",
+  in_progress: "視聴中",
+  completed: "視聴済",
+} as const;
 
 function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
   if (!src) {
@@ -15,15 +22,16 @@ function CoverImage({ src, alt }: { src: string | null | undefined; alt: string 
   return <img className="doc-cover" src={src} alt={alt} />;
 }
 
-export function AnimeDetailPage() {
+export function MovieDetailPage() {
   const { id } = useParams();
-  const detail = useAnimeDetailData(id);
+  const detail = useMovieDetailData(id);
   const pageChrome = useMemo(() => ({
     breadcrumbs: [
       { label: "一般メディア", to: "/media" },
-      { label: "アニメ" },
+      { label: "映画" },
     ],
-  }), []);
+    actions: id ? <Link className="btn btn-accent" to={`/media/${id}/edit`}>編集する</Link> : undefined,
+  }), [id]);
   usePageChrome(pageChrome);
 
   if (!id) {
@@ -31,7 +39,7 @@ export function AnimeDetailPage() {
   }
 
   if (detail.isLoading) {
-    return <EmptyState title="読み込み中です" description="アニメ詳細を取得しています。" />;
+    return <EmptyState title="読み込み中です" description="映画詳細を取得しています。" />;
   }
 
   if (detail.isError || !detail.item) {
@@ -107,9 +115,9 @@ export function AnimeDetailPage() {
         type="button"
         className="btn btn-ghost btn-sm"
         onClick={() => {
-          const label = promptValue("ファイル名を入力してください", "パンフレットPDF");
+          const label = promptValue("ファイル名を入力してください", "パンフレット画像");
           const path = promptValue("ファイルパスを入力してください");
-          const fileType = promptValue("file_type を入力してください (pdf / image / other)", "pdf") as "pdf" | "image" | "other";
+          const fileType = promptValue("file_type を入力してください (pdf / image / other)", "image") as "pdf" | "image" | "other";
           if (!path || !fileType) {
             return;
           }
@@ -155,7 +163,12 @@ export function AnimeDetailPage() {
           title={item.title}
           originalTitle={detail.actionLabel}
           facts={[
-            <StatusSwitcher key="status" value={item.status} onChange={(status) => void runAction(() => detail.updateStatus(status), "ステータスを更新しました。")} />,
+            <StatusSwitcher
+              key="status"
+              value={item.status}
+              labels={MOVIE_STATUS_LABELS}
+              onChange={(status) => void runAction(() => detail.updateStatus(status), "ステータスを更新しました。")}
+            />,
             <RatingStars key="rating" value={item.rating ?? 0} onChange={(rating) => void runAction(() => detail.updateRating(rating), "評価を更新しました。")} />,
             <FavoriteToggle key="favorite" value={item.is_favorite} onChange={(value) => void runAction(() => detail.updateFavorite(value), "お気に入りを更新しました。")} />,
             <span key="release" className="meta-item">
@@ -164,7 +177,7 @@ export function AnimeDetailPage() {
             </span>,
             <span key="source" className="meta-item muted">
               <FiExternalLink className="icon" />
-              {item.source === "manual" ? "手動登録" : `API(Annict) / external_id: ${item.external_id ?? "未設定"}`}
+              {item.source === "manual" ? "手動登録" : `API(TMDb) / external_id: ${item.external_id ?? "未設定"}`}
             </span>,
           ]}
           tags={detail.tags}
@@ -186,44 +199,11 @@ export function AnimeDetailPage() {
       main={(
         <DetailMain
           overview={detail.overview || "概要はまだ登録されていません。"}
-          groups={detail.groups}
-          groupTitle="シーズン構成"
-          groupActions={(group) => (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const episodeNumber = Number(promptValue("追加する話数番号を入力してください", String(group.episodes.length + 1)));
-                const title = promptValue("話数タイトルを入力してください");
-                if (!Number.isFinite(episodeNumber)) {
-                  toast.error("話数番号は数値で入力してください。");
-                  return;
-                }
-                void runAction(() => detail.addEpisode(group.id, episodeNumber, title || undefined), "話数を追加しました。");
-              }}
-            >
-              <FiPlus className="icon" />
-              話数を追加
-            </button>
-          )}
-          groupFooter={(
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const nextNumber = detail.groups.length + 1;
-                const name = promptValue("シーズン名を入力してください", `シーズン${nextNumber}`);
-                if (!name) {
-                  return;
-                }
-                void runAction(() => detail.addGroup(name, nextNumber), "シーズンを追加しました。");
-              }}
-            >
-              <FiPlus className="icon" />
-              シーズンを追加
-            </button>
-          )}
-          staffList={staffList}
+          propertyList={detailSectionMatrix.movie.propertyList ? detail.propertyItems : undefined}
+          staffList={detailSectionMatrix.movie.staffList ? staffList : undefined}
+          relatedWorks={relatedWorks}
+          streaming={detailSectionMatrix.movie.streaming ? streaming : undefined}
+          resourceTabs={detail.resourceTabs}
           staffFooter={(
             <button
               type="button"
@@ -242,7 +222,6 @@ export function AnimeDetailPage() {
               スタッフを追加
             </button>
           )}
-          relatedWorks={relatedWorks}
           relatedWorksFooter={(
             <button
               type="button"
@@ -260,13 +239,12 @@ export function AnimeDetailPage() {
               関連作品を追加
             </button>
           )}
-          streaming={streaming}
           streamingFooter={(
             <button
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={() => {
-                const platform = promptValue("platform を入力してください (netflix / amazon_prime / disney_plus / dmm_tv / apple_tv)", "netflix") as Parameters<typeof detail.addStreamingLink>[0];
+                const platform = promptValue("platform を入力してください (netflix / amazon_prime / disney_plus / dmm_tv / apple_tv)", "disney_plus") as Parameters<typeof detail.addStreamingLink>[0];
                 const url = promptValue("配信 URL を入力してください", "https://");
                 if (!platform || !url) {
                   return;
@@ -278,7 +256,6 @@ export function AnimeDetailPage() {
               配信サイトを追加
             </button>
           )}
-          resourceTabs={detail.resourceTabs}
           resourceFooter={resourceFooter}
         />
       )}

@@ -2,7 +2,7 @@ import { createBrowserRouter, Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomePage } from "@/pages/HomePage";
 import { AcademicBookListPage } from "@/pages/AcademicBookListPage";
-import { AnimeDetailPage } from "@/pages/AnimeDetailPage";
+import { MediaDetailPage } from "@/pages/MediaDetailPage";
 import { MediaListPage } from "@/pages/MediaListPage";
 import { MediaSearchPage } from "@/pages/MediaSearchPage";
 
@@ -15,13 +15,7 @@ export const router = createBrowserRouter([
       { path: "media", element: <MediaListPage />, handle: { title: "一般メディア" } },
       {
         path: "media/:id",
-        element: <AnimeDetailPage />,
-        handle: {
-          breadcrumbs: [
-            { label: "一般メディア", to: "/media" },
-            { label: "アニメ" },
-          ],
-        },
+        element: <MediaDetailPage />,
       },
       {
         path: "media/search",
