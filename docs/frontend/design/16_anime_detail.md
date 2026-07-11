@@ -10,7 +10,6 @@
 - 任意セクション有無: **種別固有情報 ✗**（`PropertyList`セクションとしては非表示。ただし`GET /items/{id}`は`detail`オブジェクト自体は返す。概要から直接シーズン構成へ） / エピソード構成 ✓ / スタッフ ✓ / 配信 ✓
 - セクション順序: 概要 → **シーズン構成** → スタッフ → 関連作品 → 配信 → リソース
 - ステータスラベルは「未着手/視聴中/視聴済」。内部値（`status`）は`data-model.md`の`ItemStatus`定義により`not_started` / `in_progress` / `completed`の3値で確定（モックHTMLの`data-status="done"`は表示上の仮の値であり、実装時は`done`ではなく`completed`をAPI送受信値として使う）
-- 外部API識別情報: `source: "api"`, `external_id`はAnnict work id（`GET /items/search`で`media_type: anime`はAnnictプロバイダに振り分けられるため）。モックの「API(Jikan) / external_id」というラベル文言は、`detail.url`がJikan(MyAnimeList)のURLである点（下記「anime用detail形状」参照）との混同と思われ、識別情報自体はAnnict IDである点に注意
 - `GET /items/{id}`のレスポンスは`ItemDetail`（`Item`全フィールド + `detail` + `tags` + `categories` + `calibre_links` + `streaming_links`）。旧版の本節では`streaming_links`の記載が漏れていたため追記
 
 ## anime用 `detail` 形状

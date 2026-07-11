@@ -1,0 +1,146 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import { AnimeDetailPage } from "./AnimeDetailPage";
+import { useAnimeDetailData } from "@/hooks/useAnimeDetailData";
+
+vi.mock("@/hooks/useAnimeDetailData", () => ({
+  useAnimeDetailData: vi.fn(),
+}));
+
+const mockUseAnimeDetailData = vi.mocked(useAnimeDetailData);
+
+function createHookResult() {
+  return {
+    item: {
+      id: "anime-1",
+      media_type: "anime",
+      title: "星屑のシンフォニア",
+      original_title: "Symphonia of Stardust",
+      description: "記憶を失った少女が旅をする物語。",
+      cover_image_url: null,
+      release_date: "2025-04-05",
+      homepage_url: null,
+      status: "in_progress",
+      consumed_date: null,
+      rating: 4,
+      is_favorite: true,
+      source: "api",
+      external_id: "58214",
+      created_at: "2026-07-01T12:00:00",
+      updated_at: "2026-07-01T12:00:00",
+      detail: {
+        episodes: 12,
+        status: "Finished Airing",
+        season: "2025-spring",
+        year: 2025,
+        studios: [],
+        source: "Original",
+        duration: null,
+        trailer_url: null,
+        genres: [],
+        rating: 8.5,
+        url: null,
+        alternative_titles: [],
+      },
+      tags: [{ id: "tag-1", name: "神作画" }],
+      categories: [{ id: "category-1", name: "2026年鑑賞予定" }],
+      calibre_links: [],
+      streaming_links: [],
+    },
+    groups: [{ id: "group-1", label: "シーズン1", episodes: [{ id: "episode-1", number: "01", title: "星が墜ちた夜" }] }],
+    staffList: [{ id: "staff-1", label: "新津 明日香", sub: "監督" }],
+    relatedWorks: [{ id: "relation-1", title: "星屑のシンフォニア OVA", relation: "reference" }],
+    streaming: [{ id: "streaming-1", label: "Netflix", sub: "https://netflix.example.com" }],
+    resourceTabs: {
+      links: [{ id: "link-1", label: "公式サイト", detail: "https://example.com" }],
+      files: [{ id: "file-1", label: "パンフレットPDF", detail: "pdf" }],
+      trailers: [{ id: "trailer-1", label: "本予告編", detail: "https://video.example.com" }],
+    },
+    tags: [{ id: "tag-1", name: "神作画" }],
+    categories: [{ id: "category-1", name: "2026年鑑賞予定" }],
+    mylists: [{ id: "mylist-1", name: "お気に入り原作", created_at: "2026-07-01T12:00:00" }],
+    files: [{ id: "file-1", item_id: "anime-1", path: "/tmp/pamphlet.pdf", label: "パンフレットPDF", file_type: "pdf", calibre_book_id: null, created_at: "2026-07-01T12:00:00" }],
+    overview: "記憶を失った少女が旅をする物語。",
+    actionLabel: "Symphonia of Stardust ・ 2025",
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+    updateStatus: vi.fn().mockResolvedValue(undefined),
+    updateRating: vi.fn().mockResolvedValue(undefined),
+    updateFavorite: vi.fn().mockResolvedValue(undefined),
+    addTag: vi.fn().mockResolvedValue(undefined),
+    removeTag: vi.fn().mockResolvedValue(undefined),
+    addCategory: vi.fn().mockResolvedValue(undefined),
+    removeCategory: vi.fn().mockResolvedValue(undefined),
+    removeMylist: vi.fn().mockResolvedValue(undefined),
+    addGroup: vi.fn().mockResolvedValue(undefined),
+    addEpisode: vi.fn().mockResolvedValue(undefined),
+    addStaff: vi.fn().mockResolvedValue(undefined),
+    removeStaff: vi.fn().mockResolvedValue(undefined),
+    addRelation: vi.fn().mockResolvedValue(undefined),
+    removeRelation: vi.fn().mockResolvedValue(undefined),
+    addStreamingLink: vi.fn().mockResolvedValue(undefined),
+    removeStreamingLink: vi.fn().mockResolvedValue(undefined),
+    addLink: vi.fn().mockResolvedValue(undefined),
+    removeLink: vi.fn().mockResolvedValue(undefined),
+    addFile: vi.fn().mockResolvedValue(undefined),
+    removeFile: vi.fn().mockResolvedValue(undefined),
+    addTrailer: vi.fn().mockResolvedValue(undefined),
+    removeTrailer: vi.fn().mockResolvedValue(undefined),
+    linkCalibre: vi.fn().mockResolvedValue(undefined),
+  } as ReturnType<typeof useAnimeDetailData>;
+}
+
+function renderWithRouter(initialEntry = "/media/anime-1") {
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/media/:id",
+        element: <AnimeDetailPage />,
+      },
+    ],
+    { initialEntries: [initialEntry] },
+  );
+
+  return render(<RouterProvider router={router} />);
+}
+
+describe("AnimeDetailPage", () => {
+  beforeEach(() => {
+    mockUseAnimeDetailData.mockReturnValue(createHookResult());
+  });
+
+  afterEach(() => {
+    mockUseAnimeDetailData.mockReset();
+  });
+
+  it("renders rail and main sections without the property list section", () => {
+    renderWithRouter();
+
+    expect(screen.getByText("星屑のシンフォニア")).toBeInTheDocument();
+    expect(screen.getByText("Symphonia of Stardust ・ 2025")).toBeInTheDocument();
+    expect(screen.getByText("記憶を失った少女が旅をする物語。")).toBeInTheDocument();
+    expect(screen.getByText("シーズン1")).toBeInTheDocument();
+    expect(screen.getByText("新津 明日香")).toBeInTheDocument();
+    expect(screen.getByText("星屑のシンフォニア OVA")).toBeInTheDocument();
+    expect(screen.getByText("Netflix")).toBeInTheDocument();
+    expect(screen.queryByText("種別固有情報")).not.toBeInTheDocument();
+  });
+
+  it("sends completed rather than done when the status is changed", () => {
+    const updateStatus = vi.fn().mockResolvedValue(undefined);
+
+    mockUseAnimeDetailData.mockReturnValue({
+      ...createHookResult(),
+      updateStatus,
+    } as ReturnType<typeof useAnimeDetailData>);
+
+    renderWithRouter();
+
+    fireEvent.click(screen.getByRole("button", { name: "視聴中" }));
+    fireEvent.click(screen.getByRole("button", { name: "視聴済" }));
+
+    expect(updateStatus).toHaveBeenCalledWith("completed");
+    expect(updateStatus).not.toHaveBeenCalledWith("done");
+  });
+});

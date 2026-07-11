@@ -137,7 +137,7 @@
   .status-option:hover { background: var(--color-bg-surface-hover); color: var(--color-text-primary); }
   .status-option[data-status="not_started"] .icon, .status-trigger[data-current="not_started"] .status-icon { color: var(--color-status-none); }
   .status-option[data-status="in_progress"] .icon, .status-trigger[data-current="in_progress"] .status-icon { color: var(--color-status-progress); }
-  .status-option[data-status="done"] .icon, .status-trigger[data-current="done"] .status-icon { color: var(--color-status-done); }
+  .status-option[data-status="done"] .icon, .status-trigger[data-current="done"] .status-icon, .status-option[data-status="completed"] .icon, .status-trigger[data-current="completed"] .status-icon { color: var(--color-status-done); }
   .tag-pill, .tag-add-trigger, .tag-add-input { border-radius: 4px; font-family: var(--font-mono); font-size: 11px; }
   .tag-pill { display: inline-flex; align-items: center; background: var(--color-accent-soft); padding: 2px 7px; color: var(--color-accent-strong); }
   .tag-pill::before { content: "#"; margin-right: 1px; opacity: 0.7; }
@@ -187,6 +187,7 @@
   .detail-main { min-width: 0; }
   .rail-divider { margin: 18px 0; border: 0; border-top: 1px solid var(--color-border-soft); }
   .resource-panel[hidden] { display: none; }
+  .detail-section-actions { display: flex; align-items: center; gap: 8px; }
   .icon { width: 16px; height: 16px; flex-shrink: 0; vertical-align: -3px; }
   @media (max-width: 980px) {
     .app-shell, .detail-layout, .settings-shell, .form-grid { grid-template-columns: 1fr; }

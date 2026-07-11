@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { FiCheckCircle, FiChevronDown, FiCircle, FiPlayCircle } from "react-icons/fi";
 
-export type StatusValue = "not_started" | "in_progress" | "done";
+export type StatusValue = "not_started" | "in_progress" | "completed";
 
 const statusConfig = {
   not_started: { label: "未着手", icon: FiCircle },
-  in_progress: { label: "進行中", icon: FiPlayCircle },
-  done: { label: "完了", icon: FiCheckCircle },
+  in_progress: { label: "視聴中", icon: FiPlayCircle },
+  completed: { label: "視聴済", icon: FiCheckCircle },
 } satisfies Record<StatusValue, { label: string; icon: typeof FiCircle }>;
 
 export function StatusSwitcher({ value, onChange }: { value: StatusValue; onChange: (value: StatusValue) => void }) {

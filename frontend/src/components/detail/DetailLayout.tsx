@@ -5,6 +5,8 @@ import { PropertyList, type PropertyItem, RelatedWorksList, ResourceTabs, TagLis
 export type RailSectionListItem = { id: string; label: string; actionLabel?: string };
 export type Episode = { id: string; number: string; title: string };
 export type Group = { id: string; label: string; episodes: Episode[] };
+export type StaffMember = { id: string; label: string; sub: string; actionLabel?: string; onAction?: (id: string) => void };
+export type StreamingLinkItem = { id: string; label: string; sub: string; actionLabel?: string; onAction?: (id: string) => void };
 
 export function RailSection({
   title,
@@ -48,7 +50,12 @@ export function DetailRail({
   tags = [],
   categories = [],
   mylists = [],
+  onAddTag,
+  onRemoveTag,
+  onAddCategory,
+  onRemoveCategory,
   onRemoveMylist,
+  mylistsFooter,
 }: {
   cover?: ReactNode;
   title: string;
@@ -57,7 +64,12 @@ export function DetailRail({
   tags?: TagListItem[];
   categories?: TagListItem[];
   mylists?: RailSectionListItem[];
+  onAddTag?: (name: string) => void;
+  onRemoveTag?: (id: string) => void;
+  onAddCategory?: (name: string) => void;
+  onRemoveCategory?: (id: string) => void;
   onRemoveMylist?: (id: string) => void;
+  mylistsFooter?: ReactNode;
 }) {
   return (
     <aside className="detail-rail">
@@ -66,9 +78,9 @@ export function DetailRail({
       {originalTitle ? <div className="doc-original">{originalTitle}</div> : null}
       <div className="rail-facts">{facts}</div>
       <hr className="rail-divider" />
-      <RailSection title="タグ" icon={<FiTag className="icon" />}><TagList kind="tag" items={tags} /></RailSection>
-      <RailSection title="カテゴリ" icon={<FiFolder className="icon" />}><TagList kind="category" items={categories} /></RailSection>
-      <RailSection title="マイリスト" icon={<FiBookmark className="icon" />} items={mylists} onRemoveItem={onRemoveMylist} />
+      <RailSection title="タグ" icon={<FiTag className="icon" />}><TagList kind="tag" items={tags} onAdd={onAddTag} onRemove={onRemoveTag} /></RailSection>
+      <RailSection title="カテゴリ" icon={<FiFolder className="icon" />}><TagList kind="category" items={categories} onAdd={onAddCategory} onRemove={onRemoveCategory} /></RailSection>
+      <RailSection title="マイリスト" icon={<FiBookmark className="icon" />} items={mylists} onRemoveItem={onRemoveMylist} footerAction={mylistsFooter} />
     </aside>
   );
 }
@@ -91,43 +103,83 @@ export function EpisodeRow({ episode }: { episode: Episode }) {
   );
 }
 
-export function GroupList({ groups }: { groups: Group[] }) {
+export function GroupList({
+  groups,
+  renderGroupActions,
+  footerAction,
+}: {
+  groups: Group[];
+  renderGroupActions?: (group: Group) => ReactNode;
+  footerAction?: ReactNode;
+}) {
   return (
     <div>
       {groups.map((group) => (
         <div key={group.id} className="group-block">
-          <div className="group-header"><span>{group.label}</span></div>
+          <div className="group-header">
+            <span>{group.label}</span>
+            {renderGroupActions ? <div>{renderGroupActions(group)}</div> : null}
+          </div>
           {group.episodes.map((episode) => (
             <EpisodeRow key={episode.id} episode={episode} />
           ))}
         </div>
       ))}
+      {footerAction}
     </div>
   );
 }
 
-export function StaffList({ members }: { members: { id: string; label: string; sub: string }[] }) {
+export function StaffList({
+  members,
+  footerAction,
+}: {
+  members: StaffMember[];
+  footerAction?: ReactNode;
+}) {
   return (
     <div>
       {members.map((member) => (
         <div key={member.id} className="prop-list-item">
           <span className="label">{member.label}</span>
-          <span className="sub">{member.sub}</span>
+          <div className="detail-section-actions">
+            <span className="sub">{member.sub}</span>
+            {member.actionLabel ? (
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => member.onAction?.(member.id)}>
+                {member.actionLabel}
+              </button>
+            ) : null}
+          </div>
         </div>
       ))}
+      {footerAction}
     </div>
   );
 }
 
-export function StreamingLinks({ links }: { links: { id: string; label: string; sub: string }[] }) {
+export function StreamingLinks({
+  links,
+  footerAction,
+}: {
+  links: StreamingLinkItem[];
+  footerAction?: ReactNode;
+}) {
   return (
     <div>
       {links.map((link) => (
         <div key={link.id} className="prop-list-item">
           <span className="label">{link.label}</span>
-          <span className="sub">{link.sub}</span>
+          <div className="detail-section-actions">
+            <span className="sub">{link.sub}</span>
+            {link.actionLabel ? (
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => link.onAction?.(link.id)}>
+                {link.actionLabel}
+              </button>
+            ) : null}
+          </div>
         </div>
       ))}
+      {footerAction}
     </div>
   );
 }
@@ -140,24 +192,38 @@ export function DetailMain({
   relatedWorks,
   streaming,
   resourceTabs,
+  groupTitle = "構成",
+  groupActions,
+  groupFooter,
+  staffFooter,
+  relatedWorksFooter,
+  streamingFooter,
+  resourceFooter,
 }: {
   overview: ReactNode;
   propertyList?: PropertyItem[];
   groups?: Group[];
-  staffList?: { id: string; label: string; sub: string }[];
+  staffList?: StaffMember[];
   relatedWorks?: RelatedWork[];
-  streaming?: { id: string; label: string; sub: string }[];
+  streaming?: StreamingLinkItem[];
   resourceTabs?: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string }[]>>;
+  groupTitle?: string;
+  groupActions?: (group: Group) => ReactNode;
+  groupFooter?: ReactNode;
+  staffFooter?: ReactNode;
+  relatedWorksFooter?: ReactNode;
+  streamingFooter?: ReactNode;
+  resourceFooter?: ReactNode;
 }) {
   return (
     <div className="detail-main">
       <DetailSection icon={<FiFileText className="icon" />} title="概要"><p>{overview}</p></DetailSection>
       {propertyList ? <DetailSection icon={<FiFilm className="icon" />} title="種別固有情報"><PropertyList items={propertyList} /></DetailSection> : null}
-      {groups ? <DetailSection icon={<FiLayers className="icon" />} title="構成"><GroupList groups={groups} /></DetailSection> : null}
-      {staffList ? <DetailSection icon={<FiUsers className="icon" />} title="スタッフ"><StaffList members={staffList} /></DetailSection> : null}
-      {relatedWorks ? <DetailSection icon={<FiGitBranch className="icon" />} title="関連作品"><RelatedWorksList items={relatedWorks} /></DetailSection> : null}
-      {streaming ? <DetailSection icon={<FiTv className="icon" />} title="配信"><StreamingLinks links={streaming} /></DetailSection> : null}
-      {resourceTabs ? <DetailSection icon={<FiPaperclip className="icon" />} title="リソース"><ResourceTabs tabs={resourceTabs} /></DetailSection> : null}
+      {groups ? <DetailSection icon={<FiLayers className="icon" />} title={groupTitle}><GroupList groups={groups} renderGroupActions={groupActions} footerAction={groupFooter} /></DetailSection> : null}
+      {staffList ? <DetailSection icon={<FiUsers className="icon" />} title="スタッフ"><StaffList members={staffList} footerAction={staffFooter} /></DetailSection> : null}
+      {relatedWorks ? <DetailSection icon={<FiGitBranch className="icon" />} title="関連作品"><RelatedWorksList items={relatedWorks} />{relatedWorksFooter}</DetailSection> : null}
+      {streaming ? <DetailSection icon={<FiTv className="icon" />} title="配信"><StreamingLinks links={streaming} footerAction={streamingFooter} /></DetailSection> : null}
+      {resourceTabs ? <DetailSection icon={<FiPaperclip className="icon" />} title="リソース"><ResourceTabs tabs={resourceTabs} />{resourceFooter}</DetailSection> : null}
     </div>
   );
 }

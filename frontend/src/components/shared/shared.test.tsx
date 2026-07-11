@@ -34,8 +34,8 @@ describe("shared components", () => {
     const onChange = vi.fn();
     render(<StatusSwitcher value="not_started" onChange={onChange} />);
     fireEvent.click(screen.getByRole("button"));
-    fireEvent.click(screen.getByText("完了"));
-    expect(onChange).toHaveBeenCalledWith("done");
+    fireEvent.click(screen.getByText("視聴済"));
+    expect(onChange).toHaveBeenCalledWith("completed");
   });
 
   it("TagList supports add and remove", () => {
