@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { usePageChrome } from "@/components/layout/usePageChrome";
+import type { PageChrome } from "@/components/layout/pageChromeContext";
 import { EmptyState } from "@/components/shared";
 import { AnimeDetailPage } from "./AnimeDetailPage";
 import { MovieDetailPage } from "./MovieDetailPage";
@@ -17,15 +17,9 @@ type ItemDetail = {
   media_type: MediaType;
 };
 type ApiOk<T> = { success: boolean; data: T };
-const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
-  anime: "アニメ",
-  movie: "映画",
-  drama: "ドラマ",
-  manga: "漫画",
-  novel: "小説",
-  game: "ゲーム",
-  academic_book: "学術書",
-  paper: "論文",
+
+const DEFAULT_PAGE_CHROME: PageChrome = {
+  breadcrumbs: [{ label: "一般メディア", to: "/media" }],
 };
 
 async function parseJson<T>(response: Response) {
@@ -59,16 +53,7 @@ export function MediaDetailPage() {
   });
 
   const mediaType = detailQuery.data?.media_type;
-  const pageChrome = useMemo(() => ({
-    breadcrumbs: mediaType
-      ? [
-        { label: "一般メディア", to: "/media" },
-        { label: MEDIA_TYPE_LABELS[mediaType] ?? "詳細" },
-      ]
-      : [{ label: "一般メディア", to: "/media" }],
-    actions: mediaType === "movie" && id ? <Link className="btn btn-accent" to={`/media/${id}/edit`}>編集する</Link> : undefined,
-  }), [id, mediaType]);
-  usePageChrome(pageChrome);
+  usePageChrome(DEFAULT_PAGE_CHROME);
 
   if (!id) {
     return <EmptyState title="作品IDが見つかりません" description="URL を確認してからもう一度開いてください。" />;

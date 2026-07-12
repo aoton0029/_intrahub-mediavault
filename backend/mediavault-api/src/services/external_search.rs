@@ -127,6 +127,68 @@ fn tmdb_image_url(v: &Value, key: &str) -> Option<String> {
     json_str(v, key).map(|path| format!("{TMDB_IMAGE_BASE}{path}"))
 }
 
+/// キー名が画像URLを示唆する語を含むかどうかを判定する（大小文字無視）。
+const IMAGE_URL_KEY_HINTS: [&str; 13] = [
+    "image",
+    "thumbnail",
+    "thumb",
+    "cover",
+    "poster",
+    "screenshot",
+    "banner",
+    "artwork",
+    "backdrop",
+    "capsule",
+    "photo",
+    "picture",
+    "avatar",
+];
+
+fn is_image_like_key(key: &str) -> bool {
+    let lower = key.to_lowercase();
+    IMAGE_URL_KEY_HINTS.iter().any(|hint| lower.contains(hint))
+}
+
+/// 生JSON（`serde_json::Value`）を再帰的に走査し、キー名が画像URLを示唆する語を含み、
+/// かつ値が`http(s)://`で始まる文字列であるものをすべて収集する。
+///
+/// 外部APIレスポンスに含まれる「画像URLっぽい項目」を網羅的に拾うための汎用ヘルパー。
+/// フィールド追加のたびにプロバイダごとの抽出コードを保守する必要をなくす。
+fn extract_image_urls(value: &Value) -> Vec<String> {
+    let mut urls = Vec::new();
+    collect_image_urls(value, false, &mut urls);
+    urls
+}
+
+fn collect_image_urls(value: &Value, key_is_image_like: bool, out: &mut Vec<String>) {
+    match value {
+        Value::Object(map) => {
+            for (key, v) in map {
+                collect_image_urls(v, is_image_like_key(key), out);
+            }
+        }
+        Value::Array(arr) => {
+            for v in arr {
+                collect_image_urls(v, key_is_image_like, out);
+            }
+        }
+        Value::String(s)
+            if key_is_image_like && (s.starts_with("http://") || s.starts_with("https://")) =>
+        {
+            out.push(s.clone());
+        }
+        _ => {}
+    }
+}
+
+/// URL一覧から重複を除去する（順序は維持する）。
+fn dedup_urls(urls: Vec<String>) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    urls.into_iter()
+        .filter(|u| seen.insert(u.clone()))
+        .collect()
+}
+
 /// `release_date`（精度がプロバイダごとに異なる文字列）を`NaiveDate`へ変換する。
 ///
 /// "YYYY-MM-DD" を優先し、年のみ（"2003"等）は1月1日へフォールバック。
@@ -381,6 +443,18 @@ fn build_anime_create_request(work: &WorkModel, jikan_data: Option<&Value>) -> C
         .or(jikan_title)
         .unwrap_or_default();
     let image_url = annict_thumbnail_url(work).or(jikan_image);
+
+    let mut collected_image_urls: Vec<String> = Vec::new();
+    if let Some(images) = &work.images {
+        collected_image_urls.extend(non_empty(images.recommended_url.clone()));
+        if let Some(facebook) = &images.facebook {
+            collected_image_urls.extend(non_empty(facebook.og_image_url.clone()));
+        }
+    }
+    if let Some(jikan) = jikan_data {
+        collected_image_urls.extend(extract_image_urls(jikan));
+    }
+    let additional_image_urls = dedup_urls(collected_image_urls);
     let episodes = work.episodes_count.or(jikan_episodes);
     let season = non_empty(work.season_name.clone()).or(jikan_season);
     let release_date_str = non_empty(work.released_on.clone()).or(jikan_release_date);
@@ -413,6 +487,7 @@ fn build_anime_create_request(work: &WorkModel, jikan_data: Option<&Value>) -> C
         is_favorite: None,
         details: Some(details),
         consumed_date: None,
+        additional_image_urls,
     }
 }
 
@@ -441,6 +516,16 @@ fn build_book_create_request(book: &BookModel, media_type: MediaType) -> CreateI
         "isbn": book.isbn.clone(),
         "series_name": book.series_name.clone(),
     });
+    let additional_image_urls = dedup_urls(
+        [
+            book.large_image_url.clone(),
+            book.medium_image_url.clone(),
+            book.small_image_url.clone(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    );
 
     CreateItemRequest {
         media_type,
@@ -461,6 +546,7 @@ fn build_book_create_request(book: &BookModel, media_type: MediaType) -> CreateI
         is_favorite: None,
         details: Some(details),
         consumed_date: None,
+        additional_image_urls,
     }
 }
 
@@ -475,6 +561,16 @@ fn build_movie_create_request(data: &Value) -> CreateItemRequest {
         "genres": json_names(data, "genres", "name"),
         "rating": json_f64(data, "vote_average"),
     });
+    let additional_image_urls = dedup_urls(
+        [
+            tmdb_image_url(data, "poster_path"),
+            tmdb_image_url(data, "backdrop_path"),
+        ]
+        .into_iter()
+        .flatten()
+        .chain(extract_image_urls(data))
+        .collect(),
+    );
 
     CreateItemRequest {
         media_type: MediaType::Movie,
@@ -490,6 +586,7 @@ fn build_movie_create_request(data: &Value) -> CreateItemRequest {
         is_favorite: None,
         details: Some(details),
         consumed_date: None,
+        additional_image_urls,
     }
 }
 
@@ -507,6 +604,16 @@ fn build_drama_create_request(data: &Value) -> CreateItemRequest {
         "genres": json_names(data, "genres", "name"),
         "rating": json_f64(data, "vote_average"),
     });
+    let additional_image_urls = dedup_urls(
+        [
+            tmdb_image_url(data, "poster_path"),
+            tmdb_image_url(data, "backdrop_path"),
+        ]
+        .into_iter()
+        .flatten()
+        .chain(extract_image_urls(data))
+        .collect(),
+    );
 
     CreateItemRequest {
         media_type: MediaType::Drama,
@@ -520,6 +627,7 @@ fn build_drama_create_request(data: &Value) -> CreateItemRequest {
         is_favorite: None,
         details: Some(details),
         consumed_date: None,
+        additional_image_urls,
     }
 }
 
@@ -558,6 +666,7 @@ fn build_game_create_request(data: &Value) -> CreateItemRequest {
         "metacritic": metacritic,
         "genres": json_names(data, "genres", "description"),
     });
+    let additional_image_urls = dedup_urls(extract_image_urls(data));
 
     CreateItemRequest {
         media_type: MediaType::Game,
@@ -575,6 +684,7 @@ fn build_game_create_request(data: &Value) -> CreateItemRequest {
         is_favorite: None,
         details: Some(details),
         consumed_date: None,
+        additional_image_urls,
     }
 }
 
@@ -586,6 +696,7 @@ fn build_novel_create_request(item: &NdlItemModel, media_type: MediaType) -> Cre
         "publisher": item.publisher.clone(),
         "isbn": isbn,
     });
+    let additional_image_urls = dedup_urls(item.thumbnail_url.clone().into_iter().collect());
 
     CreateItemRequest {
         media_type,
@@ -599,6 +710,7 @@ fn build_novel_create_request(item: &NdlItemModel, media_type: MediaType) -> Cre
         is_favorite: None,
         details: Some(details),
         consumed_date: None,
+        additional_image_urls,
     }
 }
 

@@ -5,6 +5,7 @@ pub mod db_error_utils;
 pub mod item_episode_repository;
 pub mod item_file_repository;
 pub mod item_group_repository;
+pub mod item_image_repository;
 pub mod item_link_repository;
 pub mod item_relation_repository;
 pub mod item_repository;

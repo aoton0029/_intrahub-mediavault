@@ -34,13 +34,13 @@ describe("detail components", () => {
   });
 
   it("matches detail section matrix", () => {
-    expect(detailSectionMatrix.anime).toEqual({ propertyList: false, groupList: true, staffList: true, castList: true, streaming: true });
-    expect(detailSectionMatrix.movie).toEqual({ propertyList: true, groupList: false, staffList: true, castList: true, streaming: true });
-    expect(detailSectionMatrix.drama).toEqual({ propertyList: true, groupList: true, staffList: true, castList: true, streaming: true });
-    expect(detailSectionMatrix.manga).toEqual({ propertyList: true, groupList: true, staffList: false, castList: false, streaming: false });
-    expect(detailSectionMatrix.novel).toEqual({ propertyList: true, groupList: true, staffList: false, castList: false, streaming: false });
-    expect(detailSectionMatrix.game).toEqual({ propertyList: true, groupList: false, staffList: false, castList: false, streaming: false });
-    expect(detailSectionMatrix.academic_book).toEqual({ propertyList: true, groupList: false, staffList: false, castList: false, streaming: false });
-    expect(detailSectionMatrix.paper).toEqual({ propertyList: true, groupList: false, staffList: false, castList: false, streaming: false });
+    expect(detailSectionMatrix.anime).toEqual({ propertyList: false, groupList: true, staffList: true, castList: true, streaming: true, images: true });
+    expect(detailSectionMatrix.movie).toEqual({ propertyList: true, groupList: false, staffList: true, castList: true, streaming: true, images: true });
+    expect(detailSectionMatrix.drama).toEqual({ propertyList: true, groupList: true, staffList: true, castList: true, streaming: true, images: true });
+    expect(detailSectionMatrix.manga).toEqual({ propertyList: true, groupList: true, staffList: false, castList: false, streaming: false, images: true });
+    expect(detailSectionMatrix.novel).toEqual({ propertyList: true, groupList: true, staffList: false, castList: false, streaming: false, images: true });
+    expect(detailSectionMatrix.game).toEqual({ propertyList: true, groupList: false, staffList: false, castList: false, streaming: false, images: true });
+    expect(detailSectionMatrix.academic_book).toEqual({ propertyList: true, groupList: false, staffList: false, castList: false, streaming: false, images: true });
+    expect(detailSectionMatrix.paper).toEqual({ propertyList: true, groupList: false, staffList: false, castList: false, streaming: false, images: true });
   });
 });

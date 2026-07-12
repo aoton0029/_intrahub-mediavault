@@ -104,6 +104,12 @@ export function AnimeDetailPage() {
     },
   }));
 
+  const images = detail.images.map((image) => ({
+    ...image,
+    onSetCover: (url: string) => void runAction(() => detail.setCoverImage(url), "サムネイルを設定しました。"),
+    onRemove: (imageId: string) => void runAction(() => detail.removeImage(imageId), "画像を削除しました。"),
+  }));
+
   const resourceTabs = {
     links: detail.resourceTabs.links?.map((entry) => ({
       ...entry,
@@ -311,6 +317,17 @@ export function AnimeDetailPage() {
                   () => detail.addStreamingLink(values.platform as Parameters<typeof detail.addStreamingLink>[0], values.url),
                   "配信リンクを追加しました。",
                 );
+              }}
+            />
+          )}
+          images={detailSectionMatrix.anime.images ? images : undefined}
+          imagesFooter={(
+            <InlineAddForm
+              triggerLabel="画像URLを追加"
+              fields={[{ name: "url", placeholder: "画像URL", defaultValue: "https://" }]}
+              onSubmit={(values) => {
+                if (!values.url) return;
+                void runAction(() => detail.addImage(values.url), "画像を追加しました。");
               }}
             />
           )}

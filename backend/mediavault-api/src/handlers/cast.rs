@@ -25,7 +25,10 @@ pub async fn list_cast_handler(
     let q = query.q.unwrap_or_default();
     let trimmed = q.trim();
     if trimmed.is_empty() {
-        return Ok(Json(ApiOk::new(Vec::<crate::models::cast::CastSearchResult>::new())).into_response());
+        return Ok(Json(ApiOk::new(
+            Vec::<crate::models::cast::CastSearchResult>::new(),
+        ))
+        .into_response());
     }
 
     let results = cast_repository::search_cast(&state.db, trimmed, 20).await?;

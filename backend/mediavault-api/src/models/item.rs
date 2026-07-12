@@ -84,6 +84,10 @@ pub struct CreateItemRequest {
     /// 消費（読了・視聴）日
     #[serde(default)]
     pub consumed_date: Option<NaiveDate>,
+    /// 外部APIレスポンスから収集した画像URLっぽい項目の値一覧（item_imagesへ紐づけて保存する）。
+    /// 手動作成時は任意入力、インポート時はサーバー側で自動収集した値が入る。
+    #[serde(default)]
+    pub additional_image_urls: Vec<String>,
 }
 
 /// `GET /items` クエリパラメータDTO
@@ -269,6 +273,9 @@ pub struct ItemDetail {
     /// 配信サービスURL一覧(Netflix/AmazonPrime/DisneyPlus/DmmTv/AppleTv)
     #[serde(default)]
     pub streaming_links: Vec<crate::models::item_streaming_link::ItemStreamingLink>,
+    /// 画像URL一覧（手動追加分 + 外部APIレスポンスから自動収集した分）
+    #[serde(default)]
+    pub images: Vec<crate::models::item_image::ItemImage>,
 }
 
 impl ItemDetail {
@@ -291,10 +298,19 @@ impl ItemDetail {
         categories: Vec<CategoryRef>,
         calibre_links: Vec<crate::models::item_file::CalibreWebLinkInfo>,
     ) -> Self {
-        Self::from_parts_full(item, detail, tags, categories, calibre_links, Vec::new())
+        Self::from_parts_full(
+            item,
+            detail,
+            tags,
+            categories,
+            calibre_links,
+            Vec::new(),
+            Vec::new(),
+        )
     }
 
-    /// itemの基本情報 + 詳細/タグ/カテゴリ + Calibre-Web遷移情報 + 配信URL一覧を合成してItemDetailを構築する
+    /// itemの基本情報 + 詳細/タグ/カテゴリ + Calibre-Web遷移情報 + 配信URL一覧 + 画像URL一覧を
+    /// 合成してItemDetailを構築する
     pub fn from_parts_full(
         item: Item,
         detail: Option<serde_json::Value>,
@@ -302,6 +318,7 @@ impl ItemDetail {
         categories: Vec<CategoryRef>,
         calibre_links: Vec<crate::models::item_file::CalibreWebLinkInfo>,
         streaming_links: Vec<crate::models::item_streaming_link::ItemStreamingLink>,
+        images: Vec<crate::models::item_image::ItemImage>,
     ) -> Self {
         Self {
             id: item.id,
@@ -325,6 +342,7 @@ impl ItemDetail {
             categories,
             calibre_links,
             streaming_links,
+            images,
         }
     }
 }

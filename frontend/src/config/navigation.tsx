@@ -1,5 +1,5 @@
 import type { IconType } from "react-icons";
-import { FiBook, FiBookOpen, FiFileText, FiFilm, FiFolder, FiHome, FiMonitor, FiSettings, FiTv } from "react-icons/fi";
+import { FiBook, FiBookOpen, FiFileText, FiFilm, FiFolder, FiGrid, FiHome, FiMonitor, FiSettings, FiTv } from "react-icons/fi";
 
 export type NavigationItem = {
   label: string;
@@ -37,5 +37,6 @@ export const navigationSections: NavigationSection[] = [
     ],
   },
   { label: "コレクション", items: [{ label: "マイリスト", to: "/mylists", icon: FiFolder }] },
+  { label: "ツール", items: [{ label: "並べてシェア", to: "/tools/collage", icon: FiGrid }] },
   { label: "Misc", grow: true, items: [{ label: "設定", to: "/settings", icon: FiSettings }] },
 ];

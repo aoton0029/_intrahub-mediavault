@@ -52,6 +52,7 @@ function createHookResult() {
     castList: [{ id: "cast-1", label: "結城 かなで", sub: "ルカ役" }],
     relatedWorks: [{ id: "relation-1", relatedItemId: "item-2", title: "星屑のシンフォニア OVA", relation: "reference" }],
     streaming: [{ id: "streaming-1", label: "Netflix", sub: "https://netflix.example.com" }],
+    images: [{ id: "image-1", url: "https://img.example.com/1.jpg", isCover: false }],
     resourceTabs: {
       links: [{ id: "link-1", label: "公式サイト", detail: "https://example.com" }],
       files: [{ id: "file-1", label: "パンフレットPDF", detail: "pdf" }],
@@ -86,6 +87,9 @@ function createHookResult() {
     removeRelation: vi.fn().mockResolvedValue(undefined),
     addStreamingLink: vi.fn().mockResolvedValue(undefined),
     removeStreamingLink: vi.fn().mockResolvedValue(undefined),
+    addImage: vi.fn().mockResolvedValue(undefined),
+    removeImage: vi.fn().mockResolvedValue(undefined),
+    setCoverImage: vi.fn().mockResolvedValue(undefined),
     addLink: vi.fn().mockResolvedValue(undefined),
     removeLink: vi.fn().mockResolvedValue(undefined),
     addFile: vi.fn().mockResolvedValue(undefined),

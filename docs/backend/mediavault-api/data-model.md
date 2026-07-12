@@ -35,6 +35,7 @@
 | categories | CategoryRef[]（`{ id, name }`） |
 | calibre_links | CalibreWebLinkInfo[]（`{ file_id, calibre_book_id }`。calibre_book_id設定済みPDFのみ） |
 | streaming_links | ItemStreamingLink[]（配信サービスURL。詳細は下記「ItemStreamingLink」参照） |
+| images | ItemImage[]（画像URL。詳細は下記「ItemImage」参照） |
 
 ## Tag / Category / Mylist
 
@@ -88,6 +89,17 @@
 | id | UUID |
 | item_id | UUID |
 | platform | StreamingPlatform（netflix/amazon_prime/disney_plus/dmm_tv/apple_tv） |
+| url | string |
+| created_at | datetime |
+
+## ItemImage
+
+`GET/POST /items/{id}/images`のレスポンス。詳細: [item-images.md](./item-images.md)
+
+| フィールド | 型 |
+|---|---|
+| id | UUID |
+| item_id | UUID |
 | url | string |
 | created_at | datetime |
 

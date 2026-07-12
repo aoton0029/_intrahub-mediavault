@@ -260,6 +260,20 @@ CREATE TABLE item_streaming_links (
 
 CREATE INDEX idx_item_streaming_links_item_id ON item_streaming_links(item_id);
 
+-- ========================================
+-- item_images migration (up)
+-- ========================================
+
+CREATE TABLE item_images (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    url VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_item_images UNIQUE (item_id, url)
+);
+
+CREATE INDEX idx_item_images_item_id ON item_images(item_id);
+
 CREATE TRIGGER trg_items_updated_at BEFORE UPDATE ON items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_item_groups_updated_at BEFORE UPDATE ON item_groups

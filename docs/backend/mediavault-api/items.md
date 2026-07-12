@@ -90,6 +90,7 @@
   - `rating` (optional, number)
   - `is_favorite` (optional, bool)
   - `details` (optional, 任意形状のJSONオブジェクト) — スキーマは強制されない自由形式の`serde_json::Value`。`media_type`との整合性チェックはサーバー側で行わない（呼び出し側の責任）。実データ上の慣例的な形は下記「[details（media_type別JSON形状）](#detailsmedia_type別json形状)」を参照
+  - `additional_image_urls` (optional, string[], デフォルト`[]`) — 画像URL一覧。指定した値は`item_images`へ紐づけて保存される（詳細: [item-images.md](./item-images.md)）。手動作成時は任意入力
 - **成功レスポンス** (201): `ApiOk<Item>`
 
 ```json
@@ -212,6 +213,7 @@
   - `provider` (optional, string) — `GET /items/search` のレスポンス要素の`provider`をそのまま渡せるが、実際のプロバイダ選択は`media_type`から自動決定されるため未使用でもよい
   - `external_id` (必須, string) — `GET /items/search` のレスポンス要素の`id`。空文字・空白のみは400
 - サーバー内部フロー: `ExternalSearchService::fetch_import_details(media_type, external_id)` で対応プロバイダから詳細を再取得し `CreateItemRequest` を構築（`details`は上記「[details（media_type別JSON形状）](#detailsmedia_type別json形状)」の形）→ 重複チェック（同一`media_type`+`external_id`が既存の場合409）→ DB登録
+- 画像URLの自動収集: プロバイダの生レスポンスから画像URLを示唆するキー（`image`/`thumbnail`/`cover`/`poster`/`screenshot`/`banner`/`artwork`/`backdrop`/`capsule`等）の値をすべて収集し`CreateItemRequest.additional_image_urls`へ格納、item作成と同一トランザクションで`item_images`へ一括登録する（詳細: [item-images.md](./item-images.md)）
 - **成功レスポンス** (201): `ApiOk<Item>`（`POST /items`と同形。`source: "api"`, `external_id`にインポート元IDが入る）
 - **エラー**: 400 `VALIDATION_ERROR`（`external_id`欠落・空文字）, 404（プロバイダ側で対象が見つからない）, 409 `ITEM_ALREADY_IMPORTED`, 422 `API_KEY_NOT_CONFIGURED`, 502 `EXTERNAL_API_TIMEOUT` / `EXTERNAL_API_ERROR`
 
@@ -227,6 +229,7 @@
   - `categories: CategoryRef[]`（`{id, name}`）
   - `calibre_links: CalibreWebLinkInfo[]`（`{file_id, calibre_book_id}`。`calibre_book_id`設定済みのPDF `item_files`のみ）
   - `streaming_links: ItemStreamingLink[]`（`{id, item_id, platform, url, created_at}`。`platform`は`netflix` / `amazon_prime` / `disney_plus` / `dmm_tv` / `apple_tv`）
+  - `images: ItemImage[]`（`{id, item_id, url, created_at}`。手動追加分 + 外部APIレスポンスから自動収集した画像URL。詳細: [item-images.md](./item-images.md)）
 
 ```json
 {
@@ -267,6 +270,9 @@
     "calibre_links": [],
     "streaming_links": [
       { "id": "e1f2...", "item_id": "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0001", "platform": "netflix", "url": "https://netflix.com/title/xxx", "created_at": "2026-07-02T00:00:00" }
+    ],
+    "images": [
+      { "id": "a1b2...", "item_id": "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0001", "url": "https://img.annict.com/xxx.jpg", "created_at": "2026-07-01T12:00:00" }
     ]
   }
 }

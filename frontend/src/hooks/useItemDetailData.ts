@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PropertyItem, RelatedWork, ResourceTabKey, TagListItem } from "@/components/shared";
-import type { Group, StaffMember, StreamingLinkItem } from "@/components/detail";
+import type { Group, ImageItem, StaffMember, StreamingLinkItem } from "@/components/detail";
 import { STREAMING_PLATFORM_LABELS } from "./useAnimeDetailData";
 import { apiFetch } from "@/lib/apiClient";
 
@@ -18,6 +18,7 @@ type Tag = { id: string; name: string };
 type Category = { id: string; name: string };
 type CalibreLink = { file_id: string; calibre_book_id: number };
 type ItemStreamingLink = { id: string; item_id: string; platform: StreamingPlatform; url: string; created_at: string };
+type ItemImageRecord = { id: string; item_id: string; url: string; created_at: string };
 type ItemLink = { id: string; item_id: string; url: string; label: string; created_at: string };
 type ItemFile = {
   id: string;
@@ -86,6 +87,7 @@ type ItemDetail<TDetail> = {
   categories: CategoryRef[];
   calibre_links: CalibreLink[];
   streaming_links: ItemStreamingLink[];
+  images: ItemImageRecord[];
 };
 
 type Bundle<TDetail> = {
@@ -96,6 +98,7 @@ type Bundle<TDetail> = {
   cast: ItemCast[];
   relations: ItemRelation[];
   streamingLinks: ItemStreamingLink[];
+  images: ItemImageRecord[];
   mylists: Mylist[];
   links: ItemLink[];
   files: ItemFile[];
@@ -157,12 +160,13 @@ async function createCategory(name: string) {
 }
 
 async function fetchBundle<TDetail>(id: string, includeGroups: boolean): Promise<Bundle<TDetail>> {
-  const [item, staff, cast, relations, streamingLinks, mylists, links, files, trailers] = await Promise.all([
+  const [item, staff, cast, relations, streamingLinks, images, mylists, links, files, trailers] = await Promise.all([
     fetchApi<ItemDetail<TDetail>>(`/items/${id}`),
     fetchApi<ItemStaff[]>(`/items/${id}/staff`),
     fetchApi<ItemCast[]>(`/items/${id}/cast`),
     fetchApi<ItemRelation[]>(`/items/${id}/relations`),
     fetchApi<ItemStreamingLink[]>(`/items/${id}/streaming-links`),
+    fetchApi<ItemImageRecord[]>(`/items/${id}/images`),
     fetchApi<Mylist[]>(`/items/${id}/mylists`),
     fetchApi<ItemLink[]>(`/items/${id}/links`),
     fetchApi<ItemFile[]>(`/items/${id}/files`),
@@ -179,7 +183,7 @@ async function fetchBundle<TDetail>(id: string, includeGroups: boolean): Promise
     episodesByGroup = Object.fromEntries(episodePairs);
   }
 
-  return { item, groups, episodesByGroup, staff, cast, relations, streamingLinks, mylists, links, files, trailers };
+  return { item, groups, episodesByGroup, staff, cast, relations, streamingLinks, images, mylists, links, files, trailers };
 }
 
 function buildActionLabel<TDetail>(item: ItemDetail<TDetail>) {
@@ -363,6 +367,24 @@ export function useItemDetailData<TDetail>(
     onSuccess: invalidate,
   });
 
+  const imageAddMutation = useMutation({
+    mutationFn: async (url: string) => {
+      await fetchApi(`/items/${id}/images`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  const imageRemoveMutation = useMutation({
+    mutationFn: async (imageId: string) => {
+      await parseJson(await apiFetch(`/items/${id}/images/${imageId}`, { method: "DELETE" }));
+    },
+    onSuccess: invalidate,
+  });
+
   const linkAddMutation = useMutation({
     mutationFn: async ({ label, url }: { label: string; url: string }) => {
       await fetchApi(`/items/${id}/links`, {
@@ -463,6 +485,11 @@ export function useItemDetailData<TDetail>(
     sub: link.url,
     platform: link.platform,
   })) ?? [];
+  const images: ImageItem[] = bundle?.images.map((image) => ({
+    id: image.id,
+    url: image.url,
+    isCover: image.url === item?.cover_image_url,
+  })) ?? [];
   const resourceTabs: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string }[]>> = {
     links: bundle?.links.map((link) => ({ id: link.id, label: link.label, detail: link.url })) ?? [],
     files: bundle?.files.map((file) => ({
@@ -485,6 +512,7 @@ export function useItemDetailData<TDetail>(
     castList,
     relatedWorks,
     streaming,
+    images,
     resourceTabs,
     tags: item?.tags ?? [],
     categories: item?.categories ?? [],
@@ -515,6 +543,9 @@ export function useItemDetailData<TDetail>(
     removeRelation: (relationId: string) => relationRemoveMutation.mutateAsync(relationId),
     addStreamingLink: (platform: StreamingPlatform, url: string) => streamingAddMutation.mutateAsync({ platform, url }),
     removeStreamingLink: (linkId: string) => streamingRemoveMutation.mutateAsync(linkId),
+    addImage: (url: string) => imageAddMutation.mutateAsync(url),
+    removeImage: (imageId: string) => imageRemoveMutation.mutateAsync(imageId),
+    setCoverImage: (url: string) => patchItemMutation.mutateAsync({ cover_image_url: url }),
     addLink: (label: string, url: string) => linkAddMutation.mutateAsync({ label, url }),
     removeLink: (linkId: string) => linkRemoveMutation.mutateAsync(linkId),
     addFile: (path: string, label: string | undefined, fileType: ItemFile["file_type"]) => fileAddMutation.mutateAsync({ path, label, fileType }),

@@ -6,6 +6,7 @@ import { MediaDetailPage } from "@/pages/MediaDetailPage";
 import { MediaListPage } from "@/pages/MediaListPage";
 import { MediaSearchPage } from "@/pages/MediaSearchPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { CollageToolPage } from "@/pages/CollageToolPage";
 
 export const router = createBrowserRouter([
   {
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           actions: <Link className="btn btn-accent" to="/academic-books/search">＋ 作品を追加</Link>,
         },
       },
+      { path: "tools/collage", element: <CollageToolPage />, handle: { title: "並べてシェア" } },
       { path: "settings", element: <SettingsPage />, handle: { title: "設定" } },
     ],
   },

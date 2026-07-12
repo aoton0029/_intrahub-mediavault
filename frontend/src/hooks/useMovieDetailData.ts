@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { StaffMember, StreamingLinkItem } from "@/components/detail";
+import type { ImageItem, StaffMember, StreamingLinkItem } from "@/components/detail";
 import type { PropertyItem, RelatedWork, ResourceTabKey, TagListItem } from "@/components/shared";
 import { STREAMING_PLATFORM_LABELS } from "./useAnimeDetailData";
 import { apiFetch } from "@/lib/apiClient";
@@ -25,6 +25,7 @@ type MovieDetail = {
 };
 type CalibreLink = { file_id: string; calibre_book_id: number };
 type ItemStreamingLink = { id: string; item_id: string; platform: StreamingPlatform; url: string; created_at: string };
+type ItemImageRecord = { id: string; item_id: string; url: string; created_at: string };
 type ItemLink = { id: string; item_id: string; url: string; label: string; created_at: string };
 type ItemFile = {
   id: string;
@@ -90,6 +91,7 @@ type MovieDetailBundle = {
   cast: ItemCast[];
   relations: ItemRelation[];
   streamingLinks: ItemStreamingLink[];
+  images: ItemImageRecord[];
   mylists: Mylist[];
   links: ItemLink[];
   files: ItemFile[];
@@ -162,19 +164,20 @@ async function createCategory(name: string) {
 }
 
 async function fetchMovieDetailBundle(id: string): Promise<MovieDetailBundle> {
-  const [item, staff, cast, relations, streamingLinks, mylists, links, files, trailers] = await Promise.all([
+  const [item, staff, cast, relations, streamingLinks, images, mylists, links, files, trailers] = await Promise.all([
     fetchApi<ItemDetail>(`/items/${id}`),
     fetchApi<ItemStaff[]>(`/items/${id}/staff`),
     fetchApi<ItemCast[]>(`/items/${id}/cast`),
     fetchApi<ItemRelation[]>(`/items/${id}/relations`),
     fetchApi<ItemStreamingLink[]>(`/items/${id}/streaming-links`),
+    fetchApi<ItemImageRecord[]>(`/items/${id}/images`),
     fetchApi<Mylist[]>(`/items/${id}/mylists`),
     fetchApi<ItemLink[]>(`/items/${id}/links`),
     fetchApi<ItemFile[]>(`/items/${id}/files`),
     fetchApi<ItemTrailer[]>(`/items/${id}/trailers`),
   ]);
 
-  return { item, staff, cast, relations, streamingLinks, mylists, links, files, trailers };
+  return { item, staff, cast, relations, streamingLinks, images, mylists, links, files, trailers };
 }
 
 function buildActionLabel(item: ItemDetail) {
@@ -327,6 +330,24 @@ export function useMovieDetailData(id: string | undefined) {
     onSuccess: invalidate,
   });
 
+  const imageAddMutation = useMutation({
+    mutationFn: async (url: string) => {
+      await fetchApi(`/items/${id}/images`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  const imageRemoveMutation = useMutation({
+    mutationFn: async (imageId: string) => {
+      await parseJson(await apiFetch(`/items/${id}/images/${imageId}`, { method: "DELETE" }));
+    },
+    onSuccess: invalidate,
+  });
+
   const linkAddMutation = useMutation({
     mutationFn: async ({ label, url }: { label: string; url: string }) => {
       await fetchApi(`/items/${id}/links`, {
@@ -426,6 +447,11 @@ export function useMovieDetailData(id: string | undefined) {
     sub: link.url,
     platform: link.platform,
   })) ?? [];
+  const images: ImageItem[] = bundle?.images.map((image) => ({
+    id: image.id,
+    url: image.url,
+    isCover: image.url === item?.cover_image_url,
+  })) ?? [];
   const resourceTabs: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string }[]>> = {
     links: bundle?.links.map((link) => ({ id: link.id, label: link.label, detail: link.url })) ?? [],
     files: bundle?.files.map((file) => ({
@@ -447,6 +473,7 @@ export function useMovieDetailData(id: string | undefined) {
     castList,
     relatedWorks,
     streaming,
+    images,
     resourceTabs,
     tags: item?.tags ?? [],
     categories: item?.categories ?? [],
@@ -475,6 +502,9 @@ export function useMovieDetailData(id: string | undefined) {
     removeRelation: (relationId: string) => relationRemoveMutation.mutateAsync(relationId),
     addStreamingLink: (platform: StreamingPlatform, url: string) => streamingAddMutation.mutateAsync({ platform, url }),
     removeStreamingLink: (linkId: string) => streamingRemoveMutation.mutateAsync(linkId),
+    addImage: (url: string) => imageAddMutation.mutateAsync(url),
+    removeImage: (imageId: string) => imageRemoveMutation.mutateAsync(imageId),
+    setCoverImage: (url: string) => patchItemMutation.mutateAsync({ cover_image_url: url }),
     addLink: (label: string, url: string) => linkAddMutation.mutateAsync({ label, url }),
     removeLink: (linkId: string) => linkRemoveMutation.mutateAsync(linkId),
     addFile: (path: string, label: string | undefined, fileType: ItemFile["file_type"]) => fileAddMutation.mutateAsync({ path, label, fileType }),

@@ -78,6 +78,12 @@ export function MangaDetailPage() {
     },
   }));
 
+  const images = detail.images.map((image) => ({
+    ...image,
+    onSetCover: (url: string) => void runAction(() => detail.setCoverImage(url), "サムネイルを設定しました。"),
+    onRemove: (imageId: string) => void runAction(() => detail.removeImage(imageId), "画像を削除しました。"),
+  }));
+
   const resourceTabs = {
     links: detail.resourceTabs.links?.map((entry) => ({
       ...entry,
@@ -247,6 +253,17 @@ export function MangaDetailPage() {
               <FiPlus className="icon" />
               関連作品を追加
             </button>
+          )}
+          images={detailSectionMatrix.manga.images ? images : undefined}
+          imagesFooter={(
+            <InlineAddForm
+              triggerLabel="画像URLを追加"
+              fields={[{ name: "url", placeholder: "画像URL", defaultValue: "https://" }]}
+              onSubmit={(values) => {
+                if (!values.url) return;
+                void runAction(() => detail.addImage(values.url), "画像を追加しました。");
+              }}
+            />
           )}
           resourceTabs={resourceTabs}
           linksFooter={linksFooter}

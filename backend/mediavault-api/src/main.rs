@@ -38,6 +38,8 @@ async fn main() {
         std::process::exit(1);
     }
 
+    db::seed_api_credentials_from_env(&db).await;
+
     let state = AppState {
         db,
         internal_api_key,

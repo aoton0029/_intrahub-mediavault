@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { FiBookmark, FiCheck, FiEdit2, FiFileText, FiFilm, FiFolder, FiGitBranch, FiLayers, FiTag, FiTv, FiUsers, FiX } from "react-icons/fi";
+import { FiBookmark, FiCheck, FiEdit2, FiFileText, FiFilm, FiFolder, FiGitBranch, FiImage, FiLayers, FiTag, FiTv, FiUsers, FiX } from "react-icons/fi";
 import { FaAmazon } from "react-icons/fa";
 import { SiAppletv, SiDmm, SiNetflix } from "react-icons/si";
 import { PropertyList, type PropertyItem, RelatedWorksList, ResourceEntryList, resourceTabIcons, resourceTabLabels, Tabs, type TabItem, TagList, type TagListItem, type RelatedWork, type ResourceTabKey } from "@/components/shared";
@@ -10,6 +10,7 @@ export type Group = { id: string; label: string; episodes: Episode[] };
 export type StaffMember = { id: string; label: string; sub: string; actionLabel?: string; onAction?: (id: string) => void };
 export type StreamingPlatform = "netflix" | "amazon_prime" | "disney_plus" | "dmm_tv" | "apple_tv";
 export type StreamingLinkItem = { id: string; label: string; sub: string; platform?: StreamingPlatform; actionLabel?: string; onAction?: (id: string) => void };
+export type ImageItem = { id: string; url: string; isCover?: boolean; onSetCover?: (url: string) => void; onRemove?: (id: string) => void };
 
 const STREAMING_PLATFORM_ICONS: Record<StreamingPlatform, { icon: ReactNode; color: string }> = {
   netflix: { icon: <SiNetflix />, color: "#E50914" },
@@ -209,6 +210,44 @@ export function StreamingLinks({
   );
 }
 
+export function ImageGrid({
+  items,
+  footerAction,
+}: {
+  items: ImageItem[];
+  footerAction?: ReactNode;
+}) {
+  return (
+    <div>
+      <div className="image-grid" style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        {items.map((image) => (
+          <div key={image.id} className="image-grid-item" style={{ width: 160 }}>
+            <img
+              src={image.url}
+              alt=""
+              style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 4 }}
+            />
+            <div className="detail-section-actions" style={{ marginTop: 4 }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={image.isCover}
+                onClick={() => image.onSetCover?.(image.url)}
+              >
+                {image.isCover ? "サムネイル設定済み" : "サムネイルに設定"}
+              </button>
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => image.onRemove?.(image.id)}>
+                削除
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {footerAction}
+    </div>
+  );
+}
+
 export function OverviewSection({
   overview,
   onSave,
@@ -282,6 +321,7 @@ export function DetailMain({
   castList,
   relatedWorks,
   streaming,
+  images,
   resourceTabs,
   groupTitle = "構成",
   groupActions,
@@ -290,6 +330,7 @@ export function DetailMain({
   castFooter,
   relatedWorksFooter,
   streamingFooter,
+  imagesFooter,
   linksFooter,
   filesFooter,
   trailersFooter,
@@ -302,6 +343,7 @@ export function DetailMain({
   castList?: StaffMember[];
   relatedWorks?: RelatedWork[];
   streaming?: StreamingLinkItem[];
+  images?: ImageItem[];
   resourceTabs?: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string; onRemove?: (id: string) => void }[]>>;
   groupTitle?: string;
   groupActions?: (group: Group) => ReactNode;
@@ -310,6 +352,7 @@ export function DetailMain({
   castFooter?: ReactNode;
   relatedWorksFooter?: ReactNode;
   streamingFooter?: ReactNode;
+  imagesFooter?: ReactNode;
   linksFooter?: ReactNode;
   filesFooter?: ReactNode;
   trailersFooter?: ReactNode;
@@ -363,6 +406,15 @@ export function DetailMain({
       label: "配信",
       icon: <FiTv className="icon" />,
       content: <DetailSection icon={<FiTv className="icon" />} title="配信"><StreamingLinks links={streaming} footerAction={streamingFooter} /></DetailSection>,
+    });
+  }
+
+  if (images) {
+    tabs.push({
+      key: "images",
+      label: "画像",
+      icon: <FiImage className="icon" />,
+      content: <DetailSection icon={<FiImage className="icon" />} title="画像"><ImageGrid items={images} footerAction={imagesFooter} /></DetailSection>,
     });
   }
 

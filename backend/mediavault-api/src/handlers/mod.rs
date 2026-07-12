@@ -8,6 +8,7 @@ pub mod internal_groups;
 pub mod item_episodes;
 pub mod item_files;
 pub mod item_groups;
+pub mod item_images;
 pub mod item_links;
 pub mod item_relations;
 pub mod item_streaming_links;

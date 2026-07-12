@@ -220,11 +220,27 @@
   .detail-section-actions { display: flex; align-items: center; gap: 8px; }
   .icon { width: 16px; height: 16px; flex-shrink: 0; vertical-align: -3px; }
   .streaming-platform-icon { display: inline-flex; align-items: center; margin-right: 6px; font-size: 16px; flex-shrink: 0; }
+  .collage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .collage-settings { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; margin-bottom: 20px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-app); background: var(--color-bg-surface); }
+  .collage-settings label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--color-text-faint); }
+  .collage-settings input[type="number"] { width: 96px; border: 1px solid var(--color-border); border-radius: var(--radius-app); background: var(--color-bg-input); padding: 6px 8px; color: var(--color-text-primary); }
+  .collage-settings-checkbox { flex-direction: row !important; align-items: center; gap: 8px !important; }
+  .collage-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .collage-preview { display: flex; gap: 16px; }
+  .collage-grid { display: grid; flex: 1; gap: 4px; aspect-ratio: 1; }
+  .collage-cell { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid var(--color-border); border-radius: 4px; background: var(--color-bg-input); padding: 0; cursor: pointer; }
+  .collage-cell.active { border-color: var(--color-accent); }
+  .collage-cell img { width: 100%; height: 100%; object-fit: contain; }
+  .collage-cell-empty { color: var(--color-text-faint); font-size: 12px; }
+  .collage-title-list { flex-shrink: 0; width: 200px; margin: 0; padding-left: 20px; font-size: 12.5px; color: var(--color-text-faint); }
+  .collage-title-list li { padding: 4px 0; border-bottom: 1px solid var(--color-border-soft); }
+  .collage-picker { display: flex; flex-direction: column; gap: 12px; }
   @media (max-width: 980px) {
     .app-shell, .detail-layout, .settings-shell, .form-grid { grid-template-columns: 1fr; }
     .sidebar { display: none; }
     .detail-rail { position: static; }
     .settings-panel { padding-left: 0; }
+    .collage-layout { grid-template-columns: 1fr; }
   }
 }
 

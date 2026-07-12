@@ -23,6 +23,7 @@ use crate::repositories::cast_repository;
 use crate::repositories::item_episode_repository;
 use crate::repositories::item_file_repository;
 use crate::repositories::item_group_repository;
+use crate::repositories::item_image_repository;
 use crate::repositories::item_repository;
 use crate::repositories::item_streaming_link_repository;
 use crate::repositories::staff_repository;
@@ -177,6 +178,9 @@ pub async fn get_item_handler(
     let streaming_links =
         item_streaming_link_repository::list_item_streaming_links(&state.db, id).await?;
 
+    // 【画像URL取得】: 手動追加分 + 外部APIレスポンスから自動収集した画像URLを付加する
+    let images = item_image_repository::list_item_images(&state.db, id).await?;
+
     Ok(ApiOk::new(ItemDetail::from_parts_full(
         item,
         detail,
@@ -184,6 +188,7 @@ pub async fn get_item_handler(
         categories,
         calibre_links,
         streaming_links,
+        images,
     )))
 }
 

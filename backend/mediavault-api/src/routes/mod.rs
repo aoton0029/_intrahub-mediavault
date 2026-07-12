@@ -11,8 +11,8 @@ use axum::routing::get;
 
 use crate::AppState;
 use crate::handlers::cast::{
-    create_cast_handler, create_item_cast_handler, delete_item_cast_handler,
-    list_cast_handler, list_item_cast_handler,
+    create_cast_handler, create_item_cast_handler, delete_item_cast_handler, list_cast_handler,
+    list_item_cast_handler,
 };
 use crate::handlers::categories::{
     attach_category_handler, create_category_handler, delete_category_handler,
@@ -27,6 +27,9 @@ use crate::handlers::item_files::{
     update_calibre_link_handler, upload_item_file_handler,
 };
 use crate::handlers::item_groups::{create_item_group_handler, list_item_groups_handler};
+use crate::handlers::item_images::{
+    create_item_image_handler, delete_item_image_handler, list_item_images_handler,
+};
 use crate::handlers::item_links::{
     create_item_link_handler, delete_item_link_handler, list_item_links_handler,
 };
@@ -220,6 +223,15 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/items/{id}/streaming-links/{link_id}",
             axum::routing::delete(delete_item_streaming_link_handler),
+        )
+        // item_images（画像URL）CRUD
+        .route(
+            "/items/{id}/images",
+            axum::routing::post(create_item_image_handler).get(list_item_images_handler),
+        )
+        .route(
+            "/items/{id}/images/{image_id}",
+            axum::routing::delete(delete_item_image_handler),
         )
         // 【TASK-0021】: item_trailers（トレーラー動画リンク）CRUD 🔵🟡
         // GET /items/{id}/trailers（一覧）を同一パスに追加

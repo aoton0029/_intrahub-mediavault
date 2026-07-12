@@ -127,6 +127,17 @@ export function MovieDetailPage() {
     },
   }));
 
+  const images = detail.images.map((image) => ({
+    ...image,
+    onSetCover: (url: string) => void runAction(() => detail.setCoverImage(url), "サムネイルを設定しました。"),
+    onRemove: (imageId: string) => {
+      if (!window.confirm("この画像を削除しますか？")) {
+        return;
+      }
+      void runAction(() => detail.removeImage(imageId), "画像を削除しました。");
+    },
+  }));
+
   const linksFooter = (
     <div className="filter-bar" style={{ marginTop: 10 }}>
       <button
@@ -254,6 +265,7 @@ export function MovieDetailPage() {
           castList={detailSectionMatrix.movie.castList ? castList : undefined}
           relatedWorks={relatedWorks}
           streaming={detailSectionMatrix.movie.streaming ? streaming : undefined}
+          images={detailSectionMatrix.movie.images ? images : undefined}
           resourceTabs={detail.resourceTabs}
           staffFooter={(
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStaffModalOpen(true)}>
@@ -288,6 +300,22 @@ export function MovieDetailPage() {
             >
               <FiPlus className="icon" />
               配信サイトを追加
+            </button>
+          )}
+          imagesFooter={(
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                const url = promptValue("画像URLを入力してください", "https://");
+                if (!url) {
+                  return;
+                }
+                void runAction(() => detail.addImage(url), "画像を追加しました。");
+              }}
+            >
+              <FiPlus className="icon" />
+              画像URLを追加
             </button>
           )}
           linksFooter={linksFooter}

@@ -7,6 +7,7 @@ pub mod item;
 pub mod item_episode;
 pub mod item_file;
 pub mod item_group;
+pub mod item_image;
 pub mod item_import;
 pub mod item_link;
 pub mod item_relation;
