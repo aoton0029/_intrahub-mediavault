@@ -1,3 +1,4 @@
+pub mod cast;
 pub mod categories;
 pub mod health;
 pub mod import_booklog;

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MediaVault — 関連作品を追加</title>
+<link rel="stylesheet" href="_shared.css">
+<script src="_shared.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- サイドバー(16_anime_detail.htmlと共通。背景として薄く見せる用途のため active は付けない) -->
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>MediaVault</div>
+
+    <div class="nav-section">
+      <a href="01_home.html" class="nav-item" style="text-decoration:none;">📚 ホーム<span class="count">128</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">メディア</div>
+      <a href="02_general_media.html" class="nav-item active" style="text-decoration:none;">🎬 すべて<span class="count">96</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎥 映画<span class="count">9</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📽️ ドラマ</a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📺 アニメ<span class="count">28</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📘 漫画<span class="count">34</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">📖 小説<span class="count">15</span></a>
+      <a href="02_general_media.html" class="nav-item" style="text-decoration:none;">🎮 ゲーム<span class="count">3</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">リサーチ</div>
+      <a href="03_academic_books.html" class="nav-item" style="text-decoration:none;">🎓 学術書・専門書<span class="count">21</span></a>
+      <a href="04_papers.html" class="nav-item" style="text-decoration:none;">📄 論文・文献<span class="count">11</span></a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">コレクション</div>
+      <a href="06_mylists.html" class="nav-item" style="text-decoration:none;">⭐ マイリスト</a>
+    </div>
+
+    <div class="nav-section" style="margin-top: auto;">
+      <div class="nav-section-label">Misc</div>
+      <a href="19_settings.html" class="nav-item" style="text-decoration:none;">⚙️ 設定</a>
+      <button type="button" class="theme-toggle" data-theme-toggle aria-label="表示モード切替">🌓 ライトモードに切り替え</button>
+    </div>
+  </aside>
+
+  <!-- メイン(16_anime_detail.htmlの関連作品セクションを背景として簡易再現。モーダル表示中の見た目確認用) -->
+  <main class="main">
+    <div class="titlebar">
+      <div class="breadcrumb"><a href="02_general_media.html">一般メディア</a> <span>/ アニメ</span></div>
+    </div>
+
+    <div class="content">
+      <div class="detail-layout">
+        <aside class="detail-rail">
+          <div class="doc-cover"></div>
+          <h1 class="doc-title">星屑のシンフォニア</h1>
+          <div class="doc-original">Symphonia of Stardust ・ 2025年</div>
+        </aside>
+
+        <div class="detail-main">
+          <div class="doc-section">
+            <h3>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>
+              関連作品
+            </h3>
+            <div class="result-row">
+              <div class="thumb"></div>
+              <div class="info">
+                <div class="title">星屑のシンフォニア OVA</div>
+                <div class="sub">reference</div>
+              </div>
+              <button class="btn btn-danger btn-sm">解除</button>
+            </div>
+            <button class="btn btn-ghost btn-sm">関連作品を追加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 関連作品選択モーダル: 検索して選んだ作品を POST /item-relations { item_id, related_item_id, relation_type } で登録する。
+       relation_type は reference / dlc のみ対応(続編・前日譚等はこの2種には無いため「参照」関係として登録する運用) -->
+  <div class="modal-overlay">
+    <div class="modal" style="max-width: 640px;">
+      <h2>関連作品を追加</h2>
+
+      <div class="filter-bar" style="margin-bottom: 16px;">
+        <div class="search-box" style="flex: 1;">🔍 <input type="text" placeholder="作品名で検索…" value="星屑"></div>
+        <div class="filter-select">
+          関係
+          <select>
+            <option value="reference" selected>参照(reference)</option>
+            <option value="dlc">DLC</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card-grid is-compact">
+
+        <div class="media-card search-result is-compact">
+          <div class="cover"><span class="badge">アニメ</span></div>
+          <div class="body">
+            <p class="title">星屑のシンフォニア 総集編</p>
+            <div class="doc-original" style="margin-bottom: 6px; font-size: 11px;">Symphonia of Stardust: Recap</div>
+            <div class="meta"><span>2025年</span></div>
+            <button class="btn btn-accent btn-sm" style="width: 100%;">選択</button>
+          </div>
+        </div>
+
+        <!-- 登録済みの状態例。ボタンを非活性にしラベルを差し替える -->
+        <div class="media-card search-result is-compact">
+          <div class="cover"><span class="badge">アニメ</span></div>
+          <div class="body">
+            <p class="title">星屑のシンフォニア OVA</p>
+            <div class="doc-original" style="margin-bottom: 6px; font-size: 11px;">Symphonia of Stardust: OVA</div>
+            <div class="meta"><span>2025年</span></div>
+            <button class="btn btn-sm" style="width: 100%;" disabled>登録済み</button>
+          </div>
+        </div>
+
+        <div class="media-card search-result is-compact">
+          <div class="cover"><span class="badge">アニメ</span></div>
+          <div class="body">
+            <p class="title">星屑のシンフォニア 劇場版</p>
+            <div class="doc-original" style="margin-bottom: 6px; font-size: 11px;">Symphonia of Stardust: The Movie</div>
+            <div class="meta"><span>2026年</span></div>
+            <button class="btn btn-accent btn-sm" style="width: 100%;">選択</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-ghost">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

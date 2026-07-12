@@ -15,7 +15,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::models::response::{ApiError, ApiErrorCode};
-use crate::models::staff::{ItemStaff, Staff};
+use crate::models::staff::{ItemStaff, ItemStaffWithName, Staff, StaffSearchResult};
 
 /// 【機能概要】: sqlxのDBエラーを統一エラー型（INTERNAL_ERROR）へ変換する
 /// 🔵 信頼性レベル: item_relation_repository::db_errorと対称
@@ -51,6 +51,30 @@ pub async fn staff_exists(pool: &PgPool, staff_id: Uuid) -> Result<bool, ApiErro
         .map_err(db_error)?;
 
     Ok(result.is_some())
+}
+
+/// 【機能概要】: 氏名部分一致（ILIKE）でstaffを検索し、紐付け作品数（linked_item_count）を併記して返す
+/// 【実装方針】: item_staffをLEFT JOINしてCOUNTし、name ILIKE検索でヒットしたスタッフをname昇順・limit件返す
+pub async fn search_staff(
+    pool: &PgPool,
+    query: &str,
+    limit: i64,
+) -> Result<Vec<StaffSearchResult>, ApiError> {
+    sqlx::query_as::<_, StaffSearchResult>(
+        "SELECT s.id, s.external_id, s.name, s.image_url, s.created_at,
+                COUNT(i.id) AS linked_item_count
+         FROM staff s
+         LEFT JOIN item_staff i ON i.staff_id = s.id
+         WHERE s.name ILIKE $1
+         GROUP BY s.id
+         ORDER BY s.name
+         LIMIT $2",
+    )
+    .bind(format!("%{query}%"))
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)
 }
 
 /// 【機能概要】: staffテーブルへ新規スタッフレコードをINSERTする
@@ -148,11 +172,16 @@ pub async fn link_staff(
 
 /// 【機能概要】: 指定item_idに紐づくスタッフ紐付けを一覧取得する（`GET /items/:id/staff`）
 /// 🟡 信頼性レベル: item_relation_repository::list_item_relationsと対称のリスト取得パターン
-pub async fn list_item_staff(pool: &PgPool, item_id: Uuid) -> Result<Vec<ItemStaff>, ApiError> {
+pub async fn list_item_staff(
+    pool: &PgPool,
+    item_id: Uuid,
+) -> Result<Vec<ItemStaffWithName>, ApiError> {
     sqlx::query_as(
-        "SELECT id, item_id, staff_id, role, character_name
+        "SELECT item_staff.id, item_staff.item_id, item_staff.staff_id, item_staff.role,
+                item_staff.character_name, staff.name AS staff_name, staff.image_url AS staff_image_url
          FROM item_staff
-         WHERE item_id = $1",
+         JOIN staff ON staff.id = item_staff.staff_id
+         WHERE item_staff.item_id = $1",
     )
     .bind(item_id)
     .fetch_all(pool)

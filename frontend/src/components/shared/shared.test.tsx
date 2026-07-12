@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ApiKeyCard } from "./ApiKeyCard";
+import { ConsumedDateEditor } from "./ConsumedDateEditor";
 import { EmptyState } from "./EmptyState";
 import { FavoriteToggle } from "./FavoriteToggle";
 import { LoadMoreSentinel } from "./LoadMoreSentinel";
@@ -45,6 +46,24 @@ describe("shared components", () => {
     expect(screen.getByRole("button", { name: "読書中" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "読書中" }));
     expect(screen.getByText("読了")).toBeInTheDocument();
+  });
+
+  it("ConsumedDateEditor shows empty label and saves a chosen date", () => {
+    const onChange = vi.fn();
+    render(<ConsumedDateEditor value={null} onChange={onChange} />);
+    expect(screen.getByText("視聴日未登録")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "視聴日未登録" }));
+    fireEvent.change(screen.getByDisplayValue(""), { target: { value: "2026-01-05" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    expect(onChange).toHaveBeenCalledWith("2026-01-05");
+  });
+
+  it("ConsumedDateEditor shows current value and clears it", () => {
+    const onChange = vi.fn();
+    render(<ConsumedDateEditor value="2026-01-05" onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "視聴日: 2026-01-05" }));
+    fireEvent.click(screen.getByRole("button", { name: "クリア" }));
+    expect(onChange).toHaveBeenCalledWith(null);
   });
 
   it("TagList supports add and remove", () => {

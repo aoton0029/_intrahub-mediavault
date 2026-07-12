@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FiFolder, FiPlus, FiTag, FiTrash2 } from "react-icons/fi";
+import { cn } from "@/lib/cn";
 
 export type TagListItem = { id: string; name: string };
 
@@ -66,7 +67,7 @@ export function TagList({
           placeholder={kind === "tag" ? "タグ名を入力してEnter" : "カテゴリ名を入力してEnter"}
         />
       ) : (
-        <button type="button" className="tag-add-trigger" onClick={() => setIsAdding(true)}>
+        <button type="button" className={cn("tag-add-trigger", kind === "category" && "category-add-trigger")} onClick={() => setIsAdding(true)}>
           <Icon className="icon" />
           <FiPlus className="icon" />
           {kind === "tag" ? "タグを追加" : "カテゴリを追加"}

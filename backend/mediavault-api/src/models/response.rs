@@ -86,6 +86,8 @@ pub enum ApiErrorCode {
     /// スタッフが見つからない（TASK-0020のitem紐付け時404）
     /// 🟡 信頼性レベル: staff-requirements.md 3 制約条件「STAFF_NOT_FOUND新規追加」に明記
     StaffNotFound,
+    /// キャストが見つからない（cast管理のitem紐付け時404）
+    CastNotFound,
     /// 不正なapi_credentialsプロバイダ指定（TASK-0022のPUT /settings/api-keys/:provider時400）
     /// 🔵 信頼性レベル: TASK-0022-requirements.md REQ-0022-102・note.md L19に直接対応
     InvalidProvider,
@@ -140,6 +142,7 @@ impl ApiErrorCode {
                 ("DUPLICATE_EPISODE_NUMBER", StatusCode::CONFLICT)
             }
             ApiErrorCode::StaffNotFound => ("STAFF_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::CastNotFound => ("CAST_NOT_FOUND", StatusCode::NOT_FOUND),
             ApiErrorCode::InvalidProvider => ("INVALID_PROVIDER", StatusCode::BAD_REQUEST),
             ApiErrorCode::ApiKeyNotConfigured => {
                 ("API_KEY_NOT_CONFIGURED", StatusCode::UNPROCESSABLE_ENTITY)

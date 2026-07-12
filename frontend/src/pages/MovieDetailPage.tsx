@@ -1,11 +1,11 @@
-import { useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { FiCalendar, FiExternalLink, FiLink2, FiPlus } from "react-icons/fi";
 import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { EmptyState, FavoriteToggle, RatingStars, StatusSwitcher } from "@/components/shared";
+import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher } from "@/components/shared";
 import { useMovieDetailData } from "@/hooks/useMovieDetailData";
 
 const MOVIE_STATUS_LABELS = {
@@ -24,13 +24,35 @@ function CoverImage({ src, alt }: { src: string | null | undefined; alt: string 
 
 export function MovieDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const detail = useMovieDetailData(id);
+  const [isRelatedModalOpen, setRelatedModalOpen] = useState(false);
+  const [isStaffModalOpen, setStaffModalOpen] = useState(false);
+  const [isCastModalOpen, setCastModalOpen] = useState(false);
+
+  async function handleDelete() {
+    if (!id) return;
+    if (!window.confirm("この作品を削除しますか？この操作は取り消せません。")) return;
+    try {
+      await detail.deleteItem();
+      toast.success("作品を削除しました。");
+      navigate("/media");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "削除に失敗しました。");
+    }
+  }
+
   const pageChrome = useMemo(() => ({
     breadcrumbs: [
       { label: "一般メディア", to: "/media" },
       { label: "映画" },
     ],
-    actions: id ? <Link className="btn btn-accent" to={`/media/${id}/edit`}>編集する</Link> : undefined,
+    actions: id ? (
+      <div style={{ display: "flex", gap: 8 }}>
+        <Link className="btn btn-accent" to={`/media/${id}/edit`}>編集する</Link>
+        <button type="button" className="btn btn-danger" onClick={() => void handleDelete()}>削除する</button>
+      </div>
+    ) : undefined,
   }), [id]);
   usePageChrome(pageChrome);
 
@@ -83,6 +105,17 @@ export function MovieDetailPage() {
     },
   }));
 
+  const castList = detail.castList.map((cast) => ({
+    ...cast,
+    actionLabel: "解除",
+    onAction: (castId: string) => {
+      if (!window.confirm("このキャストを解除しますか？")) {
+        return;
+      }
+      void runAction(() => detail.removeCast(castId), "キャストを解除しました。");
+    },
+  }));
+
   const streaming = detail.streaming.map((link) => ({
     ...link,
     actionLabel: "削除",
@@ -94,7 +127,7 @@ export function MovieDetailPage() {
     },
   }));
 
-  const resourceFooter = (
+  const linksFooter = (
     <div className="filter-bar" style={{ marginTop: 10 }}>
       <button
         type="button"
@@ -111,6 +144,11 @@ export function MovieDetailPage() {
         <FiPlus className="icon" />
         リンクを追加
       </button>
+    </div>
+  );
+
+  const filesFooter = (
+    <div className="filter-bar" style={{ marginTop: 10 }}>
       <button
         type="button"
         className="btn btn-ghost btn-sm"
@@ -127,6 +165,21 @@ export function MovieDetailPage() {
         <FiPlus className="icon" />
         ファイルを追加
       </button>
+      {detail.files.some((file) => file.file_type === "pdf") ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => toast.info("Calibre 連携フロー本体は別タスクで実装予定です。")}
+        >
+          <FiLink2 className="icon" />
+          Calibre に連携
+        </button>
+      ) : null}
+    </div>
+  );
+
+  const trailersFooter = (
+    <div className="filter-bar" style={{ marginTop: 10 }}>
       <button
         type="button"
         className="btn btn-ghost btn-sm"
@@ -142,20 +195,11 @@ export function MovieDetailPage() {
         <FiPlus className="icon" />
         トレーラーを追加
       </button>
-      {detail.files.some((file) => file.file_type === "pdf") ? (
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => toast.info("Calibre 連携フロー本体は別タスクで実装予定です。")}
-        >
-          <FiLink2 className="icon" />
-          Calibre に連携
-        </button>
-      ) : null}
     </div>
   );
 
   return (
+    <>
     <DetailLayout
       rail={(
         <DetailRail
@@ -170,6 +214,11 @@ export function MovieDetailPage() {
               onChange={(status) => void runAction(() => detail.updateStatus(status), "ステータスを更新しました。")}
             />,
             <RatingStars key="rating" value={item.rating ?? 0} onChange={(rating) => void runAction(() => detail.updateRating(rating), "評価を更新しました。")} />,
+            <ConsumedDateEditor
+              key="consumed-date"
+              value={item.consumed_date}
+              onChange={(date) => void runAction(() => detail.updateConsumedDate(date), "視聴日を更新しました。")}
+            />,
             <FavoriteToggle key="favorite" value={item.is_favorite} onChange={(value) => void runAction(() => detail.updateFavorite(value), "お気に入りを更新しました。")} />,
             <span key="release" className="meta-item">
               <FiCalendar className="icon" />
@@ -198,43 +247,28 @@ export function MovieDetailPage() {
       )}
       main={(
         <DetailMain
-          overview={detail.overview || "概要はまだ登録されていません。"}
+          overview={detail.overview}
+          onUpdateOverview={(value) => void runAction(() => detail.updateDescription(value), "概要を更新しました。")}
           propertyList={detailSectionMatrix.movie.propertyList ? detail.propertyItems : undefined}
           staffList={detailSectionMatrix.movie.staffList ? staffList : undefined}
+          castList={detailSectionMatrix.movie.castList ? castList : undefined}
           relatedWorks={relatedWorks}
           streaming={detailSectionMatrix.movie.streaming ? streaming : undefined}
           resourceTabs={detail.resourceTabs}
           staffFooter={(
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const staffId = promptValue("スタッフ ID を入力してください");
-                const role = promptValue("役職を入力してください", "監督");
-                const characterName = promptValue("キャラクター名があれば入力してください");
-                if (!staffId || !role) {
-                  return;
-                }
-                void runAction(() => detail.addStaff(staffId, role, characterName || undefined), "スタッフを追加しました。");
-              }}
-            >
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStaffModalOpen(true)}>
               <FiPlus className="icon" />
               スタッフを追加
             </button>
           )}
+          castFooter={(
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCastModalOpen(true)}>
+              <FiPlus className="icon" />
+              キャストを追加
+            </button>
+          )}
           relatedWorksFooter={(
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const relatedItemId = promptValue("関連作品の item_id を入力してください");
-                const relationType = promptValue("relation_type を入力してください (reference / dlc)", "reference") as "reference" | "dlc";
-                if (!relatedItemId || !relationType) {
-                  return;
-                }
-                void runAction(() => detail.addRelation(relatedItemId, relationType), "関連作品を追加しました。");
-              }}
-            >
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRelatedModalOpen(true)}>
               <FiPlus className="icon" />
               関連作品を追加
             </button>
@@ -256,9 +290,44 @@ export function MovieDetailPage() {
               配信サイトを追加
             </button>
           )}
-          resourceFooter={resourceFooter}
+          linksFooter={linksFooter}
+          filesFooter={filesFooter}
+          trailersFooter={trailersFooter}
         />
       )}
     />
+    {isRelatedModalOpen ? (
+      <RelatedItemSearchModal
+        open={isRelatedModalOpen}
+        onClose={() => setRelatedModalOpen(false)}
+        excludeItemIds={[id]}
+        alreadyRelatedIds={detail.relatedWorks.map((relation) => relation.relatedItemId)}
+        onSelect={async (itemId, relationType) => {
+          await detail.addRelation(itemId, relationType);
+          toast.success("関連作品を追加しました。");
+        }}
+      />
+    ) : null}
+    {isStaffModalOpen ? (
+      <StaffAddModal
+        open={isStaffModalOpen}
+        onClose={() => setStaffModalOpen(false)}
+        onLink={async (staffId, role, characterName) => {
+          await detail.addStaff(staffId, role, characterName);
+          toast.success("スタッフを追加しました。");
+        }}
+      />
+    ) : null}
+    {isCastModalOpen ? (
+      <CastAddModal
+        open={isCastModalOpen}
+        onClose={() => setCastModalOpen(false)}
+        onLink={async (castId, characterName) => {
+          await detail.addCast(castId, characterName);
+          toast.success("キャストを追加しました。");
+        }}
+      />
+    ) : null}
+    </>
   );
 }

@@ -1,12 +1,34 @@
-import type { ReactNode } from "react";
-import { FiBookmark, FiFileText, FiFilm, FiFolder, FiGitBranch, FiLayers, FiPaperclip, FiTag, FiTv, FiUsers } from "react-icons/fi";
-import { PropertyList, type PropertyItem, RelatedWorksList, ResourceTabs, TagList, type TagListItem, type RelatedWork, type ResourceTabKey } from "@/components/shared";
+import { useEffect, useState, type ReactNode } from "react";
+import { FiBookmark, FiCheck, FiEdit2, FiFileText, FiFilm, FiFolder, FiGitBranch, FiLayers, FiTag, FiTv, FiUsers, FiX } from "react-icons/fi";
+import { FaAmazon } from "react-icons/fa";
+import { SiAppletv, SiDmm, SiNetflix } from "react-icons/si";
+import { PropertyList, type PropertyItem, RelatedWorksList, ResourceEntryList, resourceTabIcons, resourceTabLabels, Tabs, type TabItem, TagList, type TagListItem, type RelatedWork, type ResourceTabKey } from "@/components/shared";
 
 export type RailSectionListItem = { id: string; label: string; actionLabel?: string };
 export type Episode = { id: string; number: string; title: string };
 export type Group = { id: string; label: string; episodes: Episode[] };
 export type StaffMember = { id: string; label: string; sub: string; actionLabel?: string; onAction?: (id: string) => void };
-export type StreamingLinkItem = { id: string; label: string; sub: string; actionLabel?: string; onAction?: (id: string) => void };
+export type StreamingPlatform = "netflix" | "amazon_prime" | "disney_plus" | "dmm_tv" | "apple_tv";
+export type StreamingLinkItem = { id: string; label: string; sub: string; platform?: StreamingPlatform; actionLabel?: string; onAction?: (id: string) => void };
+
+const STREAMING_PLATFORM_ICONS: Record<StreamingPlatform, { icon: ReactNode; color: string }> = {
+  netflix: { icon: <SiNetflix />, color: "#E50914" },
+  amazon_prime: { icon: <FaAmazon />, color: "#00A8E1" },
+  disney_plus: { icon: <FiTv />, color: "#113CCF" },
+  dmm_tv: { icon: <SiDmm />, color: "#000000" },
+  apple_tv: { icon: <SiAppletv />, color: "#000000" },
+};
+
+export function StreamingPlatformIcon({ platform }: { platform?: StreamingPlatform }) {
+  if (!platform) return null;
+  const entry = STREAMING_PLATFORM_ICONS[platform];
+  if (!entry) return null;
+  return (
+    <span className="streaming-platform-icon" style={{ color: entry.color }}>
+      {entry.icon}
+    </span>
+  );
+}
 
 export function RailSection({
   title,
@@ -168,7 +190,10 @@ export function StreamingLinks({
     <div>
       {links.map((link) => (
         <div key={link.id} className="prop-list-item">
-          <span className="label">{link.label}</span>
+          <span className="label">
+            <StreamingPlatformIcon platform={link.platform} />
+            {link.label}
+          </span>
           <div className="detail-section-actions">
             <span className="sub">{link.sub}</span>
             {link.actionLabel ? (
@@ -184,11 +209,77 @@ export function StreamingLinks({
   );
 }
 
+export function OverviewSection({
+  overview,
+  onSave,
+}: {
+  overview: string;
+  onSave?: (value: string) => void;
+}) {
+  const [isEditing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(overview);
+
+  useEffect(() => setDraft(overview), [overview]);
+
+  if (!onSave) {
+    return <p>{overview || "概要はまだ登録されていません。"}</p>;
+  }
+
+  if (!isEditing) {
+    return (
+      <div className="overview-view">
+        <p>{overview || "概要はまだ登録されていません。"}</p>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>
+          <FiEdit2 className="icon" />
+          編集
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overview-editor">
+      <textarea
+        className="overview-textarea"
+        rows={5}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      <div className="detail-section-actions">
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            setDraft(overview);
+            setEditing(false);
+          }}
+        >
+          <FiX className="icon" />
+          キャンセル
+        </button>
+        <button
+          type="button"
+          className="btn btn-accent btn-sm"
+          onClick={() => {
+            onSave(draft);
+            setEditing(false);
+          }}
+        >
+          <FiCheck className="icon" />
+          保存
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function DetailMain({
   overview,
+  onUpdateOverview,
   propertyList,
   groups,
   staffList,
+  castList,
   relatedWorks,
   streaming,
   resourceTabs,
@@ -196,14 +287,19 @@ export function DetailMain({
   groupActions,
   groupFooter,
   staffFooter,
+  castFooter,
   relatedWorksFooter,
   streamingFooter,
-  resourceFooter,
+  linksFooter,
+  filesFooter,
+  trailersFooter,
 }: {
-  overview: ReactNode;
+  overview: string;
+  onUpdateOverview?: (value: string) => void;
   propertyList?: PropertyItem[];
   groups?: Group[];
   staffList?: StaffMember[];
+  castList?: StaffMember[];
   relatedWorks?: RelatedWork[];
   streaming?: StreamingLinkItem[];
   resourceTabs?: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string; onRemove?: (id: string) => void }[]>>;
@@ -211,19 +307,90 @@ export function DetailMain({
   groupActions?: (group: Group) => ReactNode;
   groupFooter?: ReactNode;
   staffFooter?: ReactNode;
+  castFooter?: ReactNode;
   relatedWorksFooter?: ReactNode;
   streamingFooter?: ReactNode;
-  resourceFooter?: ReactNode;
+  linksFooter?: ReactNode;
+  filesFooter?: ReactNode;
+  trailersFooter?: ReactNode;
 }) {
+  const tabs: TabItem[] = [];
+
+  if (propertyList) {
+    tabs.push({
+      key: "property",
+      label: "プロパティ",
+      icon: <FiFilm className="icon" />,
+      content: <DetailSection icon={<FiFilm className="icon" />} title="プロパティ"><PropertyList items={propertyList} /></DetailSection>,
+    });
+  }
+
+  if (groups) {
+    tabs.push({
+      key: "groups",
+      label: groupTitle,
+      icon: <FiLayers className="icon" />,
+      content: <DetailSection icon={<FiLayers className="icon" />} title={groupTitle}><GroupList groups={groups} renderGroupActions={groupActions} footerAction={groupFooter} /></DetailSection>,
+    });
+  }
+
+  if (staffList || castList) {
+    tabs.push({
+      key: "people",
+      label: "スタッフ・キャスト",
+      icon: <FiUsers className="icon" />,
+      content: (
+        <>
+          {staffList ? <DetailSection icon={<FiUsers className="icon" />} title="スタッフ"><StaffList members={staffList} footerAction={staffFooter} /></DetailSection> : null}
+          {castList ? <DetailSection icon={<FiUsers className="icon" />} title="キャスト"><StaffList members={castList} footerAction={castFooter} /></DetailSection> : null}
+        </>
+      ),
+    });
+  }
+
+  if (relatedWorks) {
+    tabs.push({
+      key: "related",
+      label: "関連作品",
+      icon: <FiGitBranch className="icon" />,
+      content: <DetailSection icon={<FiGitBranch className="icon" />} title="関連作品"><RelatedWorksList items={relatedWorks} />{relatedWorksFooter}</DetailSection>,
+    });
+  }
+
+  if (streaming) {
+    tabs.push({
+      key: "streaming",
+      label: "配信",
+      icon: <FiTv className="icon" />,
+      content: <DetailSection icon={<FiTv className="icon" />} title="配信"><StreamingLinks links={streaming} footerAction={streamingFooter} /></DetailSection>,
+    });
+  }
+
+  const resourceFooters: Partial<Record<ResourceTabKey, ReactNode>> = { links: linksFooter, files: filesFooter, trailers: trailersFooter };
+
+  (["links", "files", "trailers"] as ResourceTabKey[]).forEach((key) => {
+    const entries = resourceTabs?.[key];
+    if (!entries) return;
+    const Icon = resourceTabIcons[key];
+    tabs.push({
+      key,
+      label: resourceTabLabels[key],
+      icon: <Icon className="icon" />,
+      content: (
+        <DetailSection icon={<Icon className="icon" />} title={resourceTabLabels[key]}>
+          <ResourceEntryList entries={entries} />
+          {resourceFooters[key]}
+        </DetailSection>
+      ),
+    });
+  });
+
   return (
     <div className="detail-main">
-      <DetailSection icon={<FiFileText className="icon" />} title="概要"><p>{overview}</p></DetailSection>
-      {propertyList ? <DetailSection icon={<FiFilm className="icon" />} title="種別固有情報"><PropertyList items={propertyList} /></DetailSection> : null}
-      {groups ? <DetailSection icon={<FiLayers className="icon" />} title={groupTitle}><GroupList groups={groups} renderGroupActions={groupActions} footerAction={groupFooter} /></DetailSection> : null}
-      {staffList ? <DetailSection icon={<FiUsers className="icon" />} title="スタッフ"><StaffList members={staffList} footerAction={staffFooter} /></DetailSection> : null}
-      {relatedWorks ? <DetailSection icon={<FiGitBranch className="icon" />} title="関連作品"><RelatedWorksList items={relatedWorks} />{relatedWorksFooter}</DetailSection> : null}
-      {streaming ? <DetailSection icon={<FiTv className="icon" />} title="配信"><StreamingLinks links={streaming} footerAction={streamingFooter} /></DetailSection> : null}
-      {resourceTabs ? <DetailSection icon={<FiPaperclip className="icon" />} title="リソース"><ResourceTabs tabs={resourceTabs} />{resourceFooter}</DetailSection> : null}
+      <DetailSection icon={<FiFileText className="icon" />} title="概要">
+        <OverviewSection overview={overview} onSave={onUpdateOverview} />
+      </DetailSection>
+      {tabs.length ? <Tabs items={tabs} /> : null}
     </div>
   );
 }

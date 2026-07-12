@@ -207,6 +207,26 @@ CREATE TABLE item_staff (
 CREATE INDEX idx_item_staff_item_id ON item_staff(item_id);
 CREATE INDEX idx_item_staff_staff_id ON item_staff(staff_id);
 
+CREATE TABLE cast_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    external_id VARCHAR(100),
+    name VARCHAR(255) NOT NULL,
+    image_url VARCHAR(1000),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_cast_members_external_id ON cast_members(external_id);
+
+CREATE TABLE item_cast (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    cast_id UUID NOT NULL REFERENCES cast_members(id) ON DELETE CASCADE,
+    character_name VARCHAR(255)
+);
+
+CREATE INDEX idx_item_cast_item_id ON item_cast(item_id);
+CREATE INDEX idx_item_cast_cast_id ON item_cast(cast_id);
+
 CREATE TABLE api_credentials (
     provider api_provider PRIMARY KEY,
     api_key VARCHAR(500) NOT NULL,

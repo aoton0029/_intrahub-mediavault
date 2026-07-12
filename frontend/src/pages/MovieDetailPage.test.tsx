@@ -52,7 +52,8 @@ function createHookResult() {
       { key: "vote_count", label: "評価人数", value: "3204人", muted: false },
     ],
     staffList: [{ id: "staff-1", label: "レイラ・ハーモン", sub: "監督" }],
-    relatedWorks: [{ id: "relation-1", title: "深海のオデッセイ2", relation: "reference" }],
+    castList: [{ id: "cast-1", label: "アリア・ノヴァク", sub: "主演役" }],
+    relatedWorks: [{ id: "relation-1", relatedItemId: "item-2", title: "深海のオデッセイ2", relation: "reference" }],
     streaming: [{ id: "streaming-1", label: "Disney+", sub: "https://www.disneyplus.com/movies/xxxxx" }],
     resourceTabs: {
       links: [{ id: "link-1", label: "公式サイト", detail: "https://example.com" }],
@@ -71,6 +72,8 @@ function createHookResult() {
     updateStatus: vi.fn().mockResolvedValue(undefined),
     updateRating: vi.fn().mockResolvedValue(undefined),
     updateFavorite: vi.fn().mockResolvedValue(undefined),
+    updateConsumedDate: vi.fn().mockResolvedValue(undefined),
+    updateDescription: vi.fn().mockResolvedValue(undefined),
     addTag: vi.fn().mockResolvedValue(undefined),
     removeTag: vi.fn().mockResolvedValue(undefined),
     addCategory: vi.fn().mockResolvedValue(undefined),
@@ -78,6 +81,8 @@ function createHookResult() {
     removeMylist: vi.fn().mockResolvedValue(undefined),
     addStaff: vi.fn().mockResolvedValue(undefined),
     removeStaff: vi.fn().mockResolvedValue(undefined),
+    addCast: vi.fn().mockResolvedValue(undefined),
+    removeCast: vi.fn().mockResolvedValue(undefined),
     addRelation: vi.fn().mockResolvedValue(undefined),
     removeRelation: vi.fn().mockResolvedValue(undefined),
     addStreamingLink: vi.fn().mockResolvedValue(undefined),
@@ -89,6 +94,7 @@ function createHookResult() {
     addTrailer: vi.fn().mockResolvedValue(undefined),
     removeTrailer: vi.fn().mockResolvedValue(undefined),
     linkCalibre: vi.fn().mockResolvedValue(undefined),
+    deleteItem: vi.fn().mockResolvedValue(undefined),
   } as ReturnType<typeof useMovieDetailData>;
 }
 
@@ -145,5 +151,23 @@ describe("MovieDetailPage", () => {
 
     expect(updateStatus).toHaveBeenCalledWith("completed");
     expect(updateStatus).not.toHaveBeenCalledWith("done");
+  });
+
+  it("updates consumed_date through the date editor", () => {
+    const updateConsumedDate = vi.fn().mockResolvedValue(undefined);
+
+    mockUseMovieDetailData.mockReturnValue({
+      ...createHookResult(),
+      updateConsumedDate,
+    } as ReturnType<typeof useMovieDetailData>);
+
+    renderWithRouter();
+
+    expect(screen.getByText("視聴日未登録")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "視聴日未登録" }));
+    fireEvent.change(screen.getByDisplayValue(""), { target: { value: "2026-01-05" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(updateConsumedDate).toHaveBeenCalledWith("2026-01-05");
   });
 });

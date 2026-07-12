@@ -109,6 +109,15 @@
 | Staff | id: UUID, external_id: string \| null, name: string, image_url: string \| null, created_at: datetime |
 | ItemStaff | id: UUID, item_id: UUID, staff_id: UUID, role: string, character_name: string \| null |
 
+## Cast / ItemCast
+
+`POST /cast`, `POST /items/:id/cast`のレスポンス。声優＋役名を`staff`/`item_staff`とは別テーブル（`cast_members`/`item_cast`）で管理する。詳細: [mediavault-model/cast.md](../mediavault-model/cast.md)
+
+| struct | フィールド |
+|---|---|
+| Cast | id: UUID, external_id: string \| null, name: string, image_url: string \| null, created_at: datetime |
+| ItemCast | id: UUID, item_id: UUID, cast_id: UUID, character_name: string \| null |
+
 ## ApiCredential
 
 `PUT /settings/api-keys/:provider`のレスポンス。詳細: [mediavault-model/api-credentials.md](../mediavault-model/api-credentials.md)

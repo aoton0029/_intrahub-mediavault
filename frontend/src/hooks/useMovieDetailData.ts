@@ -36,15 +36,20 @@ type ItemFile = {
   created_at: string;
 };
 type ItemTrailer = { id: string; item_id: string; url: string; label: string | null; created_at: string };
-type StaffInfo = { id: string; external_id: string | null; name: string; image_url: string | null; created_at: string };
 type ItemStaff = {
   id: string;
   item_id: string;
   staff_id: string;
   role: string;
   character_name: string | null;
-  staff?: StaffInfo | null;
-  name?: string | null;
+  staff_name: string;
+};
+type ItemCast = {
+  id: string;
+  item_id: string;
+  cast_id: string;
+  character_name: string | null;
+  cast_name: string;
 };
 type ItemRelation = {
   id: string;
@@ -82,6 +87,7 @@ type ItemDetail = {
 type MovieDetailBundle = {
   item: ItemDetail;
   staff: ItemStaff[];
+  cast: ItemCast[];
   relations: ItemRelation[];
   streamingLinks: ItemStreamingLink[];
   mylists: Mylist[];
@@ -156,9 +162,10 @@ async function createCategory(name: string) {
 }
 
 async function fetchMovieDetailBundle(id: string): Promise<MovieDetailBundle> {
-  const [item, staff, relations, streamingLinks, mylists, links, files, trailers] = await Promise.all([
+  const [item, staff, cast, relations, streamingLinks, mylists, links, files, trailers] = await Promise.all([
     fetchApi<ItemDetail>(`/items/${id}`),
     fetchApi<ItemStaff[]>(`/items/${id}/staff`),
+    fetchApi<ItemCast[]>(`/items/${id}/cast`),
     fetchApi<ItemRelation[]>(`/items/${id}/relations`),
     fetchApi<ItemStreamingLink[]>(`/items/${id}/streaming-links`),
     fetchApi<Mylist[]>(`/items/${id}/mylists`),
@@ -167,7 +174,7 @@ async function fetchMovieDetailBundle(id: string): Promise<MovieDetailBundle> {
     fetchApi<ItemTrailer[]>(`/items/${id}/trailers`),
   ]);
 
-  return { item, staff, relations, streamingLinks, mylists, links, files, trailers };
+  return { item, staff, cast, relations, streamingLinks, mylists, links, files, trailers };
 }
 
 function buildActionLabel(item: ItemDetail) {
@@ -262,6 +269,24 @@ export function useMovieDetailData(id: string | undefined) {
   const staffRemoveMutation = useMutation({
     mutationFn: async (itemStaffId: string) => {
       await parseJson(await apiFetch(`/items/${id}/staff/${itemStaffId}`, { method: "DELETE" }));
+    },
+    onSuccess: invalidate,
+  });
+
+  const castAddMutation = useMutation({
+    mutationFn: async ({ castId, characterName }: { castId: string; characterName?: string }) => {
+      await fetchApi(`/items/${id}/cast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cast_id: castId, character_name: characterName || undefined }),
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  const castRemoveMutation = useMutation({
+    mutationFn: async (itemCastId: string) => {
+      await parseJson(await apiFetch(`/items/${id}/cast/${itemCastId}`, { method: "DELETE" }));
     },
     onSuccess: invalidate,
   });
@@ -367,16 +392,31 @@ export function useMovieDetailData(id: string | undefined) {
     onSuccess: invalidate,
   });
 
+  const deleteItemMutation = useMutation({
+    mutationFn: async () => {
+      await parseJson(await apiFetch(`/items/${id}`, { method: "DELETE" }));
+    },
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey });
+    },
+  });
+
   const bundle = detailQuery.data;
   const item = bundle?.item;
   const propertyItems = mapPropertyItems(item?.detail ?? null);
   const staffList: StaffMember[] = bundle?.staff.map((entry) => ({
     id: entry.id,
-    label: entry.staff?.name ?? entry.name ?? `スタッフ ${entry.staff_id}`,
+    label: entry.staff_name,
     sub: entry.character_name ? `${entry.role}(${entry.character_name}役)` : entry.role,
+  })) ?? [];
+  const castList: StaffMember[] = bundle?.cast.map((entry) => ({
+    id: entry.id,
+    label: entry.cast_name,
+    sub: entry.character_name ? `${entry.character_name}役` : "役名未登録",
   })) ?? [];
   const relatedWorks: RelatedWork[] = bundle?.relations.map((relation) => ({
     id: relation.id,
+    relatedItemId: relation.related_item_id,
     title: relation.related_item_title ?? relation.related_title ?? relation.title ?? relation.related_item_id,
     relation: relation.relation_type,
   })) ?? [];
@@ -384,6 +424,7 @@ export function useMovieDetailData(id: string | undefined) {
     id: link.id,
     label: STREAMING_PLATFORM_LABELS[link.platform],
     sub: link.url,
+    platform: link.platform,
   })) ?? [];
   const resourceTabs: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string }[]>> = {
     links: bundle?.links.map((link) => ({ id: link.id, label: link.label, detail: link.url })) ?? [],
@@ -403,6 +444,7 @@ export function useMovieDetailData(id: string | undefined) {
     item,
     propertyItems,
     staffList,
+    castList,
     relatedWorks,
     streaming,
     resourceTabs,
@@ -418,6 +460,8 @@ export function useMovieDetailData(id: string | undefined) {
     updateStatus: (status: ItemStatus) => statusMutation.mutateAsync(status),
     updateRating: (rating: number) => patchItemMutation.mutateAsync({ rating }),
     updateFavorite: (isFavorite: boolean) => patchItemMutation.mutateAsync({ is_favorite: isFavorite }),
+    updateConsumedDate: (date: string | null) => patchItemMutation.mutateAsync({ consumed_date: date }),
+    updateDescription: (description: string) => patchItemMutation.mutateAsync({ description }),
     addTag: (name: string) => tagAddMutation.mutateAsync(name),
     removeTag: (tagId: string) => tagRemoveMutation.mutateAsync(tagId),
     addCategory: (name: string) => categoryAddMutation.mutateAsync(name),
@@ -425,6 +469,8 @@ export function useMovieDetailData(id: string | undefined) {
     removeMylist: (mylistId: string) => mylistRemoveMutation.mutateAsync(mylistId),
     addStaff: (staffId: string, role: string, characterName?: string) => staffAddMutation.mutateAsync({ staffId, role, characterName }),
     removeStaff: (itemStaffId: string) => staffRemoveMutation.mutateAsync(itemStaffId),
+    addCast: (castId: string, characterName?: string) => castAddMutation.mutateAsync({ castId, characterName }),
+    removeCast: (itemCastId: string) => castRemoveMutation.mutateAsync(itemCastId),
     addRelation: (relatedItemId: string, relationType: "reference" | "dlc") => relationAddMutation.mutateAsync({ relatedItemId, relationType }),
     removeRelation: (relationId: string) => relationRemoveMutation.mutateAsync(relationId),
     addStreamingLink: (platform: StreamingPlatform, url: string) => streamingAddMutation.mutateAsync({ platform, url }),
@@ -436,6 +482,7 @@ export function useMovieDetailData(id: string | undefined) {
     addTrailer: (url: string, label?: string) => trailerAddMutation.mutateAsync({ url, label }),
     removeTrailer: (trailerId: string) => trailerRemoveMutation.mutateAsync(trailerId),
     linkCalibre: (fileId: string, calibreBookId: number) => calibreLinkMutation.mutateAsync({ fileId, calibreBookId }),
+    deleteItem: () => deleteItemMutation.mutateAsync(),
   };
 }
 

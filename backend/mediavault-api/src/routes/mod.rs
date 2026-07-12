@@ -10,6 +10,10 @@ use axum::extract::DefaultBodyLimit;
 use axum::routing::get;
 
 use crate::AppState;
+use crate::handlers::cast::{
+    create_cast_handler, create_item_cast_handler, delete_item_cast_handler,
+    list_cast_handler, list_item_cast_handler,
+};
 use crate::handlers::categories::{
     attach_category_handler, create_category_handler, delete_category_handler,
     detach_category_handler, list_categories_handler,
@@ -48,7 +52,7 @@ use crate::handlers::mylists::{
 use crate::handlers::settings::update_api_key_handler;
 use crate::handlers::staff::{
     create_item_staff_handler, create_staff_handler, delete_item_staff_handler,
-    list_item_staff_handler,
+    list_item_staff_handler, list_staff_handler,
 };
 use crate::handlers::tags::{
     attach_tag_handler, create_tag_handler, delete_tag_handler, detach_tag_handler,
@@ -147,7 +151,10 @@ pub fn build_router(state: AppState) -> Router {
             axum::routing::post(create_item_episode_handler).get(list_item_episodes_handler),
         )
         // 【TASK-0020】: スタッフ管理CRUD（staff作成・itemへの紐付け・紐付け削除） 🔵🟡
-        .route("/staff", axum::routing::post(create_staff_handler))
+        .route(
+            "/staff",
+            axum::routing::post(create_staff_handler).get(list_staff_handler),
+        )
         .route(
             "/items/{id}/staff",
             axum::routing::post(create_item_staff_handler).get(list_item_staff_handler),
@@ -155,6 +162,19 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/items/{id}/staff/{item_staff_id}",
             axum::routing::delete(delete_item_staff_handler),
+        )
+        // キャスト管理CRUD（cast作成・itemへの紐付け・紐付け削除。staffとは別テーブルで管理）
+        .route(
+            "/cast",
+            axum::routing::post(create_cast_handler).get(list_cast_handler),
+        )
+        .route(
+            "/items/{id}/cast",
+            axum::routing::post(create_item_cast_handler).get(list_item_cast_handler),
+        )
+        .route(
+            "/items/{id}/cast/{item_cast_id}",
+            axum::routing::delete(delete_item_cast_handler),
         )
         // 【TASK-0026】: item_files（パス指定方式）登録 🔵
         // GET /items/{id}/files（一覧）を同一パスに追加

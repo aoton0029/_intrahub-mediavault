@@ -14,6 +14,8 @@ DROP FUNCTION IF EXISTS update_updated_at_column();
 DROP FUNCTION IF EXISTS check_episode_group_type();
 
 DROP TABLE IF EXISTS api_credentials;
+DROP TABLE IF EXISTS item_cast;
+DROP TABLE IF EXISTS cast_members;
 DROP TABLE IF EXISTS item_staff;
 DROP TABLE IF EXISTS staff;
 DROP TABLE IF EXISTS item_episodes;

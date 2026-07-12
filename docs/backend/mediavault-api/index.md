@@ -60,6 +60,7 @@
 | INVALID_GROUP_TYPE_FOR_EPISODES | 400 | `volume` タイプの group に episode を作成しようとした |
 | DUPLICATE_EPISODE_NUMBER | 409 | 同一 group 内で episode_number が重複 |
 | STAFF_NOT_FOUND | 404 | 指定した staff が存在しない |
+| CAST_NOT_FOUND | 404 | 指定した cast が存在しない |
 | INVALID_PROVIDER | 400 | `provider` パスパラメータが未対応の値 |
 | API_KEY_NOT_CONFIGURED | 422 | 外部検索に必要なAPIキーが未登録 |
 | EXTERNAL_API_TIMEOUT | 502 | 外部APIの呼び出しタイムアウト・失敗 |
@@ -125,6 +126,10 @@
 | POST | /staff | スタッフ作成 | [staff.md](./staff.md) |
 | POST | /items/{id}/staff | アイテムにスタッフ紐付け | [staff.md](./staff.md) |
 | DELETE | /items/{id}/staff/{item_staff_id} | アイテムのスタッフ紐付け削除 | [staff.md](./staff.md) |
+| POST | /cast | キャスト作成 | [cast.md](./cast.md) |
+| GET | /items/{id}/cast | アイテムのキャスト紐付け一覧取得 | [cast.md](./cast.md) |
+| POST | /items/{id}/cast | アイテムにキャスト紐付け | [cast.md](./cast.md) |
+| DELETE | /items/{id}/cast/{item_cast_id} | アイテムのキャスト紐付け削除 | [cast.md](./cast.md) |
 | POST | /items/{id}/files | アイテムファイル情報登録 | [item-files.md](./item-files.md) |
 | POST | /items/{id}/files/upload | アイテムファイルアップロード（multipart） | [item-files.md](./item-files.md) |
 | PATCH | /items/{id}/files/{file_id}/calibre-link | Calibre連携ID更新 | [item-files.md](./item-files.md) |
@@ -153,6 +158,7 @@
 - [item-groups.md](./item-groups.md) — Item Groups（season / volume / chapter）
 - [item-episodes.md](./item-episodes.md) — Item Episodes
 - [staff.md](./staff.md) — Staff
+- [cast.md](./cast.md) — Cast
 - [item-files.md](./item-files.md) — Item Files
 - [item-links.md](./item-links.md) — Item Links
 - [item-streaming-links.md](./item-streaming-links.md) — Item Streaming Links

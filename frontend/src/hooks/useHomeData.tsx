@@ -14,6 +14,7 @@ type ItemWithRefs = {
   status: ItemStatus;
   rating: number | null;
   is_favorite: boolean;
+  cover_image_url: string | null;
 };
 
 type PaginatedItemsResponse = {
@@ -127,6 +128,7 @@ export function mapItemToMediaCard(item: ItemWithRefs, options?: { includeStatus
     rating: item.rating ?? undefined,
     favorite: item.is_favorite,
     href: `/media/${item.id}`,
+    imageUrl: item.cover_image_url,
     meta: statusLabel ? createStatusMeta(statusLabel) : undefined,
   };
 }

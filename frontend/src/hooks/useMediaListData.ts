@@ -22,6 +22,7 @@ type ItemWithRefs = {
   status: ItemStatus;
   rating: number | null;
   is_favorite: boolean;
+  cover_image_url: string | null;
   tags: TagRef[];
   categories: CategoryRef[];
 };
@@ -144,6 +145,7 @@ function mapItemToMediaCard(item: ItemWithRefs, options?: UseMediaListDataOption
     rating: item.rating ?? undefined,
     favorite: item.is_favorite,
     href: options?.getItemHref?.(item) ?? `/media/${item.id}`,
+    imageUrl: item.cover_image_url,
     variant: "compact",
   };
 }

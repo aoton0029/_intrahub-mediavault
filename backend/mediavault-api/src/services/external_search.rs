@@ -315,20 +315,28 @@ pub struct AnimeEpisodeData {
     pub title: Option<String>,
 }
 
-/// Annictから取得したスタッフ/声優1名分の情報
+/// Annictから取得したスタッフ（クルー）1名分の情報
 pub struct AnimeStaffMemberData {
     /// staff.external_id用の一意キー（"annict-person-<id>" / "annict-org-<id>"）
     pub external_id: String,
     pub name: String,
     pub role: String,
+}
+
+/// Annictから取得したキャスト（声優＋役名）1名分の情報
+pub struct AnimeCastMemberData {
+    /// cast_members.external_id用の一意キー（"annict-person-<id>"）
+    pub external_id: String,
+    pub name: String,
     pub character_name: Option<String>,
 }
 
-/// `fetch_anime_related_data`の戻り値。シーズングループ名・話数一覧・スタッフ/声優一覧を保持する
+/// `fetch_anime_related_data`の戻り値。シーズングループ名・話数一覧・スタッフ一覧・キャスト一覧を保持する
 pub struct AnimeRelatedData {
     pub season_group_name: String,
     pub episodes: Vec<AnimeEpisodeData>,
     pub staff: Vec<AnimeStaffMemberData>,
+    pub cast: Vec<AnimeCastMemberData>,
 }
 
 // ── インポート確定時: CreateItemRequest直接構築関数 ─────────────────────────
@@ -990,7 +998,7 @@ impl ExternalSearchService {
             })
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
-        let mut staff: Vec<AnimeStaffMemberData> = staffs_response
+        let staff: Vec<AnimeStaffMemberData> = staffs_response
             .model
             .iter()
             .filter_map(|s| {
@@ -1014,7 +1022,6 @@ impl ExternalSearchService {
                     external_id,
                     name,
                     role,
-                    character_name: None,
                 })
             })
             .collect();
@@ -1026,25 +1033,29 @@ impl ExternalSearchService {
             })
             .await
             .map_err(ExternalSearchError::ExternalApiError)?;
-        staff.extend(casts_response.model.iter().filter_map(|c| {
-            let person = c.person.as_ref()?;
-            let name = non_empty(person.name.clone())?;
-            let character_name = c
-                .character
-                .as_ref()
-                .and_then(|ch| non_empty(ch.name.clone()));
-            Some(AnimeStaffMemberData {
-                external_id: format!("annict-person-{}", person.id),
-                name,
-                role: "声優".to_string(),
-                character_name,
+        let cast: Vec<AnimeCastMemberData> = casts_response
+            .model
+            .iter()
+            .filter_map(|c| {
+                let person = c.person.as_ref()?;
+                let name = non_empty(person.name.clone())?;
+                let character_name = c
+                    .character
+                    .as_ref()
+                    .and_then(|ch| non_empty(ch.name.clone()));
+                Some(AnimeCastMemberData {
+                    external_id: format!("annict-person-{}", person.id),
+                    name,
+                    character_name,
+                })
             })
-        }));
+            .collect();
 
         Ok(AnimeRelatedData {
             season_group_name,
             episodes,
             staff,
+            cast,
         })
     }
 
@@ -1458,7 +1469,9 @@ mod tests {
     async fn search_manga_dispatches_to_rakuten_only() {
         let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})),
+            )
             .mount(&rakuten_mock)
             .await;
 
@@ -1476,7 +1489,9 @@ mod tests {
     async fn search_novel_dispatches_to_rakuten_only() {
         let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})),
+            )
             .mount(&rakuten_mock)
             .await;
 
@@ -1553,7 +1568,9 @@ mod tests {
     async fn search_academic_book_dispatches_to_rakuten_only() {
         let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})),
+            )
             .mount(&rakuten_mock)
             .await;
 
@@ -1775,7 +1792,9 @@ mod tests {
     async fn search_maps_all_eight_media_type_variants_to_exactly_one_provider() {
         let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})),
+            )
             .mount(&rakuten_mock)
             .await;
 
@@ -1793,7 +1812,9 @@ mod tests {
     async fn search_manga_does_not_reach_ndl_mock() {
         let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})),
+            )
             .mount(&rakuten_mock)
             .await;
         let ndl_mock = MockServer::start().await;
@@ -1816,7 +1837,9 @@ mod tests {
     async fn search_manga_returns_api_key_not_configured_when_rakuten_key_missing() {
         let rakuten_mock = MockServer::start().await;
         Mock::given(method("GET"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"Items": []})),
+            )
             .mount(&rakuten_mock)
             .await;
 

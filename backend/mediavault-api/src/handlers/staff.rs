@@ -6,7 +6,7 @@
 //! 実DB接続（DATABASE_URL）が必要なため#[ignore]を付与している。
 
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
@@ -14,10 +14,26 @@ use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::models::staff::{
-    CreateItemStaffRequest, CreateStaffRequest, ItemStaff, Staff, parse_create_item_staff_request,
-    parse_create_staff_request,
+    CreateItemStaffRequest, CreateStaffRequest, ItemStaff, Staff, StaffListQuery,
+    parse_create_item_staff_request, parse_create_staff_request,
 };
 use crate::repositories::staff_repository;
+
+/// 【機能概要】: `GET /staff?q=...` ハンドラ。氏名部分一致でスタッフを検索する
+/// 【実装方針】: qが空/未指定の場合はDBへ問い合わせず空配列を返す（一覧全件取得を避ける）
+pub async fn list_staff_handler(
+    State(state): State<AppState>,
+    Query(query): Query<StaffListQuery>,
+) -> Result<axum::response::Response, ApiError> {
+    let q = query.q.unwrap_or_default();
+    let trimmed = q.trim();
+    if trimmed.is_empty() {
+        return Ok(Json(ApiOk::new(Vec::<crate::models::staff::StaffSearchResult>::new())).into_response());
+    }
+
+    let results = staff_repository::search_staff(&state.db, trimmed, 20).await?;
+    Ok(Json(ApiOk::new(results)).into_response())
+}
 
 /// 【機能概要】: `POST /staff` ハンドラ。name(必須)/external_id(optional)/image_url(optional)を受け取りスタッフを作成する
 /// 【実装方針】: deserialize_request → parse_create_staff_request → repository::create_staff → 201応答

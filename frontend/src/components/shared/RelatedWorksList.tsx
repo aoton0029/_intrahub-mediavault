@@ -1,6 +1,6 @@
 import { FiGitBranch, FiTrash2 } from "react-icons/fi";
 
-export type RelatedWork = { id: string; title: string; relation: string; onRemove?: (id: string) => void };
+export type RelatedWork = { id: string; relatedItemId: string; title: string; relation: string; onRemove?: (id: string) => void };
 
 export function RelatedWorksList({ items }: { items: RelatedWork[] }) {
   return (

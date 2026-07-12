@@ -49,7 +49,7 @@ type Story = StoryObj<typeof DetailPageHarness>;
 export const Default: Story = {
   render: () => {
     mockFetchByUrl({
-      "/items/anime-1": {
+      "/api/v1/items/anime-1": {
         success: true,
         data: {
           id: "anime-1",
@@ -88,7 +88,7 @@ export const Default: Story = {
           streaming_links: [],
         },
       },
-      "/items/anime-1/groups": {
+      "/api/v1/items/anime-1/groups": {
         success: true,
         data: [
           {
@@ -104,7 +104,7 @@ export const Default: Story = {
           },
         ],
       },
-      "/groups/group-1/episodes": {
+      "/api/v1/groups/group-1/episodes": {
         success: true,
         data: [
           {
@@ -131,7 +131,7 @@ export const Default: Story = {
           },
         ],
       },
-      "/items/anime-1/staff": {
+      "/api/v1/items/anime-1/staff": {
         success: true,
         data: [
           {
@@ -140,11 +140,23 @@ export const Default: Story = {
             staff_id: "external-staff-1",
             role: "監督",
             character_name: null,
-            staff: { id: "external-staff-1", external_id: null, name: "新津 明日香", image_url: null, created_at: "2026-07-01T12:00:00" },
+            staff_name: "新津 明日香",
           },
         ],
       },
-      "/items/anime-1/relations": {
+      "/api/v1/items/anime-1/cast": {
+        success: true,
+        data: [
+          {
+            id: "cast-1",
+            item_id: "anime-1",
+            cast_id: "external-cast-1",
+            character_name: "ルカ",
+            cast_name: "結城 かなで",
+          },
+        ],
+      },
+      "/api/v1/items/anime-1/relations": {
         success: true,
         data: [
           {
@@ -157,23 +169,23 @@ export const Default: Story = {
           },
         ],
       },
-      "/items/anime-1/streaming-links": {
+      "/api/v1/items/anime-1/streaming-links": {
         success: true,
         data: [{ id: "streaming-1", item_id: "anime-1", platform: "netflix", url: "https://netflix.example.com", created_at: "2026-07-01T12:00:00" }],
       },
-      "/items/anime-1/mylists": {
+      "/api/v1/items/anime-1/mylists": {
         success: true,
         data: [{ id: "mylist-1", name: "お気に入り原作", created_at: "2026-07-01T12:00:00" }],
       },
-      "/items/anime-1/links": {
+      "/api/v1/items/anime-1/links": {
         success: true,
         data: [{ id: "link-1", item_id: "anime-1", url: "https://example.com", label: "公式サイト", created_at: "2026-07-01T12:00:00" }],
       },
-      "/items/anime-1/files": {
+      "/api/v1/items/anime-1/files": {
         success: true,
         data: [{ id: "file-1", item_id: "anime-1", path: "/tmp/pamphlet.pdf", label: "パンフレットPDF", file_type: "pdf", calibre_book_id: null, created_at: "2026-07-01T12:00:00" }],
       },
-      "/items/anime-1/trailers": {
+      "/api/v1/items/anime-1/trailers": {
         success: true,
         data: [{ id: "trailer-1", item_id: "anime-1", url: "https://video.example.com", label: "本予告編", created_at: "2026-07-01T12:00:00" }],
       },
@@ -186,7 +198,7 @@ export const Default: Story = {
 export const ManualEntry: Story = {
   render: () => {
     mockFetchByUrl({
-      "/items/anime-1": {
+      "/api/v1/items/anime-1": {
         success: true,
         data: {
           id: "anime-1",
@@ -212,14 +224,15 @@ export const ManualEntry: Story = {
           streaming_links: [],
         },
       },
-      "/items/anime-1/groups": { success: true, data: [] },
-      "/items/anime-1/staff": { success: true, data: [] },
-      "/items/anime-1/relations": { success: true, data: [] },
-      "/items/anime-1/streaming-links": { success: true, data: [] },
-      "/items/anime-1/mylists": { success: true, data: [] },
-      "/items/anime-1/links": { success: true, data: [] },
-      "/items/anime-1/files": { success: true, data: [] },
-      "/items/anime-1/trailers": { success: true, data: [] },
+      "/api/v1/items/anime-1/groups": { success: true, data: [] },
+      "/api/v1/items/anime-1/staff": { success: true, data: [] },
+      "/api/v1/items/anime-1/cast": { success: true, data: [] },
+      "/api/v1/items/anime-1/relations": { success: true, data: [] },
+      "/api/v1/items/anime-1/streaming-links": { success: true, data: [] },
+      "/api/v1/items/anime-1/mylists": { success: true, data: [] },
+      "/api/v1/items/anime-1/links": { success: true, data: [] },
+      "/api/v1/items/anime-1/files": { success: true, data: [] },
+      "/api/v1/items/anime-1/trailers": { success: true, data: [] },
     });
 
     return <DetailPageHarness />;

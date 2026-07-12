@@ -49,7 +49,8 @@ function createHookResult() {
     },
     groups: [{ id: "group-1", label: "シーズン1", episodes: [{ id: "episode-1", number: "01", title: "星が墜ちた夜" }] }],
     staffList: [{ id: "staff-1", label: "新津 明日香", sub: "監督" }],
-    relatedWorks: [{ id: "relation-1", title: "星屑のシンフォニア OVA", relation: "reference" }],
+    castList: [{ id: "cast-1", label: "結城 かなで", sub: "ルカ役" }],
+    relatedWorks: [{ id: "relation-1", relatedItemId: "item-2", title: "星屑のシンフォニア OVA", relation: "reference" }],
     streaming: [{ id: "streaming-1", label: "Netflix", sub: "https://netflix.example.com" }],
     resourceTabs: {
       links: [{ id: "link-1", label: "公式サイト", detail: "https://example.com" }],
@@ -68,6 +69,8 @@ function createHookResult() {
     updateStatus: vi.fn().mockResolvedValue(undefined),
     updateRating: vi.fn().mockResolvedValue(undefined),
     updateFavorite: vi.fn().mockResolvedValue(undefined),
+    updateConsumedDate: vi.fn().mockResolvedValue(undefined),
+    updateDescription: vi.fn().mockResolvedValue(undefined),
     addTag: vi.fn().mockResolvedValue(undefined),
     removeTag: vi.fn().mockResolvedValue(undefined),
     addCategory: vi.fn().mockResolvedValue(undefined),
@@ -77,6 +80,8 @@ function createHookResult() {
     addEpisode: vi.fn().mockResolvedValue(undefined),
     addStaff: vi.fn().mockResolvedValue(undefined),
     removeStaff: vi.fn().mockResolvedValue(undefined),
+    addCast: vi.fn().mockResolvedValue(undefined),
+    removeCast: vi.fn().mockResolvedValue(undefined),
     addRelation: vi.fn().mockResolvedValue(undefined),
     removeRelation: vi.fn().mockResolvedValue(undefined),
     addStreamingLink: vi.fn().mockResolvedValue(undefined),
@@ -88,6 +93,7 @@ function createHookResult() {
     addTrailer: vi.fn().mockResolvedValue(undefined),
     removeTrailer: vi.fn().mockResolvedValue(undefined),
     linkCalibre: vi.fn().mockResolvedValue(undefined),
+    deleteItem: vi.fn().mockResolvedValue(undefined),
   } as ReturnType<typeof useAnimeDetailData>;
 }
 
@@ -124,7 +130,7 @@ describe("AnimeDetailPage", () => {
     expect(screen.getByText("新津 明日香")).toBeInTheDocument();
     expect(screen.getByText("星屑のシンフォニア OVA")).toBeInTheDocument();
     expect(screen.getByText("Netflix")).toBeInTheDocument();
-    expect(screen.queryByText("種別固有情報")).not.toBeInTheDocument();
+    expect(screen.queryByText("プロパティ")).not.toBeInTheDocument();
   });
 
   it("sends completed rather than done when the status is changed", () => {
@@ -142,5 +148,23 @@ describe("AnimeDetailPage", () => {
 
     expect(updateStatus).toHaveBeenCalledWith("completed");
     expect(updateStatus).not.toHaveBeenCalledWith("done");
+  });
+
+  it("updates consumed_date through the date editor", () => {
+    const updateConsumedDate = vi.fn().mockResolvedValue(undefined);
+
+    mockUseAnimeDetailData.mockReturnValue({
+      ...createHookResult(),
+      updateConsumedDate,
+    } as ReturnType<typeof useAnimeDetailData>);
+
+    renderWithRouter();
+
+    expect(screen.getByText("視聴日未登録")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "視聴日未登録" }));
+    fireEvent.change(screen.getByDisplayValue(""), { target: { value: "2026-01-05" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(updateConsumedDate).toHaveBeenCalledWith("2026-01-05");
   });
 });

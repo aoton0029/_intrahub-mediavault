@@ -5,6 +5,10 @@ import { usePageChrome } from "@/components/layout/usePageChrome";
 import { EmptyState } from "@/components/shared";
 import { AnimeDetailPage } from "./AnimeDetailPage";
 import { MovieDetailPage } from "./MovieDetailPage";
+import { DramaDetailPage } from "./DramaDetailPage";
+import { MangaDetailPage } from "./MangaDetailPage";
+import { NovelDetailPage } from "./NovelDetailPage";
+import { GameDetailPage } from "./GameDetailPage";
 import { apiFetch } from "@/lib/apiClient";
 
 type MediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game" | "academic_book" | "paper";
@@ -13,6 +17,16 @@ type ItemDetail = {
   media_type: MediaType;
 };
 type ApiOk<T> = { success: boolean; data: T };
+const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
+  anime: "アニメ",
+  movie: "映画",
+  drama: "ドラマ",
+  manga: "漫画",
+  novel: "小説",
+  game: "ゲーム",
+  academic_book: "学術書",
+  paper: "論文",
+};
 
 async function parseJson<T>(response: Response) {
   if (!response.ok) {
@@ -49,7 +63,7 @@ export function MediaDetailPage() {
     breadcrumbs: mediaType
       ? [
         { label: "一般メディア", to: "/media" },
-        { label: mediaType === "movie" ? "映画" : mediaType === "anime" ? "アニメ" : "詳細" },
+        { label: MEDIA_TYPE_LABELS[mediaType] ?? "詳細" },
       ]
       : [{ label: "一般メディア", to: "/media" }],
     actions: mediaType === "movie" && id ? <Link className="btn btn-accent" to={`/media/${id}/edit`}>編集する</Link> : undefined,
@@ -74,6 +88,22 @@ export function MediaDetailPage() {
 
   if (mediaType === "movie") {
     return <MovieDetailPage />;
+  }
+
+  if (mediaType === "drama") {
+    return <DramaDetailPage />;
+  }
+
+  if (mediaType === "manga") {
+    return <MangaDetailPage />;
+  }
+
+  if (mediaType === "novel") {
+    return <NovelDetailPage />;
+  }
+
+  if (mediaType === "game") {
+    return <GameDetailPage />;
   }
 
   return (

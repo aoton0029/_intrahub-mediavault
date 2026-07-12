@@ -10,15 +10,16 @@ use axum::response::IntoResponse;
 use crate::AppState;
 use crate::models::external_search::SearchResultItem;
 use crate::models::item::{
-    Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaType, MediaTypeCounts,
-    UpdateItemRequest, UpdateStatusRequest, deserialize_request, parse_create_item_request,
-    parse_item_id, validate_update_title,
+    Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaType, MediaTypeCounts, UpdateItemRequest,
+    UpdateStatusRequest, deserialize_request, parse_create_item_request, parse_item_id,
+    validate_update_title,
 };
 use crate::models::item_episode::CreateItemEpisodeRequest;
 use crate::models::item_group::{CreateItemGroupRequest, GroupType};
 use crate::models::item_import::parse_import_by_id_request;
 use crate::models::item_search::ItemSearchQuery;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk, PaginatedOk, Pagination};
+use crate::repositories::cast_repository;
 use crate::repositories::item_episode_repository;
 use crate::repositories::item_file_repository;
 use crate::repositories::item_group_repository;
@@ -386,16 +387,32 @@ async fn import_anime_related_data(
                 continue;
             }
         };
-        if let Err(err) = staff_repository::link_staff(
+        if let Err(err) =
+            staff_repository::link_staff(db, item_id, staff.id, member.role, None).await
+        {
+            tracing::warn!(item_id = %item_id, error = ?err, "スタッフの紐付けに失敗しました");
+        }
+    }
+
+    for member in related.cast {
+        let cast = match cast_repository::find_or_create_cast_by_external_id(
             db,
-            item_id,
-            staff.id,
-            member.role,
-            member.character_name,
+            Some(member.external_id),
+            member.name,
+            None,
         )
         .await
         {
-            tracing::warn!(item_id = %item_id, error = ?err, "スタッフの紐付けに失敗しました");
+            Ok(cast) => cast,
+            Err(err) => {
+                tracing::warn!(item_id = %item_id, error = ?err, "キャストの登録に失敗しました");
+                continue;
+            }
+        };
+        if let Err(err) =
+            cast_repository::link_cast(db, item_id, cast.id, member.character_name).await
+        {
+            tracing::warn!(item_id = %item_id, error = ?err, "キャストの紐付けに失敗しました");
         }
     }
 }

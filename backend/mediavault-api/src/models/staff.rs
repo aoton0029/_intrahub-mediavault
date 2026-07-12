@@ -34,6 +34,18 @@ pub struct ItemStaff {
     pub character_name: Option<String>,
 }
 
+/// item_staff一覧取得（`GET /items/:id/staff`）専用の表現。staffテーブルとJOINしてname/image_urlを含める
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct ItemStaffWithName {
+    pub id: Uuid,
+    pub item_id: Uuid,
+    pub staff_id: Uuid,
+    pub role: String,
+    pub character_name: Option<String>,
+    pub staff_name: String,
+    pub staff_image_url: Option<String>,
+}
+
 /// `POST /staff` リクエストDTO
 /// 🔵 信頼性レベル: staff-requirements.md 2.1「name必須・external_id/image_url optional」に直接対応
 #[derive(Debug, Clone, Deserialize)]
@@ -50,6 +62,24 @@ pub struct CreateItemStaffRequest {
     pub staff_id: Uuid,
     pub role: String,
     pub character_name: Option<String>,
+}
+
+/// `GET /staff` クエリパラメータDTO（氏名部分一致検索）
+#[derive(Debug, Clone, Deserialize)]
+pub struct StaffListQuery {
+    pub q: Option<String>,
+}
+
+/// `GET /staff?q=...` レスポンス表現。既存スタッフ検索モーダルで
+/// 紐付け作品数を併記するため、staffテーブルの列にlinked_item_countを加える
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct StaffSearchResult {
+    pub id: Uuid,
+    pub external_id: Option<String>,
+    pub name: String,
+    pub image_url: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub linked_item_count: i64,
 }
 
 /// role列の最大長（VARCHAR(100)）

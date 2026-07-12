@@ -69,7 +69,7 @@ describe("MediaDetailPage", () => {
 
   it("renders an empty state when media_type is unsupported", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ success: true, data: { id: "1", media_type: "game" } })),
+      new Response(JSON.stringify({ success: true, data: { id: "1", media_type: "paper" } })),
     );
 
     renderWithRouter();
