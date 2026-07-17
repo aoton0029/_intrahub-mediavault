@@ -51,3 +51,5 @@ DROP TYPE IF EXISTS streaming_platform;
 -- ========================================
 
 DROP TABLE IF EXISTS item_images;
+DROP TYPE IF EXISTS image_source;
+DROP TYPE IF EXISTS image_kind;

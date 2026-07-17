@@ -6,7 +6,7 @@
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
-use crate::models::item_image::ItemImage;
+use crate::models::item_image::{ImageKind, ItemImage, NewItemImage};
 use crate::models::response::{ApiError, ApiErrorCode};
 
 fn db_error(err: sqlx::Error) -> ApiError {
@@ -29,6 +29,7 @@ pub async fn create_item_image(
     pool: &PgPool,
     item_id: Uuid,
     url: String,
+    kind: ImageKind,
 ) -> Result<ItemImage, ApiError> {
     if !item_exists(pool, item_id).await? {
         return Err(ApiError::new(
@@ -37,14 +38,16 @@ pub async fn create_item_image(
         ));
     }
 
+    // 手動追加のためsourceは'manual'固定。既存URLとの衝突時はkindのみ更新する
     sqlx::query_as::<_, ItemImage>(
-        "INSERT INTO item_images (item_id, url)
-         VALUES ($1, $2)
-         ON CONFLICT (item_id, url) DO UPDATE SET url = EXCLUDED.url
-         RETURNING id, item_id, url, created_at",
+        "INSERT INTO item_images (item_id, url, kind, source)
+         VALUES ($1, $2, $3, 'manual')
+         ON CONFLICT (item_id, url) DO UPDATE SET kind = EXCLUDED.kind
+         RETURNING id, item_id, url, kind, source, sort_order, created_at",
     )
     .bind(item_id)
     .bind(&url)
+    .bind(kind)
     .fetch_one(pool)
     .await
     .map_err(db_error)
@@ -53,10 +56,10 @@ pub async fn create_item_image(
 /// 指定item_idに紐づく画像URLを一覧取得する（`GET /items/:id/images`）
 pub async fn list_item_images(pool: &PgPool, item_id: Uuid) -> Result<Vec<ItemImage>, ApiError> {
     sqlx::query_as(
-        "SELECT id, item_id, url, created_at
+        "SELECT id, item_id, url, kind, source, sort_order, created_at
          FROM item_images
          WHERE item_id = $1
-         ORDER BY created_at",
+         ORDER BY sort_order, created_at",
     )
     .bind(item_id)
     .fetch_all(pool)
@@ -80,22 +83,26 @@ pub async fn delete_item_image(
     Ok(result.rows_affected() > 0)
 }
 
-/// item作成/インポート時、外部APIレスポンスから収集した画像URL群を同一トランザクション内で
+/// item作成/インポート時、外部APIレスポンスから明示抽出した画像群を同一トランザクション内で
 /// 一括登録する。item自体は呼び出し元で既にINSERT済みのためitem存在チェックは行わない。
 /// 同一(item_id, url)は`ON CONFLICT DO NOTHING`で無害化する。
+/// sort_orderには配列内の並び順（0始まり）を採番する。
 pub async fn insert_item_images_bulk(
     tx: &mut Transaction<'_, Postgres>,
     item_id: Uuid,
-    urls: &[String],
+    images: &[NewItemImage],
 ) -> Result<(), ApiError> {
-    for url in urls {
+    for (index, image) in images.iter().enumerate() {
         sqlx::query(
-            "INSERT INTO item_images (item_id, url)
-             VALUES ($1, $2)
+            "INSERT INTO item_images (item_id, url, kind, source, sort_order)
+             VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT (item_id, url) DO NOTHING",
         )
         .bind(item_id)
-        .bind(url)
+        .bind(&image.url)
+        .bind(image.kind)
+        .bind(image.source)
+        .bind(index as i32)
         .execute(&mut **tx)
         .await
         .map_err(db_error)?;
@@ -125,6 +132,7 @@ mod tests {
             &pool,
             Uuid::new_v4(),
             "https://example.com/image.jpg".to_string(),
+            ImageKind::Other,
         )
         .await;
 

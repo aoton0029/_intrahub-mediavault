@@ -25,7 +25,9 @@ pub async fn create_item_image_handler(
     let request: CreateItemImageRequest = deserialize_request(body)?;
     let request = parse_create_item_image_request(request)?;
 
-    let image = item_image_repository::create_item_image(&state.db, item_id, request.url).await?;
+    let image =
+        item_image_repository::create_item_image(&state.db, item_id, request.url, request.kind)
+            .await?;
 
     Ok(created_response(image))
 }

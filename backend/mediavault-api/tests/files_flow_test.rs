@@ -46,12 +46,7 @@ async fn create_test_item(app: &axum::Router, title: &str) -> String {
 
 /// 【テスト用ヘルパー】: multipart/form-dataの生ボディとboundaryを組み立てる
 /// （handlers/item_files.rs既存テストのmultipart_body()パターンを踏襲）
-fn multipart_body(
-    file_bytes: &[u8],
-    filename: &str,
-    file_type: &str,
-    label: Option<&str>,
-) -> (String, Vec<u8>) {
+fn multipart_body(file_bytes: &[u8], filename: &str, label: Option<&str>) -> (String, Vec<u8>) {
     let boundary = "----mediavaultTask0032Boundary";
     let mut body = Vec::new();
 
@@ -62,11 +57,6 @@ fn multipart_body(
     );
     body.extend_from_slice(b"Content-Type: application/octet-stream\r\n\r\n");
     body.extend_from_slice(file_bytes);
-    body.extend_from_slice(b"\r\n");
-
-    body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-    body.extend_from_slice(b"Content-Disposition: form-data; name=\"file_type\"\r\n\r\n");
-    body.extend_from_slice(file_type.as_bytes());
     body.extend_from_slice(b"\r\n");
 
     if let Some(lbl) = label {
@@ -102,8 +92,7 @@ async fn it_004_register_file_by_path_persists_exact_path() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
-                        "path": "/data/test/sample.pdf",
-                        "file_type": "pdf"
+                        "path": "/data/test/sample.pdf"
                     })
                     .to_string(),
                 ))
@@ -150,7 +139,6 @@ async fn it_005_upload_file_via_multipart_persists_relative_path_under_temp_dir(
     let (content_type, body) = multipart_body(
         b"%PDF-1.4 IT-005 dummy bytes",
         "sample.pdf",
-        "pdf",
         Some("IT-005本編PDF"),
     );
 

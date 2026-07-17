@@ -84,10 +84,11 @@ pub struct CreateItemRequest {
     /// 消費（読了・視聴）日
     #[serde(default)]
     pub consumed_date: Option<NaiveDate>,
-    /// 外部APIレスポンスから収集した画像URLっぽい項目の値一覧（item_imagesへ紐づけて保存する）。
-    /// 手動作成時は任意入力、インポート時はサーバー側で自動収集した値が入る。
+    /// item_imagesへ紐づけて保存する画像一覧（url + kind）。
+    /// 手動作成時は任意入力（source=manual固定）、インポート時はサーバー側で
+    /// プロバイダ別に明示抽出した値（kind/source付き）が入る。
     #[serde(default)]
-    pub additional_image_urls: Vec<String>,
+    pub additional_images: Vec<crate::models::item_image::NewItemImage>,
 }
 
 /// `GET /items` クエリパラメータDTO

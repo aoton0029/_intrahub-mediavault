@@ -8,15 +8,45 @@ use uuid::Uuid;
 
 use crate::models::response::{ApiError, ApiErrorCode};
 
-/// ファイル種別（`pdf`, `image`, `other`）
-/// 🔵 信頼性レベル: database-schema.sqlのfile_type ENUM定義に直接対応
+/// ファイル種別（`pdf`, `image`, `video`, `audio`, `archive`, `other`）
+/// 🔵 信頼性レベル: init migrationのfile_type ENUM定義に直接対応
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "file_type", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum FileType {
     Pdf,
     Image,
+    Video,
+    Audio,
+    Archive,
     Other,
+}
+
+impl FileType {
+    /// 拡張子（小文字比較・先頭ドットなし）からファイル種別を判定する。未知の拡張子はOther。
+    pub fn from_extension(ext: &str) -> FileType {
+        match ext.to_ascii_lowercase().as_str() {
+            "pdf" => FileType::Pdf,
+            "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp" | "svg" | "avif" | "heic" => {
+                FileType::Image
+            }
+            "mp4" | "mkv" | "avi" | "mov" | "wmv" | "webm" | "m4v" | "flv" | "ts" => {
+                FileType::Video
+            }
+            "mp3" | "flac" | "wav" | "aac" | "ogg" | "m4a" | "opus" | "wma" => FileType::Audio,
+            "zip" | "rar" | "7z" | "tar" | "gz" | "cbz" | "cbr" => FileType::Archive,
+            _ => FileType::Other,
+        }
+    }
+
+    /// パスまたはファイル名の拡張子からファイル種別を判定する。拡張子なしはOther。
+    pub fn from_path(path: &str) -> FileType {
+        std::path::Path::new(path)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(FileType::from_extension)
+            .unwrap_or(FileType::Other)
+    }
 }
 
 /// item_files本体（`POST /items/:id/files`のレスポンスで返す表現）
@@ -32,27 +62,39 @@ pub struct ItemFile {
     pub created_at: NaiveDateTime,
 }
 
-/// `POST /items/:id/files` リクエストDTO（パス指定方式）
-/// 🔵 信頼性レベル: api-endpoints.md POST /items/:id/files リクエスト例より
+/// `POST /items/:id/files` リクエストDTO（パス指定方式）。
+/// file_typeはクライアント指定ではなくpathの拡張子から自動分類する（未知フィールドは無視される）。
 #[derive(Debug, Clone, Deserialize)]
 pub struct CreateItemFileRequest {
+    pub path: String,
+    pub label: Option<String>,
+}
+
+/// バリデーション済みのファイル登録内容（file_typeは拡張子から導出済み）
+#[derive(Debug, Clone)]
+pub struct ValidatedItemFileRequest {
     pub path: String,
     pub label: Option<String>,
     pub file_type: FileType,
 }
 
-/// 【機能概要】: CreateItemFileRequestのバリデーション（path空文字拒否）を行う
-/// 🟡 信頼性レベル: タスク仕様テストケース4「pathが空文字でVALIDATION_ERROR」より
+/// 【機能概要】: CreateItemFileRequestのバリデーション（path空文字拒否）と
+/// pathの拡張子からのfile_type自動分類を行う
 pub fn parse_create_item_file_request(
     request: CreateItemFileRequest,
-) -> Result<CreateItemFileRequest, ApiError> {
+) -> Result<ValidatedItemFileRequest, ApiError> {
     if request.path.trim().is_empty() {
         return Err(ApiError::new(
             ApiErrorCode::ValidationError,
             "pathは必須です",
         ));
     }
-    Ok(request)
+    let file_type = FileType::from_path(&request.path);
+    Ok(ValidatedItemFileRequest {
+        path: request.path,
+        label: request.label,
+        file_type,
+    })
 }
 
 /// `PATCH /items/:id/files/:file_id/calibre-link` リクエストDTO
@@ -114,23 +156,20 @@ mod tests {
     fn create_item_file_request_deserializes_valid_fields() {
         let value = serde_json::json!({
             "path": "/srv/files/pdf/example.pdf",
-            "label": "本編PDF",
-            "file_type": "pdf"
+            "label": "本編PDF"
         });
 
         let request: CreateItemFileRequest = serde_json::from_value(value).unwrap();
 
         assert_eq!(request.path, "/srv/files/pdf/example.pdf");
         assert_eq!(request.label, Some("本編PDF".to_string()));
-        assert_eq!(request.file_type, FileType::Pdf);
     }
 
     /// テストケース1b: labelが省略された場合もデシリアライズできる
     #[test]
     fn create_item_file_request_deserializes_without_label() {
         let value = serde_json::json!({
-            "path": "/srv/files/pdf/example.pdf",
-            "file_type": "pdf"
+            "path": "/srv/files/pdf/example.pdf"
         });
 
         let request: CreateItemFileRequest = serde_json::from_value(value).unwrap();
@@ -138,17 +177,17 @@ mod tests {
         assert_eq!(request.label, None);
     }
 
-    /// テストケース3: file_typeが不正値の場合はデシリアライズエラーになる
+    /// 後方互換: 従来クライアントがfile_typeを送信してもエラーにならず無視される
     #[test]
-    fn create_item_file_request_with_invalid_file_type_fails_deserialization() {
+    fn create_item_file_request_ignores_legacy_file_type_field() {
         let value = serde_json::json!({
             "path": "/srv/files/pdf/example.pdf",
-            "file_type": "invalid"
+            "file_type": "image"
         });
 
-        let result: Result<CreateItemFileRequest, _> = serde_json::from_value(value);
+        let request: CreateItemFileRequest = serde_json::from_value(value).unwrap();
 
-        assert!(result.is_err());
+        assert_eq!(request.path, "/srv/files/pdf/example.pdf");
     }
 
     /// テストケース4: pathが空文字でVALIDATION_ERROR
@@ -157,7 +196,6 @@ mod tests {
         let request = CreateItemFileRequest {
             path: "".to_string(),
             label: Some("本編PDF".to_string()),
-            file_type: FileType::Pdf,
         };
 
         let result = parse_create_item_file_request(request);
@@ -169,18 +207,53 @@ mod tests {
         );
     }
 
-    /// 正常な入力は検証を通過する
+    /// 正常な入力は検証を通過し、拡張子からfile_typeが導出される
     #[test]
-    fn parse_create_item_file_request_accepts_valid_fields() {
+    fn parse_create_item_file_request_derives_file_type_from_extension() {
         let request = CreateItemFileRequest {
             path: "/srv/files/pdf/example.pdf".to_string(),
             label: Some("本編PDF".to_string()),
-            file_type: FileType::Pdf,
         };
 
         let result = parse_create_item_file_request(request);
 
-        assert!(result.is_ok());
+        let validated = result.unwrap();
+        assert_eq!(validated.file_type, FileType::Pdf);
+        assert_eq!(validated.path, "/srv/files/pdf/example.pdf");
+    }
+
+    /// FileType::from_extension が代表的な拡張子を正しく分類する（大文字小文字非依存）
+    #[test]
+    fn file_type_from_extension_classifies_known_extensions() {
+        assert_eq!(FileType::from_extension("pdf"), FileType::Pdf);
+        assert_eq!(FileType::from_extension("PDF"), FileType::Pdf);
+        assert_eq!(FileType::from_extension("jpg"), FileType::Image);
+        assert_eq!(FileType::from_extension("PNG"), FileType::Image);
+        assert_eq!(FileType::from_extension("webp"), FileType::Image);
+        assert_eq!(FileType::from_extension("mp4"), FileType::Video);
+        assert_eq!(FileType::from_extension("MKV"), FileType::Video);
+        assert_eq!(FileType::from_extension("mp3"), FileType::Audio);
+        assert_eq!(FileType::from_extension("flac"), FileType::Audio);
+        assert_eq!(FileType::from_extension("zip"), FileType::Archive);
+        assert_eq!(FileType::from_extension("cbz"), FileType::Archive);
+        assert_eq!(FileType::from_extension("xyz"), FileType::Other);
+    }
+
+    /// FileType::from_path がパス・ファイル名の拡張子から分類し、拡張子なしはOtherになる
+    #[test]
+    fn file_type_from_path_handles_paths_and_missing_extension() {
+        assert_eq!(FileType::from_path("/srv/files/pdf/a.pdf"), FileType::Pdf);
+        assert_eq!(FileType::from_path("cover.JPG"), FileType::Image);
+        assert_eq!(
+            FileType::from_path("/data/videos/ep01.mkv"),
+            FileType::Video
+        );
+        assert_eq!(FileType::from_path("noextension"), FileType::Other);
+        assert_eq!(
+            FileType::from_path("/data/archive.tar.gz"),
+            FileType::Archive
+        );
+        assert_eq!(FileType::from_path(""), FileType::Other);
     }
 
     /// TC-020-U02: UpdateCalibreLinkRequestがcalibre_book_idを正しくデシリアライズする

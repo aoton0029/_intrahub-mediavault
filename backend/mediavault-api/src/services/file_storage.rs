@@ -31,8 +31,12 @@ pub fn resolve_base_dir(file_type: FileType) -> PathBuf {
         FileType::Pdf => std::env::var("PDF_STORAGE_PATH")
             .unwrap_or_else(|_| "/srv/files/pdf".to_string())
             .into(),
-        // 設計決定1・2: Image/Other はいずれも画像用ベースディレクトリへ集約する
-        FileType::Image | FileType::Other => std::env::var("MEDIA_STORAGE_PATH")
+        // 設計決定1・2: pdf以外（image/video/audio/archive/other）はメディア用ベースディレクトリへ集約する
+        FileType::Image
+        | FileType::Video
+        | FileType::Audio
+        | FileType::Archive
+        | FileType::Other => std::env::var("MEDIA_STORAGE_PATH")
             .unwrap_or_else(|_| "/srv/media/photos".to_string())
             .into(),
     }

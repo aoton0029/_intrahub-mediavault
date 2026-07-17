@@ -284,7 +284,7 @@ pub fn steam_game_entry_to_create_item_request(
         is_favorite: None,
         details: None,
         consumed_date: None,
-        additional_image_urls: Vec::new(),
+        additional_images: Vec::new(),
     }
 }
 
@@ -720,7 +720,7 @@ mod tests {
             is_favorite: None,
             details: None,
             consumed_date: None,
-            additional_image_urls: Vec::new(),
+            additional_images: Vec::new(),
         };
         crate::repositories::item_repository::create_item_with_source(
             &pool,

@@ -109,7 +109,7 @@ pub fn parse_booklog_csv_row(
         is_favorite: None,
         details: None,
         consumed_date,
-        additional_image_urls: Vec::new(),
+        additional_images: Vec::new(),
     })
 }
 

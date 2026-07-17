@@ -7,16 +7,28 @@
 - **成功レスポンス** (200): `ApiOk<ItemFile[]>`
 
 ## POST /items/{id}/files
-ファイルパス情報のみ登録（実体アップロードなし）。
-- **リクエストボディ** (`CreateItemFileRequest`): `path` (必須), `label` (optional), `file_type` (必須)
+ファイルパス情報のみ登録（実体アップロードなし）。`file_type` はクライアント指定ではなく、`path` の拡張子から自動分類される（下表参照）。
+- **リクエストボディ** (`CreateItemFileRequest`): `path` (必須), `label` (optional)
 - **成功レスポンス** (201): `ApiOk<ItemFile>`
 - **エラー**: 404 `ITEM_NOT_FOUND`, 400 `VALIDATION_ERROR`
 
 ## POST /items/{id}/files/upload
-実ファイルをアップロードして保存。ボディサイズ上限は本エンドポイントのみ100MBに拡張（`DefaultBodyLimit::max`）。
-- **Content-Type**: `multipart/form-data`（`file`, `file_type`, `label` optional）
+実ファイルをアップロードして保存。ボディサイズ上限は本エンドポイントのみ100MBに拡張（`DefaultBodyLimit::max`）。`file_type` は元ファイル名の拡張子から自動分類される（下表参照）。
+- **Content-Type**: `multipart/form-data`（`file`, `label` optional）
 - **成功レスポンス** (201): `ApiOk<ItemFile>`
 - **エラー**: 404 `ITEM_NOT_FOUND`, 400 `VALIDATION_ERROR`, 500 `FILE_STORAGE_WRITE_FAILED`
+
+### file_type 自動分類（拡張子・大文字小文字非依存）
+| file_type | 拡張子 |
+|---|---|
+| `pdf` | pdf |
+| `image` | jpg, jpeg, png, gif, webp, bmp, svg, avif, heic |
+| `video` | mp4, mkv, avi, mov, wmv, webm, m4v, flv, ts |
+| `audio` | mp3, flac, wav, aac, ogg, m4a, opus, wma |
+| `archive` | zip, rar, 7z, tar, gz, cbz, cbr |
+| `other` | 上記以外・拡張子なし |
+
+従来の `file_type` フィールドがリクエストに含まれていても無視される（後方互換）。
 
 ## PATCH /items/{id}/files/{file_id}/calibre-link
 PDFファイルとCalibre書籍IDを紐付ける。

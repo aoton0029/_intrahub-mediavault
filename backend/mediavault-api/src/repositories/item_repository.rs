@@ -90,12 +90,12 @@ pub async fn create_item_with_source(
     .map_err(db_error)?;
 
     // 【画像URL一括登録】: 外部APIレスポンスから収集した画像URL群をitem_imagesへ紐づけて保存する
-    // （手動作成時はadditional_image_urlsが空のことが多く、その場合は何もしない）
-    if !request.additional_image_urls.is_empty() {
+    // （手動作成時はadditional_imagesが空のことが多く、その場合は何もしない）
+    if !request.additional_images.is_empty() {
         crate::repositories::item_image_repository::insert_item_images_bulk(
             &mut tx,
             item.id,
-            &request.additional_image_urls,
+            &request.additional_images,
         )
         .await?;
     }
@@ -1813,7 +1813,7 @@ mod tests {
             details: None,
             // 【TASK-0030拡張】: consumed_date追加に伴いテストヘルパーを更新（TC-REG-01の前提） 🔵
             consumed_date: None,
-            additional_image_urls: Vec::new(),
+            additional_images: Vec::new(),
         }
     }
 

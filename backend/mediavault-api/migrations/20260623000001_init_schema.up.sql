@@ -20,7 +20,7 @@ CREATE TYPE group_type AS ENUM ('season', 'volume', 'chapter');
 
 CREATE TYPE relation_type AS ENUM ('reference', 'dlc');
 
-CREATE TYPE file_type AS ENUM ('pdf', 'image', 'other');
+CREATE TYPE file_type AS ENUM ('pdf', 'image', 'video', 'audio', 'archive', 'other');
 
 CREATE TYPE api_provider AS ENUM ('tmdb', 'igdb', 'ndl', 'steam', 'openlibrary', 'anilist', 'annict', 'rakuten');
 
@@ -264,10 +264,17 @@ CREATE INDEX idx_item_streaming_links_item_id ON item_streaming_links(item_id);
 -- item_images migration (up)
 -- ========================================
 
+CREATE TYPE image_kind AS ENUM ('cover', 'backdrop', 'screenshot', 'thumbnail', 'other');
+
+CREATE TYPE image_source AS ENUM ('manual', 'annict', 'jikan', 'tmdb', 'rakuten', 'steam', 'ndl');
+
 CREATE TABLE item_images (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
     url VARCHAR(1000) NOT NULL,
+    kind image_kind NOT NULL DEFAULT 'other',
+    source image_source NOT NULL DEFAULT 'manual',
+    sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_item_images UNIQUE (item_id, url)
 );

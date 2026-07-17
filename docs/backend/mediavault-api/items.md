@@ -90,7 +90,7 @@
   - `rating` (optional, number)
   - `is_favorite` (optional, bool)
   - `details` (optional, 任意形状のJSONオブジェクト) — スキーマは強制されない自由形式の`serde_json::Value`。`media_type`との整合性チェックはサーバー側で行わない（呼び出し側の責任）。実データ上の慣例的な形は下記「[details（media_type別JSON形状）](#detailsmedia_type別json形状)」を参照
-  - `additional_image_urls` (optional, string[], デフォルト`[]`) — 画像URL一覧。指定した値は`item_images`へ紐づけて保存される（詳細: [item-images.md](./item-images.md)）。手動作成時は任意入力
+  - `additional_images` (optional, `{url, kind}[]`, デフォルト`[]`) — 画像一覧（`kind`省略時`other`、`source`はサーバー側で`manual`固定）。指定した値は`item_images`へ紐づけて保存される（詳細: [item-images.md](./item-images.md)）。手動作成時は任意入力
 - **成功レスポンス** (201): `ApiOk<Item>`
 
 ```json
@@ -213,7 +213,7 @@
   - `provider` (optional, string) — `GET /items/search` のレスポンス要素の`provider`をそのまま渡せるが、実際のプロバイダ選択は`media_type`から自動決定されるため未使用でもよい
   - `external_id` (必須, string) — `GET /items/search` のレスポンス要素の`id`。空文字・空白のみは400
 - サーバー内部フロー: `ExternalSearchService::fetch_import_details(media_type, external_id)` で対応プロバイダから詳細を再取得し `CreateItemRequest` を構築（`details`は上記「[details（media_type別JSON形状）](#detailsmedia_type別json形状)」の形）→ 重複チェック（同一`media_type`+`external_id`が既存の場合409）→ DB登録
-- 画像URLの自動収集: プロバイダの生レスポンスから画像URLを示唆するキー（`image`/`thumbnail`/`cover`/`poster`/`screenshot`/`banner`/`artwork`/`backdrop`/`capsule`等）の値をすべて収集し`CreateItemRequest.additional_image_urls`へ格納、item作成と同一トランザクションで`item_images`へ一括登録する（詳細: [item-images.md](./item-images.md)）
+- 画像の自動収集: プロバイダごとにレスポンス構造へ基づき画像を明示抽出（kind/source付き）して`CreateItemRequest.additional_images`へ格納、item作成と同一トランザクションで`item_images`へ一括登録する（詳細: [item-images.md](./item-images.md)）
 - **成功レスポンス** (201): `ApiOk<Item>`（`POST /items`と同形。`source: "api"`, `external_id`にインポート元IDが入る）
 - **エラー**: 400 `VALIDATION_ERROR`（`external_id`欠落・空文字）, 404（プロバイダ側で対象が見つからない）, 409 `ITEM_ALREADY_IMPORTED`, 422 `API_KEY_NOT_CONFIGURED`, 502 `EXTERNAL_API_TIMEOUT` / `EXTERNAL_API_ERROR`
 
