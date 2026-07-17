@@ -31,7 +31,6 @@ export const router = createBrowserRouter([
         element: <MediaSearchPage />,
         handle: {
           title: "検索して追加",
-          actions: <Link className="btn btn-accent btn-sm" to="/media/new">手動で入力する</Link>,
         },
       },
       {

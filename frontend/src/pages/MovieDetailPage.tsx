@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal } from "@/components/shared";
+import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal, TrailerAddModal, LinkAddModal } from "@/components/shared";
 import { useMovieDetailData } from "@/hooks/useMovieDetailData";
 
 const MOVIE_STATUS_LABELS = {
@@ -31,6 +31,8 @@ export function MovieDetailPage() {
   const [isCastModalOpen, setCastModalOpen] = useState(false);
   const [isStreamingModalOpen, setStreamingModalOpen] = useState(false);
   const [isFileModalOpen, setFileModalOpen] = useState(false);
+  const [isTrailerModalOpen, setTrailerModalOpen] = useState(false);
+  const [isLinkModalOpen, setLinkModalOpen] = useState(false);
 
   async function handleDelete() {
     if (!id) return;
@@ -142,18 +144,7 @@ export function MovieDetailPage() {
 
   const linksFooter = (
     <div className="filter-bar" style={{ marginTop: 10 }}>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => {
-          const label = promptValue("リンク名を入力してください", "公式サイト");
-          const url = promptValue("URL を入力してください", item.homepage_url ?? "https://");
-          if (!label || !url) {
-            return;
-          }
-          void runAction(() => detail.addLink(label, url), "リンクを追加しました。");
-        }}
-      >
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLinkModalOpen(true)}>
         <FiPlus className="icon" />
         リンクを追加
       </button>
@@ -181,18 +172,7 @@ export function MovieDetailPage() {
 
   const trailersFooter = (
     <div className="filter-bar" style={{ marginTop: 10 }}>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => {
-          const label = promptValue("トレーラー名を入力してください", "本予告編");
-          const url = promptValue("トレーラー URL を入力してください", "https://");
-          if (!url) {
-            return;
-          }
-          void runAction(() => detail.addTrailer(url, label || undefined), "トレーラーを追加しました。");
-        }}
-      >
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTrailerModalOpen(true)}>
         <FiPlus className="icon" />
         トレーラーを追加
       </button>
@@ -357,6 +337,27 @@ export function MovieDetailPage() {
         onUpload={async (file, label) => {
           await detail.uploadFile(file, label);
           toast.success("ファイルをアップロードしました。");
+        }}
+      />
+    ) : null}
+    {isTrailerModalOpen ? (
+      <TrailerAddModal
+        open={isTrailerModalOpen}
+        onClose={() => setTrailerModalOpen(false)}
+        onAdd={async (url, label) => {
+          await detail.addTrailer(url, label);
+          toast.success("トレーラーを追加しました。");
+        }}
+      />
+    ) : null}
+    {isLinkModalOpen ? (
+      <LinkAddModal
+        open={isLinkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        defaultUrl={item.homepage_url ?? "https://"}
+        onAdd={async (label, url) => {
+          await detail.addLink(label, url);
+          toast.success("リンクを追加しました。");
         }}
       />
     ) : null}

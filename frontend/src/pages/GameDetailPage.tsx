@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StatusSwitcher, FileAddModal } from "@/components/shared";
+import { ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StatusSwitcher, FileAddModal, TrailerAddModal, LinkAddModal } from "@/components/shared";
 import { useGameDetailData } from "@/hooks/useGameDetailData";
 
 function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
@@ -22,6 +22,8 @@ export function GameDetailPage() {
   const detail = useGameDetailData(id);
   const [isRelatedModalOpen, setRelatedModalOpen] = useState(false);
   const [isFileModalOpen, setFileModalOpen] = useState(false);
+  const [isTrailerModalOpen, setTrailerModalOpen] = useState(false);
+  const [isLinkModalOpen, setLinkModalOpen] = useState(false);
 
   async function handleDelete() {
     if (!id) return;
@@ -102,17 +104,10 @@ export function GameDetailPage() {
 
   const linksFooter = (
     <div className="filter-bar" style={{ marginTop: 10, gap: 8 }}>
-      <InlineAddForm
-        triggerLabel="リンクを追加"
-        fields={[
-          { name: "label", placeholder: "リンク名", defaultValue: "公式サイト" },
-          { name: "url", placeholder: "URL", defaultValue: item.homepage_url ?? "https://" },
-        ]}
-        onSubmit={(values) => {
-          if (!values.label || !values.url) return;
-          void runAction(() => detail.addLink(values.label, values.url), "リンクを追加しました。");
-        }}
-      />
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLinkModalOpen(true)}>
+        <FiPlus className="icon" />
+        リンクを追加
+      </button>
     </div>
   );
 
@@ -127,17 +122,10 @@ export function GameDetailPage() {
 
   const trailersFooter = (
     <div className="filter-bar" style={{ marginTop: 10, gap: 8 }}>
-      <InlineAddForm
-        triggerLabel="トレーラーを追加"
-        fields={[
-          { name: "url", placeholder: "トレーラー URL", defaultValue: "https://" },
-          { name: "label", placeholder: "トレーラー名", defaultValue: "トレーラー" },
-        ]}
-        onSubmit={(values) => {
-          if (!values.url) return;
-          void runAction(() => detail.addTrailer(values.url, values.label || undefined), "トレーラーを追加しました。");
-        }}
-      />
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTrailerModalOpen(true)}>
+        <FiPlus className="icon" />
+        トレーラーを追加
+      </button>
     </div>
   );
 
@@ -236,6 +224,27 @@ export function GameDetailPage() {
         onUpload={async (file, label) => {
           await detail.uploadFile(file, label);
           toast.success("ファイルをアップロードしました。");
+        }}
+      />
+    ) : null}
+    {isTrailerModalOpen ? (
+      <TrailerAddModal
+        open={isTrailerModalOpen}
+        onClose={() => setTrailerModalOpen(false)}
+        onAdd={async (url, label) => {
+          await detail.addTrailer(url, label);
+          toast.success("トレーラーを追加しました。");
+        }}
+      />
+    ) : null}
+    {isLinkModalOpen ? (
+      <LinkAddModal
+        open={isLinkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        defaultUrl={item.homepage_url ?? "https://"}
+        onAdd={async (label, url) => {
+          await detail.addLink(label, url);
+          toast.success("リンクを追加しました。");
         }}
       />
     ) : null}

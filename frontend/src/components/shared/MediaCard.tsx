@@ -60,9 +60,9 @@ export function MediaCard({
         ) : null}
       </div>
       <div className="body">
-        <p className="title">{title}</p>
+        <p className="title">{isSearchResult && meta ? `${title}(${meta})` : title}</p>
         {originalTitle ? <div className="doc-original" style={{ marginBottom: 6, fontSize: 11 }}>{originalTitle}</div> : null}
-        {meta ? <div className="meta">{meta}</div> : null}
+        {!isSearchResult && meta ? <div className="meta">{meta}</div> : null}
         {typeof rating === "number" && !isSearchResult ? <RatingStarsMini value={rating} /> : null}
         {isSearchResult ? (
           <button type="button" className={cn("btn btn-sm", imported ? "" : "btn-accent")} disabled={imported} onClick={onAction}>

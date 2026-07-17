@@ -81,7 +81,6 @@
   .nav-item { display: flex; align-items: center; gap: 8px; border-radius: var(--radius-app); padding: 6px 8px; color: var(--color-text-muted); font-size: 13px; white-space: nowrap; }
   .nav-item:hover { background: var(--color-bg-surface-hover); color: var(--color-text-primary); text-decoration: none; }
   .nav-item.active, .nav-item[aria-current="page"] { background: var(--color-accent-soft); color: var(--color-accent-strong); }
-  .nav-item .count { margin-left: auto; color: var(--color-text-faint); font-family: var(--font-mono); font-size: 11px; }
   .nav-item.indent { padding-left: 22px; }
   .theme-toggle { display: flex; width: 100%; align-items: center; gap: 8px; border: 0; border-radius: var(--radius-app); background: transparent; padding: 6px 8px; color: var(--color-text-muted); text-align: left; cursor: pointer; }
   .theme-toggle:hover { background: var(--color-bg-surface-hover); color: var(--color-text-primary); }
@@ -164,6 +163,12 @@
   .status-option[data-status="not_started"] .icon, .status-trigger[data-current="not_started"] .status-icon { color: var(--color-status-none); }
   .status-option[data-status="in_progress"] .icon, .status-trigger[data-current="in_progress"] .status-icon { color: var(--color-status-progress); }
   .status-option[data-status="done"] .icon, .status-trigger[data-current="done"] .status-icon, .status-option[data-status="completed"] .icon, .status-trigger[data-current="completed"] .status-icon { color: var(--color-status-done); }
+  .media-type-selector { display: flex; align-items: center; gap: 6px; overflow-x: auto; }
+  .media-type-chip { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-bg-surface); padding: 6px 12px; color: var(--color-text-muted); cursor: pointer; }
+  .media-type-chip:hover { background: var(--color-bg-surface-hover); color: var(--color-text-primary); }
+  .media-type-chip[data-active="true"] { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent-strong); }
+  .media-type-selector[data-compact="true"] .media-type-chip .label { display: none; }
+  .media-type-selector[data-compact="true"] .media-type-chip { padding: 6px 8px; }
   .consumed-date-editor { position: relative; display: inline-flex; }
   .consumed-date-popover { position: absolute; top: 100%; left: 0; z-index: 30; margin-top: 6px; min-width: 200px; border: 1px solid var(--color-border); border-radius: var(--radius-app); background: var(--color-bg-surface); padding: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / 40%); display: flex; flex-direction: column; gap: 8px; }
   .consumed-date-popover input[type="date"] { border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg-surface); color: var(--color-text-primary); padding: 4px 6px; }

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { FiKey, FiPlusCircle, FiSearch } from "react-icons/fi";
-import { EmptyState, MediaGrid, type MediaCardProps } from "@/components/shared";
+import { FiKey, FiPlusCircle, FiRepeat, FiSearch } from "react-icons/fi";
+import { EmptyState, MediaGrid, MediaTypeSelector, type MediaCardProps } from "@/components/shared";
 import { MediaSearchError, useMediaSearch, type SearchMediaType } from "@/hooks/useMediaSearch";
 import { apiFetch } from "@/lib/apiClient";
 
@@ -85,6 +85,8 @@ async function importItem({ mediaType, provider, externalId }: { mediaType: Sear
 
 export function MediaSearchPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const stayMode = searchParams.get("stay") === "1";
   const [selectedMediaType, setSelectedMediaType] = useState<SearchMediaType>("anime");
   const [query, setQuery] = useState("");
   const [submittedMediaType, setSubmittedMediaType] = useState<SearchMediaType>("anime");
@@ -104,6 +106,18 @@ export function MediaSearchPage() {
     searchMutation.mutate({ mediaType: selectedMediaType, query });
   };
 
+  const handleToggleStayMode = () => {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params);
+      if (stayMode) {
+        next.delete("stay");
+      } else {
+        next.set("stay", "1");
+      }
+      return next;
+    });
+  };
+
   const handleImport = async (item: MediaCardProps & { id: string; provider: string | null; mediaType: SearchMediaType }) => {
     try {
       const imported = await importMutation.mutateAsync({
@@ -112,7 +126,9 @@ export function MediaSearchPage() {
         externalId: item.id,
       });
       setImportedIds((current) => new Set(current).add(item.id));
-      navigate(`/media/${imported.data.id}`);
+      if (!stayMode) {
+        navigate(`/media/${imported.data.id}`);
+      }
     } catch (error) {
       if (error instanceof ImportItemError && error.status === 409 && error.code === "ITEM_ALREADY_IMPORTED") {
         setImportedIds((current) => new Set(current).add(item.id));
@@ -151,16 +167,7 @@ export function MediaSearchPage() {
   return (
     <>
       <div className="filter-bar">
-        <label className="filter-select">
-          種別
-          <select aria-label="種別" value={selectedMediaType} onChange={(event) => setSelectedMediaType(event.target.value as SearchMediaType)}>
-            {MEDIA_TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MediaTypeSelector value={selectedMediaType} onChange={(value) => setSelectedMediaType(value as SearchMediaType)} />
         <label className="search-box" style={{ marginLeft: 0, flex: 1 }}>
           <FiSearch className="icon" aria-hidden="true" />
           <input aria-label="作品名" placeholder="作品名で検索…" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -168,6 +175,18 @@ export function MediaSearchPage() {
         <button type="button" className="btn btn-accent" onClick={handleSearch}>
           <FiSearch aria-hidden="true" />
           検索
+        </button>
+        <button
+          type="button"
+          className="media-type-chip"
+          role="switch"
+          aria-checked={stayMode}
+          data-active={stayMode}
+          title="取り込み後もこのページに留まる"
+          onClick={handleToggleStayMode}
+        >
+          <FiRepeat className="icon" aria-hidden="true" />
+          <span className="label">連続取り込み</span>
         </button>
       </div>
 

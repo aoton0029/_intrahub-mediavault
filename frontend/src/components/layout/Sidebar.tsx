@@ -51,7 +51,6 @@ function NavItem({ item }: { item: NavigationItem }) {
     >
       <Icon className="icon" />
       <span>{item.label}</span>
-      {typeof item.count === "number" ? <span className="count">{item.count}</span> : null}
     </Link>
   );
 }

@@ -26,3 +26,6 @@ export * from "./StaffAddModal";
 export * from "./CastAddModal";
 export * from "./StreamingLinkAddModal";
 export * from "./FileAddModal";
+export * from "./TrailerAddModal";
+export * from "./LinkAddModal";
+export * from "./MediaTypeSelector";
