@@ -6,12 +6,14 @@ export function Modal({
   title,
   children,
   maxWidth,
+  height,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
   maxWidth?: number;
+  height?: number | string;
 }) {
   if (!open) {
     return null;
@@ -19,7 +21,11 @@ export function Modal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={maxWidth ? { maxWidth } : undefined} onClick={(event) => event.stopPropagation()}>
+      <div
+        className={height ? "modal is-fixed-height" : "modal"}
+        style={maxWidth || height ? { maxWidth, height } : undefined}
+        onClick={(event) => event.stopPropagation()}
+      >
         <h2>{title}</h2>
         {children}
       </div>

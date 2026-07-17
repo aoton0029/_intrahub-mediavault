@@ -119,6 +119,7 @@
   .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
   .card-grid.is-compact { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
   .card-grid.is-horizontal { display: flex; flex-direction: column; gap: 10px; }
+  .card-grid.is-dense { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
   .media-card, .lit-row, .result-row, .stat-card, .kv-card { border: 1px solid var(--color-border-soft); border-radius: var(--radius-app); background: var(--color-bg-surface); }
   .group-block { border: 1px solid var(--color-border-soft); border-radius: var(--radius-app); margin-bottom: 10px; overflow: hidden; }
   .kv-card { justify-content: space-between; margin-bottom: 10px; padding: 10px 14px; }
@@ -146,6 +147,10 @@
   .title, .doc-title { color: var(--color-text-primary); font-family: var(--font-display); font-weight: 600; }
   .media-card .title { margin: 0 0 6px; font-size: 16px; }
   .media-card.is-compact .title { font-size: 14px; }
+  .media-card.is-dense .body { padding: 8px 8px 10px; }
+  .media-card.is-dense .title { margin: 0 0 4px; font-size: 12px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .media-card.is-dense .meta { font-size: 11px; }
+  .media-card.is-dense .btn { padding: 4px 8px; font-size: 11px; }
   .meta, .sub, .field-hint, .key { color: var(--color-text-faint); font-size: 12px; }
   .key { font-family: var(--font-mono); margin-top: 2px; }
   .rating-stars-mini, .rating-stars { display: inline-flex; align-items: center; gap: 2px; }
@@ -208,6 +213,8 @@
   .settings-panel { padding-left: 28px; }
   .modal-overlay { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 55%); }
   .modal { width: 100%; max-width: 360px; border: 1px solid var(--color-border); border-radius: var(--radius-app); background: var(--color-bg-surface); padding: 20px 22px 22px; }
+  .modal.is-fixed-height { display: flex; flex-direction: column; overflow: hidden; }
+  .modal-scroll-area { flex: 1; min-height: 0; overflow-y: auto; }
   .doc-cover { width: 100%; max-width: 220px; margin-bottom: 18px; border-radius: var(--radius-app); object-fit: contain; object-position: center; }
   .doc-title { margin: 0 0 6px; font-size: 26px; }
   .doc-original { margin-bottom: 18px; color: var(--color-text-faint); }

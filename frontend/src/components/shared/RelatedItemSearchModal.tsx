@@ -46,7 +46,7 @@ export function RelatedItemSearchModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="関連作品を追加" maxWidth={640}>
+    <Modal open={open} onClose={onClose} title="関連作品を追加" maxWidth={720} height="min(640px, 85vh)">
       <div className="filter-bar" style={{ marginBottom: 16 }}>
         <div className="search-box" style={{ flex: 1 }}>
           🔍 <input
@@ -65,23 +65,25 @@ export function RelatedItemSearchModal({
         </div>
       </div>
 
-      <div className="card-grid is-compact">
-        {isLoading ? <p>検索中です...</p> : null}
-        {!isLoading && title.trim().length > 0 && visibleResults.length === 0 ? <p>該当する作品が見つかりませんでした。</p> : null}
-        {visibleResults.map((item) => (
-          <MediaCard
-            key={item.id}
-            title={item.title}
-            badge={MEDIA_TYPE_LABELS[item.media_type] ?? item.media_type}
-            meta={<span>{item.release_date ? item.release_date.slice(0, 4) : "年不明"}年</span>}
-            variant="search-result"
-            imageUrl={item.cover_image_url}
-            imported={alreadyRelatedIds.includes(item.id)}
-            importedLabel="登録済み"
-            actionLabel="選択"
-            onAction={() => void handleSelect(item.id)}
-          />
-        ))}
+      <div className="modal-scroll-area">
+        <div className="card-grid is-dense">
+          {isLoading ? <p>検索中です...</p> : null}
+          {!isLoading && title.trim().length > 0 && visibleResults.length === 0 ? <p>該当する作品が見つかりませんでした。</p> : null}
+          {visibleResults.map((item) => (
+            <MediaCard
+              key={item.id}
+              title={item.title}
+              badge={MEDIA_TYPE_LABELS[item.media_type] ?? item.media_type}
+              meta={<span>{item.release_date ? item.release_date.slice(0, 4) : "年不明"}年</span>}
+              variant="picker"
+              imageUrl={item.cover_image_url}
+              imported={alreadyRelatedIds.includes(item.id)}
+              importedLabel="登録済み"
+              actionLabel="選択"
+              onAction={() => void handleSelect(item.id)}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="form-actions">

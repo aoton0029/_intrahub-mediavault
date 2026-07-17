@@ -13,7 +13,7 @@ export type MediaCardProps = {
   rating?: number;
   favorite?: boolean;
   onFavoriteChange?: (value: boolean) => void;
-  variant?: "default" | "compact" | "search-result" | "horizontal";
+  variant?: "default" | "compact" | "search-result" | "picker" | "horizontal";
   imported?: boolean;
   importedLabel?: string;
   actionLabel?: string;
@@ -38,10 +38,12 @@ export function MediaCard({
   href,
   imageUrl,
 }: MediaCardProps) {
+  const isSearchResult = variant === "search-result" || variant === "picker";
   const className = cn(
     "media-card",
     variant === "compact" && "is-compact",
     variant === "search-result" && "search-result is-compact",
+    variant === "picker" && "search-result is-dense",
     variant === "horizontal" && "is-horizontal",
   );
 
@@ -50,8 +52,8 @@ export function MediaCard({
       <div className="cover">
         {imageUrl ? <img src={imageUrl} alt="" loading="lazy" /> : null}
         <span className="badge">{badge}</span>
-        {variant !== "search-result" && onFavoriteChange ? <FavoriteToggle value={favorite} onChange={onFavoriteChange} label="" /> : null}
-        {variant !== "search-result" && !onFavoriteChange && favorite ? (
+        {!isSearchResult && onFavoriteChange ? <FavoriteToggle value={favorite} onChange={onFavoriteChange} label="" /> : null}
+        {!isSearchResult && !onFavoriteChange && favorite ? (
           <span className="cover-favorite" aria-label="お気に入り">
             <FiHeart className="icon" />
           </span>
@@ -61,8 +63,8 @@ export function MediaCard({
         <p className="title">{title}</p>
         {originalTitle ? <div className="doc-original" style={{ marginBottom: 6, fontSize: 11 }}>{originalTitle}</div> : null}
         {meta ? <div className="meta">{meta}</div> : null}
-        {typeof rating === "number" && variant !== "search-result" ? <RatingStarsMini value={rating} /> : null}
-        {variant === "search-result" ? (
+        {typeof rating === "number" && !isSearchResult ? <RatingStarsMini value={rating} /> : null}
+        {isSearchResult ? (
           <button type="button" className={cn("btn btn-sm", imported ? "" : "btn-accent")} disabled={imported} onClick={onAction}>
             {imported ? importedLabel : actionLabel}
           </button>
@@ -71,7 +73,7 @@ export function MediaCard({
     </>
   );
 
-  if (href && variant !== "search-result") {
+  if (href && !isSearchResult) {
     return (
       <Link className={className} style={{ display: "block", color: "inherit", textDecoration: "none" }} to={href}>
         {body}
