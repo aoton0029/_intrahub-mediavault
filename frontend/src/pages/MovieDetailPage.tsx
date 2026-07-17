@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher } from "@/components/shared";
+import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal } from "@/components/shared";
 import { useMovieDetailData } from "@/hooks/useMovieDetailData";
 
 const MOVIE_STATUS_LABELS = {
@@ -29,6 +29,7 @@ export function MovieDetailPage() {
   const [isRelatedModalOpen, setRelatedModalOpen] = useState(false);
   const [isStaffModalOpen, setStaffModalOpen] = useState(false);
   const [isCastModalOpen, setCastModalOpen] = useState(false);
+  const [isStreamingModalOpen, setStreamingModalOpen] = useState(false);
 
   async function handleDelete() {
     if (!id) return;
@@ -286,18 +287,7 @@ export function MovieDetailPage() {
             </button>
           )}
           streamingFooter={(
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                const platform = promptValue("platform を入力してください (netflix / amazon_prime / disney_plus / dmm_tv / apple_tv)", "disney_plus") as Parameters<typeof detail.addStreamingLink>[0];
-                const url = promptValue("配信 URL を入力してください", "https://");
-                if (!platform || !url) {
-                  return;
-                }
-                void runAction(() => detail.addStreamingLink(platform, url), "配信リンクを追加しました。");
-              }}
-            >
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStreamingModalOpen(true)}>
               <FiPlus className="icon" />
               配信サイトを追加
             </button>
@@ -353,6 +343,17 @@ export function MovieDetailPage() {
         onLink={async (castId, characterName) => {
           await detail.addCast(castId, characterName);
           toast.success("キャストを追加しました。");
+        }}
+      />
+    ) : null}
+    {isStreamingModalOpen ? (
+      <StreamingLinkAddModal
+        open={isStreamingModalOpen}
+        onClose={() => setStreamingModalOpen(false)}
+        registeredPlatforms={detail.streaming.flatMap((link) => (link.platform ? [link.platform] : []))}
+        onAdd={async (platform, url) => {
+          await detail.addStreamingLink(platform, url);
+          toast.success("配信リンクを追加しました。");
         }}
       />
     ) : null}

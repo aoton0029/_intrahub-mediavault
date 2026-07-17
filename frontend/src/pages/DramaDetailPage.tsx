@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher } from "@/components/shared";
+import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal } from "@/components/shared";
 import { useDramaDetailData } from "@/hooks/useDramaDetailData";
 
 function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
@@ -23,6 +23,7 @@ export function DramaDetailPage() {
   const [isRelatedModalOpen, setRelatedModalOpen] = useState(false);
   const [isStaffModalOpen, setStaffModalOpen] = useState(false);
   const [isCastModalOpen, setCastModalOpen] = useState(false);
+  const [isStreamingModalOpen, setStreamingModalOpen] = useState(false);
 
   async function handleDelete() {
     if (!id) return;
@@ -294,32 +295,10 @@ export function DramaDetailPage() {
           )}
           streaming={detailSectionMatrix.drama.streaming ? streaming : undefined}
           streamingFooter={(
-            <InlineAddForm
-              triggerLabel="配信サイトを追加"
-              fields={[
-                {
-                  name: "platform",
-                  placeholder: "配信サービス",
-                  type: "select",
-                  defaultValue: "netflix",
-                  options: [
-                    { value: "netflix", label: "Netflix" },
-                    { value: "amazon_prime", label: "Amazon Prime Video" },
-                    { value: "disney_plus", label: "Disney+" },
-                    { value: "dmm_tv", label: "DMM TV" },
-                    { value: "apple_tv", label: "Apple TV" },
-                  ],
-                },
-                { name: "url", placeholder: "配信 URL", defaultValue: "https://" },
-              ]}
-              onSubmit={(values) => {
-                if (!values.platform || !values.url) return;
-                void runAction(
-                  () => detail.addStreamingLink(values.platform as Parameters<typeof detail.addStreamingLink>[0], values.url),
-                  "配信リンクを追加しました。",
-                );
-              }}
-            />
+            <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setStreamingModalOpen(true)}>
+              <FiPlus className="icon" />
+              配信サイトを追加
+            </button>
           )}
           images={detailSectionMatrix.drama.images ? images : undefined}
           imagesFooter={(
@@ -368,6 +347,17 @@ export function DramaDetailPage() {
         onLink={async (castId, characterName) => {
           await detail.addCast(castId, characterName);
           toast.success("キャストを追加しました。");
+        }}
+      />
+    ) : null}
+    {isStreamingModalOpen ? (
+      <StreamingLinkAddModal
+        open={isStreamingModalOpen}
+        onClose={() => setStreamingModalOpen(false)}
+        registeredPlatforms={detail.streaming.flatMap((link) => (link.platform ? [link.platform] : []))}
+        onAdd={async (platform, url) => {
+          await detail.addStreamingLink(platform, url);
+          toast.success("配信リンクを追加しました。");
         }}
       />
     ) : null}

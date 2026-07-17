@@ -24,3 +24,4 @@ export * from "./InlineAddForm";
 export * from "./RelatedItemSearchModal";
 export * from "./StaffAddModal";
 export * from "./CastAddModal";
+export * from "./StreamingLinkAddModal";
