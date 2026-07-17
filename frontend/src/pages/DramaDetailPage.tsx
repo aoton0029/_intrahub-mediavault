@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal } from "@/components/shared";
+import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal } from "@/components/shared";
 import { useDramaDetailData } from "@/hooks/useDramaDetailData";
 
 function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
@@ -24,6 +24,7 @@ export function DramaDetailPage() {
   const [isStaffModalOpen, setStaffModalOpen] = useState(false);
   const [isCastModalOpen, setCastModalOpen] = useState(false);
   const [isStreamingModalOpen, setStreamingModalOpen] = useState(false);
+  const [isFileModalOpen, setFileModalOpen] = useState(false);
 
   async function handleDelete() {
     if (!id) return;
@@ -144,31 +145,10 @@ export function DramaDetailPage() {
 
   const filesFooter = (
     <div className="filter-bar" style={{ marginTop: 10, gap: 8 }}>
-      <InlineAddForm
-        triggerLabel="ファイルを追加"
-        fields={[
-          { name: "path", placeholder: "ファイルパス" },
-          { name: "label", placeholder: "ファイル名", defaultValue: "パンフレットPDF" },
-          {
-            name: "fileType",
-            placeholder: "種別",
-            type: "select",
-            defaultValue: "pdf",
-            options: [
-              { value: "pdf", label: "pdf" },
-              { value: "image", label: "image" },
-              { value: "other", label: "other" },
-            ],
-          },
-        ]}
-        onSubmit={(values) => {
-          if (!values.path || !values.fileType) return;
-          void runAction(
-            () => detail.addFile(values.path, values.label || undefined, values.fileType as "pdf" | "image" | "other"),
-            "ファイルを追加しました。",
-          );
-        }}
-      />
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFileModalOpen(true)}>
+        <FiPlus className="icon" />
+        ファイルを追加
+      </button>
       {detail.files.some((file) => file.file_type === "pdf") ? (
         <button
           type="button"
@@ -358,6 +338,20 @@ export function DramaDetailPage() {
         onAdd={async (platform, url) => {
           await detail.addStreamingLink(platform, url);
           toast.success("配信リンクを追加しました。");
+        }}
+      />
+    ) : null}
+    {isFileModalOpen ? (
+      <FileAddModal
+        open={isFileModalOpen}
+        onClose={() => setFileModalOpen(false)}
+        onAddByPath={async (path, label) => {
+          await detail.addFile(path, label);
+          toast.success("ファイルを追加しました。");
+        }}
+        onUpload={async (file, label) => {
+          await detail.uploadFile(file, label);
+          toast.success("ファイルをアップロードしました。");
         }}
       />
     ) : null}

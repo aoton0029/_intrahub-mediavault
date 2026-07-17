@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal } from "@/components/shared";
+import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal } from "@/components/shared";
 import { useMovieDetailData } from "@/hooks/useMovieDetailData";
 
 const MOVIE_STATUS_LABELS = {
@@ -30,6 +30,7 @@ export function MovieDetailPage() {
   const [isStaffModalOpen, setStaffModalOpen] = useState(false);
   const [isCastModalOpen, setCastModalOpen] = useState(false);
   const [isStreamingModalOpen, setStreamingModalOpen] = useState(false);
+  const [isFileModalOpen, setFileModalOpen] = useState(false);
 
   async function handleDelete() {
     if (!id) return;
@@ -161,19 +162,7 @@ export function MovieDetailPage() {
 
   const filesFooter = (
     <div className="filter-bar" style={{ marginTop: 10 }}>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => {
-          const label = promptValue("ファイル名を入力してください", "パンフレット画像");
-          const path = promptValue("ファイルパスを入力してください");
-          const fileType = promptValue("file_type を入力してください (pdf / image / other)", "image") as "pdf" | "image" | "other";
-          if (!path || !fileType) {
-            return;
-          }
-          void runAction(() => detail.addFile(path, label || undefined, fileType), "ファイルを追加しました。");
-        }}
-      >
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFileModalOpen(true)}>
         <FiPlus className="icon" />
         ファイルを追加
       </button>
@@ -354,6 +343,20 @@ export function MovieDetailPage() {
         onAdd={async (platform, url) => {
           await detail.addStreamingLink(platform, url);
           toast.success("配信リンクを追加しました。");
+        }}
+      />
+    ) : null}
+    {isFileModalOpen ? (
+      <FileAddModal
+        open={isFileModalOpen}
+        onClose={() => setFileModalOpen(false)}
+        onAddByPath={async (path, label) => {
+          await detail.addFile(path, label);
+          toast.success("ファイルを追加しました。");
+        }}
+        onUpload={async (file, label) => {
+          await detail.uploadFile(file, label);
+          toast.success("ファイルをアップロードしました。");
         }}
       />
     ) : null}

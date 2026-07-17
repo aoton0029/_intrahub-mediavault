@@ -25,3 +25,4 @@ export * from "./RelatedItemSearchModal";
 export * from "./StaffAddModal";
 export * from "./CastAddModal";
 export * from "./StreamingLinkAddModal";
+export * from "./FileAddModal";

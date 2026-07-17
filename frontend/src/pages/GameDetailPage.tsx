@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StatusSwitcher } from "@/components/shared";
+import { ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StatusSwitcher, FileAddModal } from "@/components/shared";
 import { useGameDetailData } from "@/hooks/useGameDetailData";
 
 function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
@@ -21,6 +21,7 @@ export function GameDetailPage() {
   const navigate = useNavigate();
   const detail = useGameDetailData(id);
   const [isRelatedModalOpen, setRelatedModalOpen] = useState(false);
+  const [isFileModalOpen, setFileModalOpen] = useState(false);
 
   async function handleDelete() {
     if (!id) return;
@@ -117,31 +118,10 @@ export function GameDetailPage() {
 
   const filesFooter = (
     <div className="filter-bar" style={{ marginTop: 10, gap: 8 }}>
-      <InlineAddForm
-        triggerLabel="ファイルを追加"
-        fields={[
-          { name: "path", placeholder: "ファイルパス" },
-          { name: "label", placeholder: "ファイル名", defaultValue: "スクリーンショット" },
-          {
-            name: "fileType",
-            placeholder: "種別",
-            type: "select",
-            defaultValue: "image",
-            options: [
-              { value: "pdf", label: "pdf" },
-              { value: "image", label: "image" },
-              { value: "other", label: "other" },
-            ],
-          },
-        ]}
-        onSubmit={(values) => {
-          if (!values.path || !values.fileType) return;
-          void runAction(
-            () => detail.addFile(values.path, values.label || undefined, values.fileType as "pdf" | "image" | "other"),
-            "ファイルを追加しました。",
-          );
-        }}
-      />
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFileModalOpen(true)}>
+        <FiPlus className="icon" />
+        ファイルを追加
+      </button>
     </div>
   );
 
@@ -242,6 +222,20 @@ export function GameDetailPage() {
         onSelect={async (itemId, relationType) => {
           await detail.addRelation(itemId, relationType);
           toast.success("関連作品を追加しました。");
+        }}
+      />
+    ) : null}
+    {isFileModalOpen ? (
+      <FileAddModal
+        open={isFileModalOpen}
+        onClose={() => setFileModalOpen(false)}
+        onAddByPath={async (path, label) => {
+          await detail.addFile(path, label);
+          toast.success("ファイルを追加しました。");
+        }}
+        onUpload={async (file, label) => {
+          await detail.uploadFile(file, label);
+          toast.success("ファイルをアップロードしました。");
         }}
       />
     ) : null}

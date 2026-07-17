@@ -25,7 +25,7 @@ type ItemFile = {
   item_id: string;
   path: string;
   label: string | null;
-  file_type: "pdf" | "image" | "other";
+  file_type: "pdf" | "image" | "video" | "audio" | "archive" | "other";
   calibre_book_id: number | null;
   created_at: string;
 };
@@ -404,12 +404,22 @@ export function useItemDetailData<TDetail>(
   });
 
   const fileAddMutation = useMutation({
-    mutationFn: async ({ path, label, fileType }: { path: string; label?: string; fileType: ItemFile["file_type"] }) => {
+    mutationFn: async ({ path, label }: { path: string; label?: string }) => {
       await fetchApi(`/items/${id}/files`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path, label, file_type: fileType }),
+        body: JSON.stringify({ path, label }),
       });
+    },
+    onSuccess: invalidate,
+  });
+
+  const fileUploadMutation = useMutation({
+    mutationFn: async ({ file, label }: { file: File; label?: string }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (label) formData.append("label", label);
+      await parseJson(await apiFetch(`/items/${id}/files/upload`, { method: "POST", body: formData }));
     },
     onSuccess: invalidate,
   });
@@ -548,7 +558,8 @@ export function useItemDetailData<TDetail>(
     setCoverImage: (url: string) => patchItemMutation.mutateAsync({ cover_image_url: url }),
     addLink: (label: string, url: string) => linkAddMutation.mutateAsync({ label, url }),
     removeLink: (linkId: string) => linkRemoveMutation.mutateAsync(linkId),
-    addFile: (path: string, label: string | undefined, fileType: ItemFile["file_type"]) => fileAddMutation.mutateAsync({ path, label, fileType }),
+    addFile: (path: string, label?: string) => fileAddMutation.mutateAsync({ path, label }),
+    uploadFile: (file: File, label?: string) => fileUploadMutation.mutateAsync({ file, label }),
     removeFile: (fileId: string) => fileRemoveMutation.mutateAsync(fileId),
     addTrailer: (url: string, label?: string) => trailerAddMutation.mutateAsync({ url, label }),
     removeTrailer: (trailerId: string) => trailerRemoveMutation.mutateAsync(trailerId),

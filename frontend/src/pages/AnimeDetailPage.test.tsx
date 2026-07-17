@@ -93,6 +93,7 @@ function createHookResult() {
     addLink: vi.fn().mockResolvedValue(undefined),
     removeLink: vi.fn().mockResolvedValue(undefined),
     addFile: vi.fn().mockResolvedValue(undefined),
+    uploadFile: vi.fn().mockResolvedValue(undefined),
     removeFile: vi.fn().mockResolvedValue(undefined),
     addTrailer: vi.fn().mockResolvedValue(undefined),
     removeTrailer: vi.fn().mockResolvedValue(undefined),
