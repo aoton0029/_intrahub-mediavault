@@ -112,6 +112,8 @@ pub enum ApiErrorCode {
     SteamApiKeyInvalid,
     /// 配信URLの一意制約違反（同一(item_id, platform)が既に登録済み）
     DuplicateStreamingLink,
+    /// バックアップファイルのschema_versionが未対応（POST /backup/import時400）
+    UnsupportedBackupVersion,
 }
 
 impl ApiErrorCode {
@@ -157,6 +159,9 @@ impl ApiErrorCode {
             ApiErrorCode::SteamApiKeyInvalid => ("STEAM_API_KEY_INVALID", StatusCode::UNAUTHORIZED),
             ApiErrorCode::DuplicateStreamingLink => {
                 ("DUPLICATE_STREAMING_LINK", StatusCode::CONFLICT)
+            }
+            ApiErrorCode::UnsupportedBackupVersion => {
+                ("UNSUPPORTED_BACKUP_VERSION", StatusCode::BAD_REQUEST)
             }
         }
     }
@@ -632,5 +637,19 @@ mod tests {
         // 【期待値確認】: 既存Unauthorized（"UNAUTHORIZED"）とは異なる専用コード文字列であることを保証
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED); // 【確認内容】: SteamApiKeyInvalidが401 UNAUTHORIZEDにマッピングされることを確認 🔵
         assert_eq!(err.error.code, "STEAM_API_KEY_INVALID"); // 【確認内容】: ワイヤーコードがSTEAM_API_KEY_INVALID（既存UNAUTHORIZEDとは異なる文字列）であることを確認 🔵
+    }
+
+    /// ApiErrorCode::UnsupportedBackupVersionが400・UNSUPPORTED_BACKUP_VERSIONへマッピングされる
+    #[test]
+    fn unsupported_backup_version_returns_400_with_expected_wire_code() {
+        let err = ApiError::new(
+            ApiErrorCode::UnsupportedBackupVersion,
+            "未対応のバックアップバージョンです",
+        );
+
+        let response = err.clone().into_response();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(err.error.code, "UNSUPPORTED_BACKUP_VERSION");
     }
 }

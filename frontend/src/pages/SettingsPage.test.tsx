@@ -14,6 +14,8 @@ describe("SettingsPage", () => {
   const fetchApiKeyStatuses = vi.fn();
   const importBooklog = vi.fn();
   const importSteam = vi.fn();
+  const exportBackup = vi.fn();
+  const importBackup = vi.fn();
   const fetchHealth = vi.fn();
 
   beforeEach(() => {
@@ -21,6 +23,8 @@ describe("SettingsPage", () => {
     fetchApiKeyStatuses.mockReset();
     importBooklog.mockReset();
     importSteam.mockReset();
+    exportBackup.mockReset();
+    importBackup.mockReset();
     fetchHealth.mockReset();
     fetchHealth.mockResolvedValue({ database: "ok" });
     fetchApiKeyStatuses.mockResolvedValue([]);
@@ -30,6 +34,8 @@ describe("SettingsPage", () => {
       fetchApiKeyStatuses,
       importBooklog,
       importSteam,
+      exportBackup,
+      importBackup,
       fetchHealth,
     });
   });
@@ -38,11 +44,12 @@ describe("SettingsPage", () => {
     mockUseSettingsData.mockReset();
   });
 
-  it("renders three tabs and starts on the API tab", () => {
+  it("renders four tabs and starts on the API tab", () => {
     render(<SettingsPage />);
 
     expect(screen.getByRole("button", { name: "API連携" })).toHaveClass("active");
     expect(screen.getByRole("button", { name: "データインポート" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "バックアップ" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "システム状態" })).toBeInTheDocument();
     expect(screen.getByText("外部データソースのAPIキーを登録します。各プロバイダごとに個別のキーを保存できます。")).toBeInTheDocument();
   });
@@ -124,6 +131,59 @@ describe("SettingsPage", () => {
     await waitFor(() => {
       expect(importSteam).toHaveBeenCalledWith("76561198000000000");
     });
+  });
+
+  it("exports a backup file from the backup tab", async () => {
+    const user = userEvent.setup();
+    exportBackup.mockResolvedValue(undefined);
+    render(<SettingsPage />);
+
+    await user.click(screen.getByRole("button", { name: "バックアップ" }));
+    await user.click(screen.getByRole("button", { name: "エクスポート" }));
+
+    await waitFor(() => {
+      expect(exportBackup).toHaveBeenCalled();
+    });
+  });
+
+  it("imports a backup file and shows the per-table report", async () => {
+    const user = userEvent.setup();
+    importBackup.mockResolvedValue({
+      tables: {
+        items: { inserted: 3, skipped: 1 },
+        tags: { inserted: 0, skipped: 0 },
+      },
+      totalInserted: 3,
+      totalSkipped: 1,
+    });
+    render(<SettingsPage />);
+
+    await user.click(screen.getByRole("button", { name: "バックアップ" }));
+    const fileInput = screen.getByLabelText("バックアップファイル") as HTMLInputElement;
+    const file = new File(['{"schema_version":1}'], "mediavault-backup.json", { type: "application/json" });
+    await user.upload(fileInput, file);
+    await user.click(screen.getByRole("button", { name: "インポート" }));
+
+    await waitFor(() => {
+      expect(importBackup).toHaveBeenCalledWith(file);
+    });
+    expect(screen.getByText("直近のインポート結果")).toBeInTheDocument();
+    expect(screen.getByText("追加: 3件")).toBeInTheDocument();
+    expect(screen.getByText("スキップ（既存）: 1件")).toBeInTheDocument();
+    expect(screen.getByText("items")).toBeInTheDocument();
+    // 件数0のテーブルは一覧に出さない
+    expect(screen.queryByText("tags")).not.toBeInTheDocument();
+  });
+
+  it("shows an error when importing a backup without selecting a file", async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    await user.click(screen.getByRole("button", { name: "バックアップ" }));
+    await user.click(screen.getByRole("button", { name: "インポート" }));
+
+    expect(importBackup).not.toHaveBeenCalled();
+    expect(screen.getByText("バックアップファイル（JSON）を選択してください")).toBeInTheDocument();
   });
 
   it("fetches health status and shows the ok pill styling", async () => {

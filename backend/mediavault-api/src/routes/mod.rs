@@ -10,6 +10,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::routing::get;
 
 use crate::AppState;
+use crate::handlers::backup::{export_backup_handler, import_backup_handler};
 use crate::handlers::cast::{
     create_cast_handler, create_item_cast_handler, delete_item_cast_handler, list_cast_handler,
     list_item_cast_handler,
@@ -264,6 +265,15 @@ pub fn build_router(state: AppState) -> Router {
         // 【TASK-0031】: POST /import/steam（Steamライブラリインポート）。既存/import/booklogと
         // 同様にトップレベルの専用リテラルパスとして登録する 🔵
         .route("/import/steam", axum::routing::post(import_steam_handler))
+        // バックアップ: 全データのJSONエクスポート/マージインポート。
+        // インポートはバックアップファイル全体を受けるため、アップロードルートと同様に
+        // ボディ上限を100MBへ緩和する
+        .route("/backup/export", get(export_backup_handler))
+        .route(
+            "/backup/import",
+            axum::routing::post(import_backup_handler)
+                .layer(DefaultBodyLimit::max(100 * 1024 * 1024)),
+        )
         .with_state(state)
 }
 

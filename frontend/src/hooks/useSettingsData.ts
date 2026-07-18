@@ -21,6 +21,17 @@ export type HealthStatus = {
   database: "ok" | "error";
 };
 
+export type BackupTableCount = {
+  inserted: number;
+  skipped: number;
+};
+
+export type BackupImportReport = {
+  tables: Record<string, BackupTableCount>;
+  totalInserted: number;
+  totalSkipped: number;
+};
+
 type ApiEnvelope<T> = {
   success?: boolean;
   data?: T;
@@ -153,6 +164,62 @@ export async function importSteam(steamId: string): Promise<ImportSummary> {
   return mapImportSummary(payload.data);
 }
 
+/** GET /backup/export のレスポンスをそのままJSONファイルとしてダウンロードする */
+export async function exportBackup(): Promise<void> {
+  const response = await apiFetch("/backup/export");
+
+  if (!response.ok) {
+    const payload = await readJson(response);
+    throw new Error(getErrorMessage(payload, "バックアップのエクスポートに失敗しました"));
+  }
+
+  const disposition = response.headers.get("Content-Disposition");
+  const filename = disposition?.match(/filename="([^"]+)"/)?.[1] ?? "mediavault-backup.json";
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+type BackupImportReportPayload = {
+  tables?: Record<string, { inserted?: number; skipped?: number }>;
+  total_inserted?: number;
+  total_skipped?: number;
+};
+
+/** バックアップJSONファイルをPOST /backup/importへそのまま送信する */
+export async function importBackup(file: File): Promise<BackupImportReport> {
+  const response = await apiFetch("/backup/import", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: file,
+  });
+  const payload = (await readJson(response)) as ApiEnvelope<BackupImportReportPayload> | null;
+
+  if (!response.ok || !payload?.data) {
+    throw new Error(getErrorMessage(payload, "バックアップのインポートに失敗しました"));
+  }
+
+  return {
+    tables: Object.fromEntries(
+      Object.entries(payload.data.tables ?? {}).map(([table, count]) => [
+        table,
+        { inserted: count.inserted ?? 0, skipped: count.skipped ?? 0 },
+      ]),
+    ),
+    totalInserted: payload.data.total_inserted ?? 0,
+    totalSkipped: payload.data.total_skipped ?? 0,
+  };
+}
+
 export async function fetchHealth(): Promise<HealthStatus> {
   const response = await apiFetch("/health");
   const payload = (await readJson(response)) as ApiEnvelope<{ status: "ok" | "error" }> | null;
@@ -172,6 +239,8 @@ export function useSettingsData() {
     fetchApiKeyStatuses,
     importBooklog,
     importSteam,
+    exportBackup,
+    importBackup,
     fetchHealth,
   };
 }

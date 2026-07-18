@@ -10,8 +10,7 @@ use uuid::Uuid;
 use crate::models::item::{
     CategoryRef, CreateItemRequest, DateField, Item, ItemSort, ItemSource, ListItemYearsQuery,
     ListItemsQuery, MediaType, MediaTypeCount, MediaTypeCounts, TagRef, UpdateItemRequest,
-    UpdateStatusRequest,
-    YearCount, has_any_update_field,
+    UpdateStatusRequest, YearCount, has_any_update_field,
 };
 use crate::models::response::{ApiError, ApiErrorCode};
 
@@ -390,44 +389,47 @@ pub async fn list_item_years(
     pool: &PgPool,
     query: &ListItemYearsQuery,
 ) -> Result<Vec<YearCount>, ApiError> {
-    let mut builder: QueryBuilder<'_, Postgres> =
-        match query.date_field.unwrap_or(DateField::Any).column_name() {
-            Some(column) => {
-                let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(format!(
-                    "SELECT EXTRACT(YEAR FROM {column})::int AS year, media_type, COUNT(*) AS count \
+    let mut builder: QueryBuilder<'_, Postgres> = match query
+        .date_field
+        .unwrap_or(DateField::Any)
+        .column_name()
+    {
+        Some(column) => {
+            let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(format!(
+                "SELECT EXTRACT(YEAR FROM {column})::int AS year, media_type, COUNT(*) AS count \
                     FROM items WHERE {column} IS NOT NULL"
-                ));
-                if let Some(media_type) = query.media_type {
-                    builder.push(" AND media_type = ");
-                    builder.push_bind(media_type);
-                }
-                builder
+            ));
+            if let Some(media_type) = query.media_type {
+                builder.push(" AND media_type = ");
+                builder.push_bind(media_type);
             }
-            None => {
-                // any: 両カラムの年をUNIONで展開してから集計する。UNIONにより
-                // (id, year, media_type) が重複排除されるため、release/consumedが
-                // 同年のアイテムは1回だけカウントされる
-                let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(
-                    "SELECT year, media_type, COUNT(*) AS count FROM ( \
+            builder
+        }
+        None => {
+            // any: 両カラムの年をUNIONで展開してから集計する。UNIONにより
+            // (id, year, media_type) が重複排除されるため、release/consumedが
+            // 同年のアイテムは1回だけカウントされる
+            let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(
+                "SELECT year, media_type, COUNT(*) AS count FROM ( \
                     SELECT id, EXTRACT(YEAR FROM release_date)::int AS year, media_type \
                     FROM items WHERE release_date IS NOT NULL",
-                );
-                if let Some(media_type) = query.media_type {
-                    builder.push(" AND media_type = ");
-                    builder.push_bind(media_type);
-                }
-                builder.push(
-                    " UNION SELECT id, EXTRACT(YEAR FROM consumed_date)::int AS year, media_type \
-                    FROM items WHERE consumed_date IS NOT NULL",
-                );
-                if let Some(media_type) = query.media_type {
-                    builder.push(" AND media_type = ");
-                    builder.push_bind(media_type);
-                }
-                builder.push(") AS year_entries");
-                builder
+            );
+            if let Some(media_type) = query.media_type {
+                builder.push(" AND media_type = ");
+                builder.push_bind(media_type);
             }
-        };
+            builder.push(
+                " UNION SELECT id, EXTRACT(YEAR FROM consumed_date)::int AS year, media_type \
+                    FROM items WHERE consumed_date IS NOT NULL",
+            );
+            if let Some(media_type) = query.media_type {
+                builder.push(" AND media_type = ");
+                builder.push_bind(media_type);
+            }
+            builder.push(") AS year_entries");
+            builder
+        }
+    };
     builder.push(" GROUP BY year, media_type ORDER BY year DESC, count DESC");
 
     let rows: Vec<(i32, MediaType, i64)> = builder

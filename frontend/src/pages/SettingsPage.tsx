@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { FiActivity, FiCheckCircle, FiDatabase, FiDownload, FiKey, FiUpload, FiXCircle } from "react-icons/fi";
+import { FiActivity, FiCheckCircle, FiDatabase, FiDownload, FiKey, FiSave, FiUpload, FiXCircle } from "react-icons/fi";
 import { ApiKeyCard } from "@/components/shared/ApiKeyCard";
 import { FormActions, FormField, FormSection } from "@/components/shared/Forms";
 import { SettingsShell } from "@/components/shared/SettingsShell";
-import { useSettingsData, type HealthStatus, type ImportSummary } from "@/hooks/useSettingsData";
+import { useSettingsData, type BackupImportReport, type HealthStatus, type ImportSummary } from "@/hooks/useSettingsData";
 
 type ProviderKey = "tmdb" | "steam" | "annict" | "rakuten";
 
@@ -238,6 +238,129 @@ function ImportPanel() {
   );
 }
 
+function BackupImportReportList({ report }: { report: BackupImportReport }) {
+  // 変化のあったテーブルを先頭に、全テーブルの件数を表示する
+  const entries = Object.entries(report.tables).sort(([, a], [, b]) => b.inserted + b.skipped - (a.inserted + a.skipped));
+
+  return (
+    <>
+      <div className="form-section-title">直近のインポート結果</div>
+      <div className="kv-card" style={{ alignItems: "flex-start", flexDirection: "column", gap: 8 }}>
+        <div className="meta-bar" style={{ marginBottom: 0, paddingBottom: 0, borderBottom: "none" }}>
+          <span className="meta-item">
+            <FiCheckCircle className="icon" />
+            追加: {report.totalInserted}件
+          </span>
+          <span className="meta-item">
+            <FiXCircle className="icon" />
+            スキップ（既存）: {report.totalSkipped}件
+          </span>
+        </div>
+        {entries
+          .filter(([, count]) => count.inserted + count.skipped > 0)
+          .map(([table, count]) => (
+            <div key={table} className="prop-list-item">
+              <span className="label">{table}</span>
+              <span className="sub">
+                追加 {count.inserted} / スキップ {count.skipped}
+              </span>
+            </div>
+          ))}
+      </div>
+    </>
+  );
+}
+
+function BackupPanel() {
+  const { exportBackup, importBackup } = useSettingsData();
+  const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [importReport, setImportReport] = useState<BackupImportReport | null>(null);
+  const [exportError, setExportError] = useState<string | undefined>();
+  const [importError, setImportError] = useState<string | undefined>();
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  async function handleExport() {
+    setExportError(undefined);
+    setIsExporting(true);
+    try {
+      await exportBackup();
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "バックアップのエクスポートに失敗しました");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleImport() {
+    if (!backupFile) {
+      setImportError("バックアップファイル（JSON）を選択してください");
+      return;
+    }
+
+    setImportError(undefined);
+    setIsImporting(true);
+    try {
+      setImportReport(await importBackup(backupFile));
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "バックアップのインポートに失敗しました");
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
+  return (
+    <div className="panel-backup">
+      <h2>
+        <FiSave className="icon" />
+        バックアップ
+      </h2>
+      <p className="desc">
+        全メディアデータを1つのJSONファイルにエクスポートし、別環境やDB初期化後に復元できます。APIキーとファイル本体は含まれません。
+      </p>
+
+      <FormSection title="エクスポート">
+        <div className="kv-card" style={{ alignItems: "flex-start", flexDirection: "column", gap: 12 }}>
+          <FormField label="バックアップファイルの作成" hint="全データをJSONファイルとしてダウンロードします" error={exportError} full>
+            <FormActions>
+              <button type="button" className="btn btn-accent btn-sm" disabled={isExporting} onClick={() => void handleExport()}>
+                <FiDownload className="icon" />
+                {isExporting ? "エクスポート中..." : "エクスポート"}
+              </button>
+            </FormActions>
+          </FormField>
+        </div>
+      </FormSection>
+
+      <FormSection title="インポート（復元）">
+        <div className="kv-card" style={{ alignItems: "flex-start", flexDirection: "column", gap: 12 }}>
+          <FormField
+            label="バックアップファイル"
+            hint="エクスポートしたJSONファイルを選択してください。既存データは上書きされず、存在しないレコードのみ追加されます"
+            error={importError}
+            full
+          >
+            <input
+              aria-label="バックアップファイル"
+              type="file"
+              accept=".json,application/json"
+              onChange={(event) => setBackupFile(event.target.files?.[0] ?? null)}
+            />
+          </FormField>
+          <FormActions>
+            <button type="button" className="btn btn-accent btn-sm" disabled={isImporting} onClick={() => void handleImport()}>
+              <FiUpload className="icon" />
+              {isImporting ? "インポート中..." : "インポート"}
+            </button>
+          </FormActions>
+        </div>
+      </FormSection>
+
+      {importReport ? <BackupImportReportList report={importReport} /> : null}
+    </div>
+  );
+}
+
 function SystemStatusPanel() {
   const { fetchHealth } = useSettingsData();
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
@@ -303,6 +426,11 @@ export function SettingsPage() {
           key: "import",
           label: "データインポート",
           content: <ImportPanel />,
+        },
+        {
+          key: "backup",
+          label: "バックアップ",
+          content: <BackupPanel />,
         },
         {
           key: "system",

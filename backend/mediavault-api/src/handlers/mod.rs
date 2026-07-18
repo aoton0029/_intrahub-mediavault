@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod cast;
 pub mod categories;
 pub mod health;
