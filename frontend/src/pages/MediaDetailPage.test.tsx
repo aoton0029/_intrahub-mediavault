@@ -12,6 +12,10 @@ vi.mock("./AnimeDetailPage", () => ({
   AnimeDetailPage: () => <div>Anime Detail Mock</div>,
 }));
 
+vi.mock("./AcademicBookDetailPage", () => ({
+  AcademicBookDetailPage: () => <div>Academic Book Detail Mock</div>,
+}));
+
 function renderWithRouter(initialEntry = "/media/1") {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -65,6 +69,16 @@ describe("MediaDetailPage", () => {
 
     await waitFor(() => expect(screen.getByText("Movie Detail Mock")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "編集する" })).toHaveAttribute("href", "/media/1/edit");
+  });
+
+  it("renders academic book detail when media_type is academic_book", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: { id: "1", media_type: "academic_book" } })),
+    );
+
+    renderWithRouter();
+
+    await waitFor(() => expect(screen.getByText("Academic Book Detail Mock")).toBeInTheDocument());
   });
 
   it("renders an empty state when media_type is unsupported", async () => {

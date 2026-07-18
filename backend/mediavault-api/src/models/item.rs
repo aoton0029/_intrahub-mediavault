@@ -114,7 +114,7 @@ pub struct ListItemsQuery {
     /// 年が一致するアイテムのみ返す。未指定時は影響なし（後方互換）
     #[serde(default)]
     pub year: Option<i32>,
-    /// `year`フィルタの対象日付カラム（未指定時はrelease扱い）
+    /// `year`フィルタの対象日付カラム（未指定時はany＝両カラムのOR条件扱い）
     #[serde(default)]
     pub date_field: Option<DateField>,
     pub limit: Option<u32>,
@@ -176,14 +176,18 @@ impl ItemSort {
 pub enum DateField {
     Release,
     Consumed,
+    /// release_date / consumed_date のどちらかが一致すれば対象とする（OR条件）
+    Any,
 }
 
 impl DateField {
-    /// 対応するitemsテーブルのカラム名（静的文字列）
-    pub fn column_name(self) -> &'static str {
+    /// 対応するitemsテーブルのカラム名（静的文字列）。
+    /// `Any` は単一カラムに対応しないため`None`（呼び出し側でOR条件を組み立てる）
+    pub fn column_name(self) -> Option<&'static str> {
         match self {
-            DateField::Release => "release_date",
-            DateField::Consumed => "consumed_date",
+            DateField::Release => Some("release_date"),
+            DateField::Consumed => Some("consumed_date"),
+            DateField::Any => None,
         }
     }
 }
@@ -191,17 +195,26 @@ impl DateField {
 /// `GET /items/years` クエリパラメータDTO
 #[derive(Debug, Clone, Deserialize)]
 pub struct ListItemYearsQuery {
-    /// 集計対象の日付カラム（未指定時はrelease扱い）
+    /// 集計対象の日付カラム（未指定時はany＝両カラムのOR条件扱い）
     #[serde(default)]
     pub date_field: Option<DateField>,
     #[serde(default)]
     pub media_type: Option<MediaType>,
 }
 
-/// `GET /items/years` レスポンス要素（年と件数）
-#[derive(Debug, Clone, Copy, Serialize, sqlx::FromRow)]
+/// `GET /items/years` レスポンス要素（年と合計件数、メディア種別ごとの内訳）
+#[derive(Debug, Clone, Serialize)]
 pub struct YearCount {
     pub year: i32,
+    pub count: i64,
+    /// メディア種別ごとの件数内訳（count降順、0件の種別は含まない）
+    pub media_types: Vec<MediaTypeCount>,
+}
+
+/// 年別集計内のメディア種別ごとの件数
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct MediaTypeCount {
+    pub media_type: MediaType,
     pub count: i64,
 }
 

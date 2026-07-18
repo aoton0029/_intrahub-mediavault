@@ -6,7 +6,9 @@ import { EmptyState, MediaGrid, MediaTypeDropdown, type MediaCardProps } from "@
 import { MediaSearchError, useMediaSearch, type SearchMediaType } from "@/hooks/useMediaSearch";
 import { apiFetch } from "@/lib/apiClient";
 
-const MEDIA_TYPE_OPTIONS: Array<{ value: SearchMediaType; label: string }> = [
+type GeneralSearchMediaType = Exclude<SearchMediaType, "academic_book">;
+
+const MEDIA_TYPE_OPTIONS: Array<{ value: GeneralSearchMediaType; label: string }> = [
   { value: "anime", label: "アニメ" },
   { value: "movie", label: "映画" },
   { value: "drama", label: "ドラマ" },
@@ -22,6 +24,7 @@ const PROVIDER_LABELS: Record<SearchMediaType, string> = {
   manga: "楽天ブックス",
   novel: "楽天ブックス",
   game: "Steam",
+  academic_book: "楽天ブックス",
 };
 
 type ImportResponse = {
@@ -40,7 +43,7 @@ type ImportApiErrorResponse = {
   message?: string;
 };
 
-class ImportItemError extends Error {
+export class ImportItemError extends Error {
   status: number;
   code?: string;
 
@@ -52,7 +55,7 @@ class ImportItemError extends Error {
   }
 }
 
-async function importItem({ mediaType, provider, externalId }: { mediaType: SearchMediaType; provider: string | null; externalId: string }) {
+export async function importItem({ mediaType, provider, externalId }: { mediaType: SearchMediaType; provider: string | null; externalId: string }) {
   const response = await apiFetch("/items/import", {
     method: "POST",
     headers: {
@@ -87,9 +90,9 @@ export function MediaSearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const stayMode = searchParams.get("stay") === "1";
-  const [selectedMediaType, setSelectedMediaType] = useState<SearchMediaType>("anime");
+  const [selectedMediaType, setSelectedMediaType] = useState<GeneralSearchMediaType>("anime");
   const [query, setQuery] = useState("");
-  const [submittedMediaType, setSubmittedMediaType] = useState<SearchMediaType>("anime");
+  const [submittedMediaType, setSubmittedMediaType] = useState<GeneralSearchMediaType>("anime");
   const [importedIds, setImportedIds] = useState<Set<string>>(new Set());
   const searchMutation = useMediaSearch();
   const importMutation = useMutation({
@@ -167,7 +170,7 @@ export function MediaSearchPage() {
   return (
     <>
       <div className="filter-bar">
-        <MediaTypeDropdown value={selectedMediaType} onChange={(value) => setSelectedMediaType(value as SearchMediaType)} />
+        <MediaTypeDropdown value={selectedMediaType} onChange={(value) => setSelectedMediaType(value as GeneralSearchMediaType)} />
         <label className="search-box" style={{ marginLeft: 0, flex: 1 }}>
           <FiSearch className="icon" aria-hidden="true" />
           <input aria-label="作品名" placeholder="作品名で検索…" value={query} onChange={(event) => setQuery(event.target.value)} />

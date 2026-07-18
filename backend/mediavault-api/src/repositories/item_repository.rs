@@ -9,7 +9,8 @@ use uuid::Uuid;
 
 use crate::models::item::{
     CategoryRef, CreateItemRequest, DateField, Item, ItemSort, ItemSource, ListItemYearsQuery,
-    ListItemsQuery, MediaType, MediaTypeCounts, TagRef, UpdateItemRequest, UpdateStatusRequest,
+    ListItemsQuery, MediaType, MediaTypeCount, MediaTypeCounts, TagRef, UpdateItemRequest,
+    UpdateStatusRequest,
     YearCount, has_any_update_field,
 };
 use crate::models::response::{ApiError, ApiErrorCode};
@@ -230,12 +231,23 @@ fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItems
 
     // 【yearフィルタ】: 年別コレクションページ用。date_fieldで対象カラム（release_date/
     // consumed_date）を選択し、EXTRACT(YEAR FROM <col>)で年一致を判定する。
+    // 未指定・any時は両カラムのOR条件（どちらかの年が一致すれば対象）。
     // カラム名はDateField::column_name()が返す静的文字列のみを埋め込むためSQLインジェクションの余地はない
     if let Some(year) = query.year {
         push_clause_prefix!();
-        let column = query.date_field.unwrap_or(DateField::Release).column_name();
-        builder.push(format!("EXTRACT(YEAR FROM {column})::int = "));
-        builder.push_bind(year);
+        match query.date_field.unwrap_or(DateField::Any).column_name() {
+            Some(column) => {
+                builder.push(format!("EXTRACT(YEAR FROM {column})::int = "));
+                builder.push_bind(year);
+            }
+            None => {
+                builder.push("(EXTRACT(YEAR FROM release_date)::int = ");
+                builder.push_bind(year);
+                builder.push(" OR EXTRACT(YEAR FROM consumed_date)::int = ");
+                builder.push_bind(year);
+                builder.push(")");
+            }
+        }
     }
 
     // 【TASK-0029】: titleフィルタ（部分一致・ILIKE）。/internal/items/search の検索条件として
@@ -366,30 +378,79 @@ pub async fn list_items(pool: &PgPool, query: &ListItemsQuery) -> Result<Vec<Ite
     Ok(items)
 }
 
-/// 【機能概要】: 年別コレクションページ用に、指定日付カラムの年ごとのアイテム件数を集計する
-/// 【実装方針】: `GROUP BY EXTRACT(YEAR FROM <col>)`で年ごとの件数を降順取得する。
+/// 【機能概要】: 年別コレクションページ用に、指定日付カラムの年ごとのアイテム件数を
+/// メディア種別内訳付きで集計する
+/// 【実装方針】: `GROUP BY year, media_type`で年×種別の件数を取得し、Rust側で年ごとに
+/// 畳み込んで合計件数と種別内訳（count降順）を構築する。
+/// date_fieldが未指定・anyの場合は両カラムの年をUNIONで展開してから集計する
+/// （どちらかの日付が該当年のアイテムを、年ごとに1回だけカウント）。
 /// NULL日付の行は集計対象外（WHERE <col> IS NOT NULL）。カラム名はDateField::column_name()の
 /// 静的文字列のみを埋め込む。count_items_by_media_typeと同様にdb_errorでエラー変換する
 pub async fn list_item_years(
     pool: &PgPool,
     query: &ListItemYearsQuery,
 ) -> Result<Vec<YearCount>, ApiError> {
-    let column = query.date_field.unwrap_or(DateField::Release).column_name();
-    let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(format!(
-        "SELECT EXTRACT(YEAR FROM {column})::int AS year, COUNT(*) AS count \
-        FROM items WHERE {column} IS NOT NULL"
-    ));
-    if let Some(media_type) = query.media_type {
-        builder.push(" AND media_type = ");
-        builder.push_bind(media_type);
-    }
-    builder.push(" GROUP BY year ORDER BY year DESC");
+    let mut builder: QueryBuilder<'_, Postgres> =
+        match query.date_field.unwrap_or(DateField::Any).column_name() {
+            Some(column) => {
+                let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(format!(
+                    "SELECT EXTRACT(YEAR FROM {column})::int AS year, media_type, COUNT(*) AS count \
+                    FROM items WHERE {column} IS NOT NULL"
+                ));
+                if let Some(media_type) = query.media_type {
+                    builder.push(" AND media_type = ");
+                    builder.push_bind(media_type);
+                }
+                builder
+            }
+            None => {
+                // any: 両カラムの年をUNIONで展開してから集計する。UNIONにより
+                // (id, year, media_type) が重複排除されるため、release/consumedが
+                // 同年のアイテムは1回だけカウントされる
+                let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(
+                    "SELECT year, media_type, COUNT(*) AS count FROM ( \
+                    SELECT id, EXTRACT(YEAR FROM release_date)::int AS year, media_type \
+                    FROM items WHERE release_date IS NOT NULL",
+                );
+                if let Some(media_type) = query.media_type {
+                    builder.push(" AND media_type = ");
+                    builder.push_bind(media_type);
+                }
+                builder.push(
+                    " UNION SELECT id, EXTRACT(YEAR FROM consumed_date)::int AS year, media_type \
+                    FROM items WHERE consumed_date IS NOT NULL",
+                );
+                if let Some(media_type) = query.media_type {
+                    builder.push(" AND media_type = ");
+                    builder.push_bind(media_type);
+                }
+                builder.push(") AS year_entries");
+                builder
+            }
+        };
+    builder.push(" GROUP BY year, media_type ORDER BY year DESC, count DESC");
 
-    let years: Vec<YearCount> = builder
+    let rows: Vec<(i32, MediaType, i64)> = builder
         .build_query_as()
         .fetch_all(pool)
         .await
         .map_err(db_error)?;
+
+    // 年降順・種別count降順で並んでいるため、年の切り替わりごとに畳み込む
+    let mut years: Vec<YearCount> = Vec::new();
+    for (year, media_type, count) in rows {
+        match years.last_mut() {
+            Some(entry) if entry.year == year => {
+                entry.count += count;
+                entry.media_types.push(MediaTypeCount { media_type, count });
+            }
+            _ => years.push(YearCount {
+                year,
+                count,
+                media_types: vec![MediaTypeCount { media_type, count }],
+            }),
+        }
+    }
     Ok(years)
 }
 
@@ -914,16 +975,31 @@ mod tests {
         assert!(sql.contains("AND (created_at, id) < (")); // 【確認内容】: 他フィルタがある場合はANDでカーソル条件が繋がることを確認
     }
 
-    /// yearフィルタ指定時（date_field未指定）はrelease_dateの年一致条件が追加される
+    /// yearフィルタ指定時（date_field未指定）は両日付カラムのOR条件が追加される
     #[test]
-    fn build_list_items_sql_contains_release_year_condition_by_default() {
+    fn build_list_items_sql_contains_either_date_year_condition_by_default() {
         let mut query = empty_query();
         query.year = Some(2026);
 
         let builder = build_list_items_query(&query);
         let sql = builder.sql();
 
-        assert!(sql.contains("WHERE EXTRACT(YEAR FROM release_date)::int = ")); // 【確認内容】: date_field未指定時はrelease_dateを対象とすることを確認
+        assert!(sql.contains("WHERE (EXTRACT(YEAR FROM release_date)::int = ")); // 【確認内容】: date_field未指定時はrelease_dateも対象とすることを確認
+        assert!(sql.contains(" OR EXTRACT(YEAR FROM consumed_date)::int = ")); // 【確認内容】: consumed_dateとのOR条件になることを確認
+    }
+
+    /// date_field=release指定時はrelease_date単独の年一致条件が追加される
+    #[test]
+    fn build_list_items_sql_uses_release_date_when_date_field_is_release() {
+        let mut query = empty_query();
+        query.year = Some(2026);
+        query.date_field = Some(DateField::Release);
+
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(sql.contains("WHERE EXTRACT(YEAR FROM release_date)::int = ")); // 【確認内容】: release_date単独条件になることを確認
+        assert!(!sql.contains("consumed_date)::int")); // 【確認内容】: consumed_dateの年条件は付かないことを確認
     }
 
     /// date_field=consumed指定時はconsumed_dateの年一致条件が追加される

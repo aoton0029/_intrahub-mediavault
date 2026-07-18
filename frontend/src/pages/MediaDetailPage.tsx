@@ -9,6 +9,7 @@ import { DramaDetailPage } from "./DramaDetailPage";
 import { MangaDetailPage } from "./MangaDetailPage";
 import { NovelDetailPage } from "./NovelDetailPage";
 import { GameDetailPage } from "./GameDetailPage";
+import { AcademicBookDetailPage } from "./AcademicBookDetailPage";
 import { apiFetch } from "@/lib/apiClient";
 
 type MediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game" | "academic_book" | "paper";
@@ -89,6 +90,10 @@ export function MediaDetailPage() {
 
   if (mediaType === "game") {
     return <GameDetailPage />;
+  }
+
+  if (mediaType === "academic_book") {
+    return <AcademicBookDetailPage />;
   }
 
   return (

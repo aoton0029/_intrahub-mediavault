@@ -7,7 +7,7 @@ import {
   type PaginatedItemsResponse,
 } from "@/hooks/useMediaListData";
 
-export type YearDateField = "release" | "consumed";
+export type YearDateField = "release" | "consumed" | "any";
 
 export type YearlyMediaFilters = {
   dateField: YearDateField;
@@ -15,9 +15,16 @@ export type YearlyMediaFilters = {
   sort?: string;
 };
 
+export type MediaTypeCount = {
+  media_type: MediaType;
+  count: number;
+};
+
 export type YearCount = {
   year: number;
   count: number;
+  /** メディア種別ごとの件数内訳（count降順、0件の種別は含まない） */
+  media_types: MediaTypeCount[];
 };
 
 type YearsResponse = {

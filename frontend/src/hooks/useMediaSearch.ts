@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiClient";
 
-export type SearchMediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game";
+export type SearchMediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game" | "academic_book";
 
 export type SearchResultItem = {
   id: string;
