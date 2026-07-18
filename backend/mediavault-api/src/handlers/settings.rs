@@ -10,10 +10,32 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 
 use crate::AppState;
-use crate::models::api_credential::{ApiCredential, UpdateApiKeyRequest, parse_api_provider};
+use crate::models::api_credential::{
+    ApiCredential, ApiKeyStatus, ApiProvider, UpdateApiKeyRequest, parse_api_provider,
+};
 use crate::models::item::deserialize_request;
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::api_credential_repository;
+
+const KEYED_PROVIDERS: [ApiProvider; 4] = [
+    ApiProvider::Tmdb,
+    ApiProvider::Steam,
+    ApiProvider::Annict,
+    ApiProvider::Rakuten,
+];
+
+/// 🟡 Intent: APIキーの平文を公開せず、設定対象4プロバイダの設定有無だけを返す。
+pub async fn list_api_key_statuses_handler(
+    State(state): State<AppState>,
+) -> Result<axum::response::Response, ApiError> {
+    let configured = api_credential_repository::list_configured_providers(&state.db).await?;
+    let statuses = KEYED_PROVIDERS.map(|provider| ApiKeyStatus {
+        provider,
+        configured: configured.contains(&provider),
+    });
+
+    Ok((StatusCode::OK, Json(ApiOk::new(statuses))).into_response())
+}
 
 /// `PUT /settings/api-keys/:provider` ハンドラ
 ///

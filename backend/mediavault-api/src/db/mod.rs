@@ -47,6 +47,12 @@ pub async fn seed_api_credentials_from_env(pool: &PgPool) {
     seed_provider_key(pool, ApiProvider::Tmdb, std::env::var("TMDB_API_KEY").ok()).await;
     seed_provider_key(
         pool,
+        ApiProvider::Steam,
+        std::env::var("STEAM_API_KEY").ok(),
+    )
+    .await;
+    seed_provider_key(
+        pool,
         ApiProvider::Annict,
         std::env::var("ANNICT_ACCESS_TOKEN").ok(),
     )

@@ -6,6 +6,11 @@ export type ApiCredential = {
   updatedAt: string;
 };
 
+export type ApiKeyStatus = {
+  provider: string;
+  configured: boolean;
+};
+
 export type ImportSummary = {
   successCount: number;
   failureCount: number;
@@ -98,6 +103,17 @@ export async function saveApiKey(provider: string, apiKey: string): Promise<ApiC
   };
 }
 
+export async function fetchApiKeyStatuses(): Promise<ApiKeyStatus[]> {
+  const response = await apiFetch("/settings/api-keys");
+  const payload = (await readJson(response)) as ApiEnvelope<ApiKeyStatus[]> | null;
+
+  if (!response.ok || !payload?.data) {
+    throw new Error(getErrorMessage(payload, "APIキーの設定状況を取得できませんでした"));
+  }
+
+  return payload.data;
+}
+
 export async function importBooklog(file: File): Promise<ImportSummary> {
   const formData = new FormData();
   formData.append("file", file);
@@ -153,6 +169,7 @@ export async function fetchHealth(): Promise<HealthStatus> {
 export function useSettingsData() {
   return {
     saveApiKey,
+    fetchApiKeyStatuses,
     importBooklog,
     importSteam,
     fetchHealth,

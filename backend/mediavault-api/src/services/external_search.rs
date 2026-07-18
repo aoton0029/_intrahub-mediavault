@@ -1371,7 +1371,6 @@ impl ExternalSearchService {
         query: &str,
         media_type: MediaType,
     ) -> Result<Vec<SearchResultItem>, ExternalSearchError> {
-        self.ensure_key(ApiProvider::Ndl).await?;
         let client = self.build_ndl_client()?;
         let request = NdlRequest::Search(NdlSearchRequest {
             title: None,
@@ -1400,7 +1399,6 @@ impl ExternalSearchService {
         external_id: &str,
         media_type: MediaType,
     ) -> Result<CreateItemRequest, ExternalSearchError> {
-        self.ensure_key(ApiProvider::Ndl).await?;
         let client = self.build_ndl_client()?;
         let response = client
             .execute(NdlRequest::Search(NdlSearchRequest {
@@ -1703,8 +1701,7 @@ mod tests {
             .mount(&ndl_mock)
             .await;
 
-        let service = service_with_single_key(ApiProvider::Ndl, "test-ndl-key")
-            .with_test_base_urls(|u| u.ndl = Some(ndl_mock.uri()));
+        let service = service_with_no_keys().with_test_base_urls(|u| u.ndl = Some(ndl_mock.uri()));
 
         let result = service.search(MediaType::Paper, "機械学習").await;
 
@@ -1788,7 +1785,6 @@ mod tests {
         let service = service_with_no_keys();
 
         let cases = [
-            (MediaType::Paper, ApiProvider::Ndl),
             (MediaType::Novel, ApiProvider::Rakuten),
             (MediaType::Manga, ApiProvider::Rakuten),
             (MediaType::AcademicBook, ApiProvider::Rakuten),

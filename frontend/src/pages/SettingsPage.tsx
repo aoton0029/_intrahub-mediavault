@@ -5,31 +5,45 @@ import { FormActions, FormField, FormSection } from "@/components/shared/Forms";
 import { SettingsShell } from "@/components/shared/SettingsShell";
 import { useSettingsData, type HealthStatus, type ImportSummary } from "@/hooks/useSettingsData";
 
-type ProviderKey = "tmdb" | "igdb" | "ndl" | "steam" | "annict" | "rakuten" | "jikan";
+type ProviderKey = "tmdb" | "steam" | "annict" | "rakuten";
 
 type ProviderEntry = {
   provider: ProviderKey;
   displayName: string;
-  requiresKey: boolean;
-  keyMasked: string;
 };
 
 const providers: ProviderEntry[] = [
-  { provider: "tmdb", displayName: "TMDB", requiresKey: true, keyMasked: "provider: tmdb ・ 未設定" },
-  { provider: "igdb", displayName: "IGDB", requiresKey: true, keyMasked: "provider: igdb ・ 未設定" },
-  { provider: "ndl", displayName: "NDL(国立国会図書館)", requiresKey: true, keyMasked: "provider: ndl ・ 未設定" },
-  { provider: "steam", displayName: "Steam", requiresKey: true, keyMasked: "provider: steam ・ 未設定" },
-  { provider: "annict", displayName: "Annict", requiresKey: true, keyMasked: "provider: annict ・ 未設定" },
-  { provider: "rakuten", displayName: "楽天", requiresKey: true, keyMasked: "provider: rakuten ・ 未設定" },
-  { provider: "jikan", displayName: "Jikan(MyAnimeList)", requiresKey: false, keyMasked: "provider: jikan ・ APIキー不要(認証なしで利用可能)" },
+  { provider: "tmdb", displayName: "TMDB" },
+  { provider: "steam", displayName: "Steam" },
+  { provider: "annict", displayName: "Annict" },
+  { provider: "rakuten", displayName: "楽天" },
 ];
 
 function ApiKeysPanel() {
-  const { saveApiKey } = useSettingsData();
+  const { saveApiKey, fetchApiKeyStatuses } = useSettingsData();
   const [savingProvider, setSavingProvider] = useState<ProviderKey | null>(null);
+  const [configuredProviders, setConfiguredProviders] = useState<Set<ProviderKey>>(() => new Set());
   const [messages, setMessages] = useState<Partial<Record<ProviderKey, { type: "success" | "error"; text: string }>>>({});
 
-  async function handleSave(provider: Exclude<ProviderKey, "jikan">, value: string) {
+  useEffect(() => {
+    let active = true;
+
+    void fetchApiKeyStatuses()
+      .then((statuses) => {
+        if (active) {
+          setConfiguredProviders(new Set(statuses.filter((status) => status.configured).map((status) => status.provider as ProviderKey)));
+        }
+      })
+      .catch(() => {
+        // 保存操作は引き続き利用できるため、状態取得失敗時は未設定表示を維持する。
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [fetchApiKeyStatuses]);
+
+  async function handleSave(provider: ProviderKey, value: string) {
     if (!value.trim()) {
       setMessages((current) => ({
         ...current,
@@ -41,6 +55,7 @@ function ApiKeysPanel() {
     setSavingProvider(provider);
     try {
       await saveApiKey(provider, value);
+      setConfiguredProviders((current) => new Set(current).add(provider));
       setMessages((current) => ({
         ...current,
         [provider]: { type: "success", text: "APIキーを保存しました" },
@@ -81,11 +96,10 @@ function ApiKeysPanel() {
         <div key={entry.provider}>
           <ApiKeyCard
             provider={entry.displayName}
-            keyMasked={entry.keyMasked}
+            keyMasked={`provider: ${entry.provider} ・ ${configuredProviders.has(entry.provider) ? "設定済み" : "未設定"}`}
             variant="inline-save"
-            requiresKey={entry.requiresKey}
             saving={savingProvider === entry.provider}
-            onSave={entry.requiresKey ? (value) => void handleSave(entry.provider as Exclude<ProviderKey, "jikan">, value) : undefined}
+            onSave={(value) => void handleSave(entry.provider, value)}
           />
           {messages[entry.provider] ? (
             <p

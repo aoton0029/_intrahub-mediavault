@@ -11,19 +11,23 @@ const mockUseSettingsData = vi.mocked(useSettingsData);
 
 describe("SettingsPage", () => {
   const saveApiKey = vi.fn();
+  const fetchApiKeyStatuses = vi.fn();
   const importBooklog = vi.fn();
   const importSteam = vi.fn();
   const fetchHealth = vi.fn();
 
   beforeEach(() => {
     saveApiKey.mockReset();
+    fetchApiKeyStatuses.mockReset();
     importBooklog.mockReset();
     importSteam.mockReset();
     fetchHealth.mockReset();
     fetchHealth.mockResolvedValue({ database: "ok" });
+    fetchApiKeyStatuses.mockResolvedValue([]);
 
     mockUseSettingsData.mockReturnValue({
       saveApiKey,
+      fetchApiKeyStatuses,
       importBooklog,
       importSteam,
       fetchHealth,
@@ -43,13 +47,27 @@ describe("SettingsPage", () => {
     expect(screen.getByText("外部データソースのAPIキーを登録します。各プロバイダごとに個別のキーを保存できます。")).toBeInTheDocument();
   });
 
-  it("shows seven provider rows and renders Jikan as read-only", () => {
+  it("shows only the four providers that use API keys", () => {
     render(<SettingsPage />);
 
-    expect(screen.getAllByText(/provider:/)).toHaveLength(7);
-    expect(screen.queryAllByPlaceholderText("APIキーを入力")).toHaveLength(6);
-    expect(screen.getByText("Jikan(MyAnimeList)")).toBeInTheDocument();
-    expect(screen.getByText("設定不要")).toBeInTheDocument();
+    expect(screen.getAllByText(/provider:/)).toHaveLength(4);
+    expect(screen.getAllByPlaceholderText("APIキーを入力")).toHaveLength(4);
+    expect(screen.queryByText("IGDB")).not.toBeInTheDocument();
+    expect(screen.queryByText("NDL(国立国会図書館)")).not.toBeInTheDocument();
+    expect(screen.queryByText("Open Library")).not.toBeInTheDocument();
+    expect(screen.queryByText("Jikan(MyAnimeList)")).not.toBeInTheDocument();
+  });
+
+  it("loads configured API-key providers from the backend", async () => {
+    fetchApiKeyStatuses.mockResolvedValue([
+      { provider: "tmdb", configured: true },
+      { provider: "steam", configured: false },
+    ]);
+
+    render(<SettingsPage />);
+
+    expect(await screen.findByText("provider: tmdb ・ 設定済み")).toBeInTheDocument();
+    expect(screen.getByText("provider: steam ・ 未設定")).toBeInTheDocument();
   });
 
   it("saves an API key with the matching provider and value", async () => {
@@ -63,6 +81,7 @@ describe("SettingsPage", () => {
     await waitFor(() => {
       expect(saveApiKey).toHaveBeenCalledWith("tmdb", "test-key");
     });
+    expect(screen.getByText("provider: tmdb ・ 設定済み")).toBeInTheDocument();
   });
 
   it("imports a Booklog CSV and shows the latest import result", async () => {

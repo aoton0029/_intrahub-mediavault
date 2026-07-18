@@ -76,6 +76,18 @@ pub async fn find_by_provider(
     result.map_err(db_error)
 }
 
+/// 🟡 Intent: 設定画面にはキー本体を返さず、空でないキーが存在するproviderだけを返す。
+pub async fn list_configured_providers(pool: &PgPool) -> Result<Vec<ApiProvider>, ApiError> {
+    sqlx::query_scalar(
+        "SELECT provider FROM api_credentials \
+         WHERE provider IN ('tmdb', 'steam', 'annict', 'rakuten') \
+         AND LENGTH(TRIM(api_key)) > 0 ORDER BY provider",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

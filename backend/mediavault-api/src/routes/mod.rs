@@ -52,7 +52,7 @@ use crate::handlers::mylists::{
     add_mylist_item_handler, create_mylist_handler, list_item_mylists_handler,
     list_mylists_handler, remove_mylist_item_handler,
 };
-use crate::handlers::settings::update_api_key_handler;
+use crate::handlers::settings::{list_api_key_statuses_handler, update_api_key_handler};
 use crate::handlers::staff::{
     create_item_staff_handler, create_staff_handler, delete_item_staff_handler,
     list_item_staff_handler, list_staff_handler,
@@ -245,6 +245,10 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/items/{id}/trailers/{trailer_id}",
             axum::routing::delete(delete_item_trailer_handler),
+        )
+        .route(
+            "/settings/api-keys",
+            axum::routing::get(list_api_key_statuses_handler),
         )
         // 【TASK-0022】: api_credentials（外部APIキー管理）PUT /settings/api-keys/{provider} 🔵
         .route(

@@ -28,7 +28,7 @@ pub enum ApiProvider {
 
 /// パスパラメータ文字列を `ApiProvider` に変換する
 ///
-/// 【機能概要】: snake_case文字列（tmdb/igdb/ndl/steam/open_library/ani_list）のみを許可し、
+/// 【機能概要】: APIキーを使用するプロバイダ（tmdb/steam/annict/rakuten）のみを許可し、
 /// それ以外（jikan・大文字TMDB等）は `None` を返す
 /// 【実装方針】: TC-015-01-A・TC-015-02-A・TC-NEW-02・TC-NEW-03 を通すための変換関数
 pub fn parse_api_provider(raw: &str) -> Option<ApiProvider> {
@@ -37,13 +37,10 @@ pub fn parse_api_provider(raw: &str) -> Option<ApiProvider> {
     // 【実装方針】: serde_json経由の変換も可能だが、match文の方が依存追加不要でシンプルなため採用。
     match raw {
         "tmdb" => Some(ApiProvider::Tmdb),
-        "igdb" => Some(ApiProvider::Igdb),
-        "ndl" => Some(ApiProvider::Ndl),
         "steam" => Some(ApiProvider::Steam),
-        "open_library" => Some(ApiProvider::OpenLibrary),
         "annict" => Some(ApiProvider::Annict),
         "rakuten" => Some(ApiProvider::Rakuten),
-        // 【対象外provider】: jikanはキー不要のためenumに存在せず、ここでNoneとなる 🔵
+        // 【対象外provider】: 認証不要またはAPIキー方式でないproviderは設定対象外とする。 🔵
         _ => None,
     }
 }
@@ -62,6 +59,13 @@ pub struct UpdateApiKeyRequest {
     pub api_key: String,
 }
 
+/// APIキーの値を公開せず、プロバイダごとの設定有無だけを返すDTO。
+#[derive(Debug, Clone, Serialize)]
+pub struct ApiKeyStatus {
+    pub provider: ApiProvider,
+    pub configured: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,22 +74,19 @@ mod tests {
     // 正常系（ユニット）
     // ============================================================
 
-    /// TC-015-01-A: 全7 provider文字列が`ApiProvider` enumに正しく変換される
+    /// TC-015-01-A: APIキーを使用する全4 provider文字列が`ApiProvider` enumに正しく変換される
     #[test]
-    fn parse_api_provider_converts_all_seven_allowed_strings() {
-        // 【テスト目的】: provider文字列→enum変換ロジックが許可された全6種のsnake_case文字列を正しくマッピングするかを確認する
-        // 【テスト内容】: tmdb/igdb/ndl/steam/open_library/ani_listの6文字列それぞれをparse_api_providerに渡す
+    fn parse_api_provider_converts_all_keyed_provider_strings() {
+        // 【テスト目的】: provider文字列→enum変換ロジックがAPIキーを使用する全4種を正しくマッピングするか確認する
+        // 【テスト内容】: tmdb/steam/annict/rakutenをparse_api_providerに渡す
         // 【期待される動作】: 各文字列が対応するenumバリアントに変換されSomeを返す
         // 🔵 信頼性レベル: 要件定義書L34・REQ-0022-01・note.md L15（ApiProvider定義）より
 
-        // 【テストデータ準備】: types.rs L86-94のApiProvider全バリアントに対応する許可文字列を網羅する
+        // 【テストデータ準備】: 設定APIが受け付ける4プロバイダを網羅する
         // 【初期条件設定】: 特になし（純粋関数のためDB等の前提条件は不要）
         let cases = [
             ("tmdb", ApiProvider::Tmdb),
-            ("igdb", ApiProvider::Igdb),
-            ("ndl", ApiProvider::Ndl),
             ("steam", ApiProvider::Steam),
-            ("open_library", ApiProvider::OpenLibrary),
             ("annict", ApiProvider::Annict),
             ("rakuten", ApiProvider::Rakuten),
         ];
@@ -96,8 +97,8 @@ mod tests {
             let result = parse_api_provider(input);
 
             // 【結果検証】: 変換結果が期待するenumバリアントと一致するかを確認する
-            // 【期待値確認】: OpenLibrary→open_library、AniList→ani_listの複合語snake_case変換が正しいことが特に重要
-            assert_eq!(result, Some(expected)); // 【確認内容】: 6 provider全てが正しいenumバリアントに変換されることを確認 🔵
+            // 【期待値確認】: APIキーを使用するproviderだけが対応するenumへ変換される
+            assert_eq!(result, Some(expected)); // 【確認内容】: 4 provider全てが正しいenumバリアントに変換されることを確認 🔵
         }
     }
 
@@ -122,6 +123,22 @@ mod tests {
         // 【期待値確認】: フィールド名がapi_key（snake_case）であること
         let request = result.expect("UpdateApiKeyRequestのデシリアライズは成功するはず"); // 【確認内容】: 正しいJSONボディがエラーにならず変換できることを確認 🔵
         assert_eq!(request.api_key, "xxxxx"); // 【確認内容】: api_keyフィールドの値が期待した文字列と一致することを確認 🔵
+    }
+
+    #[test]
+    fn api_key_status_serialization_does_not_expose_api_key() {
+        let status = ApiKeyStatus {
+            provider: ApiProvider::Tmdb,
+            configured: true,
+        };
+
+        let value = serde_json::to_value(status).expect("設定状況はJSONへ変換できるはず");
+
+        assert_eq!(
+            value,
+            serde_json::json!({ "provider": "tmdb", "configured": true })
+        );
+        assert!(value.get("api_key").is_none());
     }
 
     // ============================================================
@@ -170,6 +187,17 @@ mod tests {
         // 【結果検証】: jikanがNoneとして変換失敗することを確認する
         // 【期待値確認】: 仕様上の「対象外provider」の境界を回帰テストで固定する
         assert_eq!(result, None); // 【確認内容】: jikanがApiProvider enumに含まれず変換失敗することを確認 🔵
+    }
+
+    #[test]
+    fn parse_api_provider_rejects_providers_that_do_not_use_api_keys() {
+        for input in ["igdb", "ndl", "open_library"] {
+            assert_eq!(
+                parse_api_provider(input),
+                None,
+                "input={input:?} はNoneを返すはず"
+            );
+        }
     }
 
     /// TC-NEW-03: 大文字`TMDB`などsnake_case不一致はINVALID_PROVIDER
