@@ -1,6 +1,6 @@
 # 02_general_media 実装タスク概要
 
-`docs/frontend/design/02_general_media.md`（以下「設計書」）を実装に落とし込むための計画。対象は一般メディア一覧画面（`/media`）。`AppShell`・`FilterToolbar`・`MediaGrid`・`MediaCard`・`LoadMoreSentinel`・`useInfiniteScroll` 等の共通基盤は `docs/frontend/tasks/00_common/` で実装済みであることが前提。画面固有コンポーネントは無く（設計書 §4）、既存共通コンポーネントの組み合わせ＋データ取得フックの実装のみで完結するため、単一タスクとする。
+`docs/frontend/design/02_general_media.md`（以下「設計書」）を実装に落とし込むための計画。対象はメディア一覧画面（`/media`）。`AppShell`・`FilterToolbar`・`MediaGrid`・`MediaCard`・`LoadMoreSentinel`・`useInfiniteScroll` 等の共通基盤は `docs/frontend/tasks/00_common/` で実装済みであることが前提。画面固有コンポーネントは無く（設計書 §4）、既存共通コンポーネントの組み合わせ＋データ取得フックの実装のみで完結するため、単一タスクとする。
 
 ## タスクファイル構成
 

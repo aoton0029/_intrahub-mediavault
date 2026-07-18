@@ -1,4 +1,4 @@
-# 01. 一般メディア一覧画面（MediaListPage）
+# 01. メディア一覧画面（MediaListPage）
 
 対応: 設計書 §1, §2, §3, §5, §6, §7
 
@@ -21,7 +21,7 @@
 - [ ] `FilterToolbar`の`sortOptions`に `['追加日順', '更新日順', '評価順', 'タイトル順', '発売日順']` を渡す。バックエンド未実装のため選択してもAPIリクエストには反映しない（UIのみ先行実装。設計書 §5, §3【要確認】）
 - [ ] `FilterToolbar`の`searchValue`/検索欄入力を`title`クエリパラメータに同期する（`onChange`のデバウンス処理を含めてよい。既存`FilterToolbar`は`searchValue`のみを受け取り`onChange`を持たないため、コンポーネント自体に`onSearchChange`等のprops追加が必要な場合は`frontend/src/components/shared/FilterToolbar.tsx`を拡張してよい。既存の`chips`/`filterOptions`/`sortOptions`propsの型・挙動は変更しない）
 - [ ] `useInfiniteScroll`を用いて`LoadMoreSentinel`のトリガー要素を配置し、交差時に次ページを取得する。全件取得済み時は`LoadMoreSentinel`に`loading={false}`かつ`text="すべて読み込みました"`を渡す
-- [ ] `routes.tsx` の `path: "media"` のプレースホルダ（`<div>一般メディア一覧のプレースホルダ</div>`）を `<MediaListPage />` に置き換える
+- [ ] `routes.tsx` の `path: "media"` のプレースホルダ（`<div>メディア一覧のプレースホルダ</div>`）を `<MediaListPage />` に置き換える
 - [ ] `frontend/src/index.css`: `_shared.css`に定義が無いクラスが必要になった場合のみ追加してよい。既存クラス（`.filter-toolbar`, `.chip`, `.chip-add`, `.card-grid`等）の値は変更しない
 
 ## テストリスト

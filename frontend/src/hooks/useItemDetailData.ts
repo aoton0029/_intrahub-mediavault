@@ -187,7 +187,7 @@ async function fetchBundle<TDetail>(id: string, includeGroups: boolean): Promise
 }
 
 function buildActionLabel<TDetail>(item: ItemDetail<TDetail>) {
-  const labels = [item.original_title, item.release_date?.slice(0, 4) ? `${item.release_date.slice(0, 4)}年` : null].filter(Boolean);
+  const labels = [item.original_title ? item.title : null, item.release_date?.slice(0, 4) ? `${item.release_date.slice(0, 4)}年` : null].filter(Boolean);
   return labels.join(" ・ ");
 }
 

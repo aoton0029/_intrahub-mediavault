@@ -19,6 +19,7 @@ export type ItemWithRefs = {
   id: string;
   media_type: MediaType;
   title: string;
+  original_title: string | null;
   status: ItemStatus;
   rating: number | null;
   is_favorite: boolean;
@@ -146,7 +147,7 @@ async function fetchCategories() {
 
 export function mapItemToMediaCard(item: ItemWithRefs, options?: UseMediaListDataOptions): MediaCardProps {
   return {
-    title: item.title,
+    title: item.original_title || item.title,
     badge: options?.getBadgeLabel?.(item) ?? MEDIA_TYPE_LABELS[item.media_type],
     rating: item.rating ?? undefined,
     favorite: item.is_favorite,

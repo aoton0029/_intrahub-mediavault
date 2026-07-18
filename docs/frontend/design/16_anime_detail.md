@@ -6,7 +6,7 @@
 
 ## 差分サマリ
 
-- ルート: `/media/:id`（`mediaType: anime`）。パンくずは「一般メディア / アニメ」。**編集ボタンなし**（モックにタイトルバーaction無し）
+- ルート: `/media/:id`（`mediaType: anime`）。パンくずは「メディア / アニメ」。**編集ボタンなし**（モックにタイトルバーaction無し）
 - 任意セクション有無: **種別固有情報 ✗**（`PropertyList`セクションとしては非表示。ただし`GET /items/{id}`は`detail`オブジェクト自体は返す。概要から直接シーズン構成へ） / エピソード構成 ✓ / スタッフ ✓ / 配信 ✓
 - セクション順序: 概要 → **シーズン構成** → スタッフ → 関連作品 → 配信 → リソース
 - ステータスラベルは「未着手/視聴中/視聴済」。内部値（`status`）は`data-model.md`の`ItemStatus`定義により`not_started` / `in_progress` / `completed`の3値で確定（モックHTMLの`data-status="done"`は表示上の仮の値であり、実装時は`done`ではなく`completed`をAPI送受信値として使う）

@@ -43,7 +43,7 @@
 - [x] 配信: `GET/POST /items/{id}/streaming-links`, `DELETE /items/{id}/streaming-links/{link_id}`。`platform`（`netflix`/`amazon_prime`/`disney_plus`/`dmm_tv`/`apple_tv`）から`StreamingLinks`の`label`（日本語表示名）へのマッピング表を実装する（`useAnimeDetailData.ts`のマッピング表を流用してよい）
 - [x] リソース（リンク/ファイル/トレーラー）: `GET/POST/DELETE /items/{id}/links`, `/items/{id}/files`, `/items/{id}/trailers`を`ResourceTabs`の`tabs`形状へマッピングする。`ItemFile`の`file_type: 'pdf'`のみ`PATCH /items/{id}/files/{file_id}/calibre-link`でCalibre連携可能だが、本タスクではボタン配置のみとし連携フロー自体は範囲外とする（`useAnimeDetailData.ts`の実装方針を踏襲）
 - [x] `frontend/src/pages/MovieDetailPage.tsx` を実装する。`useParams`で`id`を取得し`useMovieDetailData`を呼び出す。`DetailLayout`に`DetailRail`（`facts`に`StatusSwitcher`/`RatingStars`/`FavoriteToggle`/登録日`.meta-item`/外部API ID等`.meta-item.muted`を渡す）と`DetailMain`（`detailSectionMatrix.movie`に従いセクション順序「概要 → 種別固有情報 → スタッフ → 関連作品 → 配信 → リソース」で`propertyList`/`staffList`/`relatedWorks`/`streaming`/`resourceTabs`を渡す。`groups`は渡さない）を組み込む。概要（`overview`）は`Item.description`を出典とする
-- [x] パンくずは「一般メディア / 映画」（[01_detail_route_dispatch.md](01_detail_route_dispatch.md)側のディスパッチ実装に従う）、タイトルバーに「編集する」ボタン（`btn-accent`、遷移先: `/media/:id/edit`）を表示する（表示制御自体は[01_detail_route_dispatch.md](01_detail_route_dispatch.md)側で実装するため、本タスクでは`MovieDetailPage`が必要なpropsやハンドルを提供する形で連携する）
+- [x] パンくずは「メディア / 映画」（[01_detail_route_dispatch.md](01_detail_route_dispatch.md)側のディスパッチ実装に従う）、タイトルバーに「編集する」ボタン（`btn-accent`、遷移先: `/media/:id/edit`）を表示する（表示制御自体は[01_detail_route_dispatch.md](01_detail_route_dispatch.md)側で実装するため、本タスクでは`MovieDetailPage`が必要なpropsやハンドルを提供する形で連携する）
 - [x] `frontend/src/index.css`: `_shared.css`に対応クラスが無い場合のみ追加してよい。既存クラスの値は変更しない
 
 ## テストリスト

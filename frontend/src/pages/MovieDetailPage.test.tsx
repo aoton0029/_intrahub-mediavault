@@ -66,7 +66,7 @@ function createHookResult() {
     mylists: [{ id: "mylist-1", name: "映画館で観た作品", created_at: "2026-07-01T12:00:00" }],
     files: [{ id: "file-1", item_id: "movie-1", path: "/tmp/pamphlet.png", label: "パンフレット画像", file_type: "image", calibre_book_id: null, created_at: "2026-07-01T12:00:00" }],
     overview: "失われた海底都市を巡る、若き海洋学者たちの冒険譚。",
-    actionLabel: "The Odyssey of the Deep ・ 2024年",
+    actionLabel: "深海のオデッセイ ・ 2024年",
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -130,8 +130,8 @@ describe("MovieDetailPage", () => {
   it("renders rail and main sections in movie order without groups", () => {
     renderWithRouter();
 
-    expect(screen.getByText("深海のオデッセイ")).toBeInTheDocument();
-    expect(screen.getByText("The Odyssey of the Deep ・ 2024年")).toBeInTheDocument();
+    expect(screen.getByText("The Odyssey of the Deep")).toBeInTheDocument();
+    expect(screen.getByText("深海のオデッセイ ・ 2024年")).toBeInTheDocument();
     expect(screen.getByText("失われた海底都市を巡る、若き海洋学者たちの冒険譚。")).toBeInTheDocument();
     expect(screen.getByText("上映時間")).toBeInTheDocument();
     expect(screen.getByText("レイラ・ハーモン")).toBeInTheDocument();

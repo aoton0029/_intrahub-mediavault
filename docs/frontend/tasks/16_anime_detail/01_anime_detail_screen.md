@@ -28,7 +28,7 @@
 - [x] 配信: `GET/POST /items/{id}/streaming-links`, `DELETE /items/{id}/streaming-links/{link_id}`。`platform`（`netflix`/`amazon_prime`/`disney_plus`/`dmm_tv`/`apple_tv`）から`StreamingLinks`の`label`（日本語表示名、例: Netflix→「Netflix」）へのマッピング表を実装する
 - [x] リソース（リンク/ファイル/トレーラー）: `POST/DELETE /items/{id}/links`, `/items/{id}/files`, `/items/{id}/trailers`を`ResourceTabs`の`tabs`形状へマッピングする。`ItemFile`の`file_type: 'pdf'`のみ`PATCH /items/{id}/files/{file_id}/calibre-link`でCalibre連携可能である旨は本タスクでは連携ボタンの配置のみ行い、連携フロー自体の実装は範囲外として[02_open_questions.md](02_open_questions.md)に記載する
 - [x] `frontend/src/pages/AnimeDetailPage.tsx` を実装する。`useParams`で`id`を取得し`useAnimeDetailData`を呼び出す。`DetailLayout`に`DetailRail`（`facts`に`StatusSwitcher`/`RatingStars`/`FavoriteToggle`/登録日`.meta-item`/外部API ID等`.meta-item.muted`を渡す）と`DetailMain`（`detailSectionMatrix.anime`に従い`propertyList`は渡さず、`groups`/`staffList`/`relatedWorks`/`streaming`/`resourceTabs`を渡す。`overview`は`AnimeDetail`側に概要フィールドが無いため、設計書に概要の出典が明記されていない旨を[02_open_questions.md](02_open_questions.md)に記載し、`Item`の既存フィールド（例: `description`相当）から暫定的に表示する）を組み込む
-- [x] パンくずは「一般メディア / アニメ」、編集ボタンは表示しない（モックのタイトルバーaction無しに合わせる。`routes.tsx`の`handle`で`title`/`actions`を制御する既存パターンに合わせて実装する）
+- [x] パンくずは「メディア / アニメ」、編集ボタンは表示しない（モックのタイトルバーaction無しに合わせる。`routes.tsx`の`handle`で`title`/`actions`を制御する既存パターンに合わせて実装する）
 - [x] `frontend/src/routes.tsx` に `path: "media/:id"` のルートを追加し、`element={<AnimeDetailPage />}`とする。他`media_type`向け詳細ページが未実装のため、暫定的に`mediaType`判定なしで本タスクではanime専用ルートとして実装してよい旨、および将来的に`media_type`に応じたページ振り分けが必要になる点を[02_open_questions.md](02_open_questions.md)に記載する
 - [x] `frontend/src/index.css`: `_shared.css`に対応クラスが無い場合のみ追加してよい。既存クラスの値は変更しない
 

@@ -114,7 +114,7 @@ test("renders the anime detail layout and section order", async ({ page }) => {
   await expect(page.locator(".detail-layout")).toBeVisible();
   await expect(page.locator(".detail-rail")).toBeVisible();
   await expect(page.locator(".detail-main")).toBeVisible();
-  await expect(page.locator(".titlebar .breadcrumb")).toContainText("一般メディア / アニメ");
+  await expect(page.locator(".titlebar .breadcrumb")).toContainText("メディア / アニメ");
 
   const headings = await page.locator(".doc-section h3").allTextContents();
   expect(headings).toEqual(["概要", "シーズン構成", "スタッフ", "関連作品", "配信", "リソース"]);

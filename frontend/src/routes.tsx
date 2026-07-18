@@ -19,7 +19,7 @@ export const router = createBrowserRouter([
         path: "media",
         element: <MediaListPage />,
         handle: {
-          title: "一般メディア",
+          title: "メディア",
           actions: <Link className="btn btn-accent" to="/media/search">＋ 作品を追加</Link>,
         },
       },

@@ -19,7 +19,7 @@ type ItemDetail = {
 type ApiOk<T> = { success: boolean; data: T };
 
 const DEFAULT_PAGE_CHROME: PageChrome = {
-  breadcrumbs: [{ label: "一般メディア", to: "/media" }],
+  breadcrumbs: [{ label: "メディア", to: "/media" }],
 };
 
 async function parseJson<T>(response: Response) {

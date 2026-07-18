@@ -53,7 +53,7 @@ describe("MediaDetailPage", () => {
     renderWithRouter();
 
     await waitFor(() => expect(screen.getByText("Anime Detail Mock")).toBeInTheDocument());
-    expect(document.querySelector(".breadcrumb")?.textContent).toContain("一般メディア / アニメ");
+    expect(document.querySelector(".breadcrumb")?.textContent).toContain("メディア / アニメ");
   });
 
   it("renders movie detail when media_type is movie", async () => {

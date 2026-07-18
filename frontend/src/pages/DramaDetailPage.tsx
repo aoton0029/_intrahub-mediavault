@@ -42,7 +42,7 @@ export function DramaDetailPage() {
 
   const pageChrome = useMemo(() => ({
     breadcrumbs: [
-      { label: "一般メディア", to: "/media" },
+      { label: "メディア", to: "/media" },
       { label: "ドラマ" },
     ],
     actions: id ? (
@@ -172,7 +172,7 @@ export function DramaDetailPage() {
       rail={(
         <DetailRail
           cover={<CoverImage src={item.cover_image_url} alt={item.title} />}
-          title={item.title}
+          title={item.original_title || item.title}
           originalTitle={detail.actionLabel}
           facts={[
             <StatusSwitcher key="status" value={item.status} onChange={(status) => void runAction(() => detail.updateStatus(status), "ステータスを更新しました。")} />,

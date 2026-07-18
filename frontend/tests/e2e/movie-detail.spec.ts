@@ -67,7 +67,7 @@ test("renders the movie detail layout and section order", async ({ page }) => {
   await expect(page.locator(".detail-layout")).toBeVisible();
   await expect(page.locator(".detail-rail")).toBeVisible();
   await expect(page.locator(".detail-main")).toBeVisible();
-  await expect(page.locator(".titlebar .breadcrumb")).toContainText("一般メディア / 映画");
+  await expect(page.locator(".titlebar .breadcrumb")).toContainText("メディア / 映画");
 
   const headings = await page.locator(".doc-section h3").allTextContents();
   expect(headings).toEqual(["概要", "種別固有情報", "スタッフ", "関連作品", "配信", "リソース"]);

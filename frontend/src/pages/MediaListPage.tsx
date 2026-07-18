@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { FiHeart } from "react-icons/fi";
 import { DEFAULT_MEDIA_SORT, DisplaySettingsDropdown, FilterToolbar, LoadMoreSentinel, MEDIA_SORT_OPTIONS, MediaGrid, MediaTypeDropdown, useInfiniteScroll, type FilterChip } from "@/components/shared";
+import { useDisplaySettings } from "@/hooks/useDisplaySettings";
 import { useMediaListData, type MediaListFilters } from "@/hooks/useMediaListData";
 
 function parseFilters(searchParams: URLSearchParams): MediaListFilters {
@@ -22,9 +23,7 @@ export function MediaListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = parseFilters(searchParams);
   const { mediaCards, hasNextPage, fetchNextPage, isFetchingNextPage, tags, categories } = useMediaListData(filters);
-  const thumbnailOrientation = searchParams.get("thumbnail") === "vertical" ? "vertical" : "horizontal";
-  const colsParam = Number(searchParams.get("cols"));
-  const columns = Number.isInteger(colsParam) && colsParam >= 2 && colsParam <= 8 ? colsParam : undefined;
+  const { thumbnailOrientation, columns, setThumbnailOrientation, setColumns } = useDisplaySettings();
 
   const activeTag = tags.find((tag) => tag.id === filters.tagId);
   const activeCategory = categories.find((category) => category.id === filters.categoryId);
@@ -109,9 +108,9 @@ export function MediaListPage() {
         trailing={
           <DisplaySettingsDropdown
             thumbnailOrientation={thumbnailOrientation}
-            onThumbnailOrientationChange={(value) => updateSearchParams({ thumbnail: value === "vertical" ? "vertical" : undefined })}
+            onThumbnailOrientationChange={setThumbnailOrientation}
             columns={columns}
-            onColumnsChange={(value) => updateSearchParams({ cols: value ? String(value) : undefined })}
+            onColumnsChange={setColumns}
           />
         }
       />

@@ -11,6 +11,7 @@ import {
   MediaTypeDropdown,
   useInfiniteScroll,
 } from "@/components/shared";
+import { useDisplaySettings } from "@/hooks/useDisplaySettings";
 import {
   useYearItems,
   useYearlyMediaData,
@@ -73,9 +74,7 @@ export function YearlyMediaPage() {
   const filters = parseFilters(searchParams);
   const { years, isLoading, isError } = useYearlyMediaData(filters);
   const [visibleYearCount, setVisibleYearCount] = useState(INITIAL_VISIBLE_YEARS);
-  const thumbnailOrientation = searchParams.get("thumbnail") === "vertical" ? "vertical" : "horizontal";
-  const colsParam = Number(searchParams.get("cols"));
-  const columns = Number.isInteger(colsParam) && colsParam >= 2 && colsParam <= 16 ? colsParam : undefined;
+  const { thumbnailOrientation, columns, setThumbnailOrientation, setColumns } = useDisplaySettings();
 
   const updateSearchParams = (updates: Record<string, string | undefined>) => {
     const next = new URLSearchParams(searchParams);
@@ -123,9 +122,9 @@ export function YearlyMediaPage() {
         trailing={
           <DisplaySettingsDropdown
             thumbnailOrientation={thumbnailOrientation}
-            onThumbnailOrientationChange={(value) => updateSearchParams({ thumbnail: value === "vertical" ? "vertical" : undefined })}
+            onThumbnailOrientationChange={setThumbnailOrientation}
             columns={columns}
-            onColumnsChange={(value) => updateSearchParams({ cols: value ? String(value) : undefined })}
+            onColumnsChange={setColumns}
           />
         }
       />

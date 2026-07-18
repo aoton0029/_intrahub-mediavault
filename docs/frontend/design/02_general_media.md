@@ -1,16 +1,16 @@
-# 02. 一般メディア（一覧）
+# 02. メディア（一覧）
 
 対応モック: `docs/frontend/ui/02_general_media.html`（`03_academic_books.html` とほぼ同一構造、差分は本文末尾に記載）
 
 ## 1. 画面概要 / ルート
 
-アニメ・映画・ドラマ・漫画・小説・ゲームの一般メディアをカードグリッドで一覧表示し、絞り込み・並び替え・検索を行う画面。ルート: `/media`。サイドバーの「メディア > すべて」がactive。
+アニメ・映画・ドラマ・漫画・小説・ゲームのメディアをカードグリッドで一覧表示し、絞り込み・並び替え・検索を行う画面。ルート: `/media`。サイドバーの「メディア > すべて」がactive。
 
 ## 2. レイアウト構成
 
 ```
 <AppShell>
-  <Titlebar title="一般メディア" action={<Link to="/media/search">＋ 作品を追加</Link>} />
+  <Titlebar title="メディア" action={<Link to="/media/search">＋ 作品を追加</Link>} />
   <Content>
     <FilterToolbar>
       <FilterBar>

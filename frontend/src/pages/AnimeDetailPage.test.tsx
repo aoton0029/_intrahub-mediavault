@@ -63,7 +63,7 @@ function createHookResult() {
     mylists: [{ id: "mylist-1", name: "お気に入り原作", created_at: "2026-07-01T12:00:00" }],
     files: [{ id: "file-1", item_id: "anime-1", path: "/tmp/pamphlet.pdf", label: "パンフレットPDF", file_type: "pdf", calibre_book_id: null, created_at: "2026-07-01T12:00:00" }],
     overview: "記憶を失った少女が旅をする物語。",
-    actionLabel: "Symphonia of Stardust ・ 2025",
+    actionLabel: "星屑のシンフォニア ・ 2025",
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -128,8 +128,8 @@ describe("AnimeDetailPage", () => {
   it("renders rail and main sections without the property list section", () => {
     renderWithRouter();
 
-    expect(screen.getByText("星屑のシンフォニア")).toBeInTheDocument();
-    expect(screen.getByText("Symphonia of Stardust ・ 2025")).toBeInTheDocument();
+    expect(screen.getByText("Symphonia of Stardust")).toBeInTheDocument();
+    expect(screen.getByText("星屑のシンフォニア ・ 2025")).toBeInTheDocument();
     expect(screen.getByText("記憶を失った少女が旅をする物語。")).toBeInTheDocument();
     expect(screen.getByText("シーズン1")).toBeInTheDocument();
     expect(screen.getByText("新津 明日香")).toBeInTheDocument();

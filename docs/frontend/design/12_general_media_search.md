@@ -1,4 +1,4 @@
-# 12. 検索して追加（一般メディア）
+# 12. 検索して追加（メディア）
 
 対応モック: `docs/frontend/ui/12_general_media_search.html`（`13_academic_book_search.html` はほぼ同一構造、差分は本文末尾）
 

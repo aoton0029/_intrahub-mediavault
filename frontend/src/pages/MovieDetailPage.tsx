@@ -48,7 +48,7 @@ export function MovieDetailPage() {
 
   const pageChrome = useMemo(() => ({
     breadcrumbs: [
-      { label: "一般メディア", to: "/media" },
+      { label: "メディア", to: "/media" },
       { label: "映画" },
     ],
     actions: id ? (
@@ -185,7 +185,7 @@ export function MovieDetailPage() {
       rail={(
         <DetailRail
           cover={<CoverImage src={item.cover_image_url} alt={item.title} />}
-          title={item.title}
+          title={item.original_title || item.title}
           originalTitle={detail.actionLabel}
           facts={[
             <StatusSwitcher

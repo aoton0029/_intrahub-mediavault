@@ -7,7 +7,7 @@ import { usePageChrome } from "./usePageChrome";
 function DynamicChromePage() {
   const pageChrome = useMemo(() => ({
     breadcrumbs: [
-      { label: "一般メディア", to: "/media" },
+      { label: "メディア", to: "/media" },
       { label: "映画" },
     ],
     actions: <button>編集する</button>,
@@ -88,7 +88,7 @@ describe("AppShell", () => {
               path: "media/:id",
               element: <DynamicChromePage />,
               handle: {
-                breadcrumbs: [{ label: "一般メディア", to: "/media" }, { label: "アニメ" }],
+                breadcrumbs: [{ label: "メディア", to: "/media" }, { label: "アニメ" }],
                 actions: <button>静的アクション</button>,
               },
             },
@@ -100,7 +100,7 @@ describe("AppShell", () => {
 
     render(<RouterProvider router={router} />);
 
-    expect(document.querySelector(".breadcrumb")?.textContent).toContain("一般メディア / 映画");
+    expect(document.querySelector(".breadcrumb")?.textContent).toContain("メディア / 映画");
     expect(screen.getByRole("button", { name: "編集する" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "静的アクション" })).not.toBeInTheDocument();
   });

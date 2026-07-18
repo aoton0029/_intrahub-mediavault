@@ -210,7 +210,7 @@ async function fetchAnimeDetailBundle(id: string): Promise<AnimeDetailBundle> {
 }
 
 function buildActionLabel(item: ItemDetail) {
-  const labels = [item.original_title, item.detail?.year ?? item.release_date?.slice(0, 4)].filter(Boolean);
+  const labels = [item.original_title ? item.title : null, item.detail?.year ?? item.release_date?.slice(0, 4)].filter(Boolean);
   return labels.join(" ・ ");
 }
 

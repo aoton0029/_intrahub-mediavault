@@ -9,7 +9,7 @@ AskUserQuestionで質問したが結論が出ず保留にした事項、およ�
 ## ユーザーによる決定事項
 
 - [x] `/media/:id` の振り分け方針: `media_type`に応じてディスパッチする`MediaDetailPage`を新設し、`AnimeDetailPage`/`MovieDetailPage`を振り分ける（[16_anime_detail/02_open_questions.md](../16_anime_detail/02_open_questions.md)からの継続決定）
-- [x] 「編集する」ボタンの遷移先: 一般メディア編集フォームは未実装のため、既存フォームへのリンクとしてパスを仮定して実装するに留める（フォーム自体の実装は本タスク範囲外）
+- [x] 「編集する」ボタンの遷移先: メディア編集フォームは未実装のため、既存フォームへのリンクとしてパスを仮定して実装するに留める（フォーム自体の実装は本タスク範囲外）
 - [x] 概要セクションの出典: アニメ詳細と同様 `Item.description` を使う
 
 ## Codexによる仮決定ログ

@@ -1,6 +1,6 @@
 # 12_general_media_search 実装タスク概要
 
-`docs/frontend/design/12_general_media_search.md`（以下「設計書」）を実装に落とし込むための計画。対象は外部API横断検索から一般メディアをコレクションに取り込む画面（`/media/search`）。`AppShell`・`MediaCard`（`search-result` variant）・`EmptyState` 等の共通基盤は `docs/frontend/tasks/00_common/` で実装済みであることが前提。
+`docs/frontend/design/12_general_media_search.md`（以下「設計書」）を実装に落とし込むための計画。対象は外部API横断検索からメディアをコレクションに取り込む画面（`/media/search`）。`AppShell`・`MediaCard`（`search-result` variant）・`EmptyState` 等の共通基盤は `docs/frontend/tasks/00_common/` で実装済みであることが前提。
 
 **スコープ外**: 設計書末尾の「差分: 13_academic_book_search」（`/academic-books/search`）は別設計書 `docs/frontend/design/13_academic_book_search.md` を持つため、本タスク群には含めない（別途タスク生成が必要）。
 

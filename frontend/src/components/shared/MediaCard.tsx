@@ -78,7 +78,7 @@ export function MediaCard({
 
   if (href && !isSearchResult) {
     return (
-      <Link className={className} style={{ display: "block", color: "inherit", textDecoration: "none" }} to={href}>
+      <Link className={className} style={{ color: "inherit", textDecoration: "none" }} to={href}>
         {body}
       </Link>
     );
