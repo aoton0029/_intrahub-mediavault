@@ -1,60 +1,72 @@
-# ミニPC（自宅インフラ minipc-compose）構成で MediaVault を起動するためのファイル。
-# ルートの docker-compose.yml はローカル起動テスト用として残している。
-#
-# 前提:
-#   - minipc-compose/docker-compose.yml (core) が固定名ネットワーク selfhosted-net / db-net を
-#     作成済みで、postgres コンテナが db-net 上で稼働していること。
-#   - 環境変数はソースコード側（./backend/.env および ルート ./.env）を正とする。
-#
-# 起動:
-#   docker compose -f docker-compose.minipc.yml up -d --build
-
+# ミニPC デプロイ用 (開発用 docker-compose.yml とは別ファイル)。
+# minipc-compose の include には入れず、MediaVault 単独の compose プロジェクトとして起動する:
+#   docker compose -p mediavault -f docker-compose.minipc.yml --env-file .env.minipc up -d
+# backend / frontend は GitHub Actions でビルドし GHCR から配信する自作イメージ
+# (コミット SHA タグ固定。タグは .env の MEDIAVAULT_*_IMAGE で指定する)。
+# selfhosted-net / db-net / proxy-net は minipc-compose 側が作成する固定名ネットワークを external 参照する。
 services:
   mediavault-backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${MEDIAVAULT_BACKEND_IMAGE:?}
     container_name: mediavault-backend
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
     environment:
-      # DB は core compose 側の postgres コンテナを使うため、接続先ホスト名のみ上書きする。
-      # 認証情報（POSTGRES_*）はルート .env から補間され、ソース側 .env と同一の値になる。
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      TZ: ${TZ:-Asia/Tokyo}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@mediavault-postgres:5432/${POSTGRES_DB:?}
+      # /internal API のキー(KindleOCR / Hermes-Agent 等の内部クライアントが使用)
+      MEDIAVAULT_INTERNAL_API_KEY: ${MEDIAVAULT_INTERNAL_API_KEY:?}
     volumes:
-      - /srv/files/pdf:/srv/files/pdf
-      - /srv/media/photos:/srv/media/photos
-      - /srv/media/videos:/srv/media/videos
-    networks:
-      selfhosted-net:
-        aliases:
-          # frontend の nginx.conf が http://backend:8080 を参照するためのエイリアス
-          - backend
-      db-net: {}
+      # 実ファイルは Samba 共有と同じ実体を bind mount し、backend は相対パスのみ管理する
+      - ${DATA_ROOT:-/srv}/files/pdf:/srv/files/pdf
+      - ${DATA_ROOT:-/srv}/media/photos:/srv/media/photos
+      - ${DATA_ROOT:-/srv}/media/videos:/srv/media/videos
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
-      interval: 15s
-      timeout: 5s
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 3s
       retries: 5
-
-  mediavault-frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: mediavault-frontend
-    restart: unless-stopped
+    depends_on:
+      mediavault-postgres:
+        condition: service_healthy
     networks:
       - selfhosted-net
+      - db-net
+      - proxy-net
+
+  mediavault-frontend:
+    image: ${MEDIAVAULT_FRONTEND_IMAGE:?}
+    container_name: mediavault-frontend
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Tokyo}
     depends_on:
       mediavault-backend:
         condition: service_healthy
+    networks:
+      - selfhosted-net
+      - proxy-net
+
+  mediavault-postgres:
+    image: postgres:16
+    container_name: mediavault-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - ${DATA_ROOT:-/srv}/db/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?} -d ${POSTGRES_DB:?}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - db-net
 
 networks:
-  # minipc-compose (core) 側で作成される固定名ネットワークに相乗りする
   selfhosted-net:
     external: true
-    name: selfhosted-net
   db-net:
     external: true
-    name: db-net
+  proxy-net:
+    external: true
