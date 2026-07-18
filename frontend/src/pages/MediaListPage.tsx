@@ -1,26 +1,8 @@
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { FiHeart } from "react-icons/fi";
-import { FilterToolbar, LoadMoreSentinel, MediaGrid, useInfiniteScroll, type FilterChip, type FilterOption } from "@/components/shared";
+import { DEFAULT_MEDIA_SORT, DisplaySettingsDropdown, FilterToolbar, LoadMoreSentinel, MEDIA_SORT_OPTIONS, MediaGrid, MediaTypeDropdown, useInfiniteScroll, type FilterChip } from "@/components/shared";
 import { useMediaListData, type MediaListFilters } from "@/hooks/useMediaListData";
-
-const FILTER_OPTIONS: FilterOption[] = [
-  { label: "All", value: "" },
-  { label: "Anime", value: "anime" },
-  { label: "Movie", value: "movie" },
-  { label: "Drama", value: "drama" },
-  { label: "Manga", value: "manga" },
-  { label: "Novel", value: "novel" },
-  { label: "Game", value: "game" },
-];
-
-const SORT_OPTIONS: FilterOption[] = [
-  { label: "Recently added", value: "created_at" },
-  { label: "Recently updated", value: "updated_at" },
-  { label: "Rating", value: "rating" },
-  { label: "Title", value: "title" },
-  { label: "Release date", value: "release_date" },
-];
 
 function parseFilters(searchParams: URLSearchParams): MediaListFilters {
   const mediaType = searchParams.get("media_type");
@@ -31,7 +13,7 @@ function parseFilters(searchParams: URLSearchParams): MediaListFilters {
     tagId: searchParams.get("tag_id") ?? undefined,
     categoryId: searchParams.get("category_id") ?? undefined,
     title: searchParams.get("title") ?? undefined,
-    sort: searchParams.get("sort") ?? undefined,
+    sort: searchParams.get("sort") ?? DEFAULT_MEDIA_SORT,
     status: searchParams.get("status") ?? undefined,
   };
 }
@@ -40,6 +22,9 @@ export function MediaListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = parseFilters(searchParams);
   const { mediaCards, hasNextPage, fetchNextPage, isFetchingNextPage, tags, categories } = useMediaListData(filters);
+  const thumbnailOrientation = searchParams.get("thumbnail") === "vertical" ? "vertical" : "horizontal";
+  const colsParam = Number(searchParams.get("cols"));
+  const columns = Number.isInteger(colsParam) && colsParam >= 2 && colsParam <= 8 ? colsParam : undefined;
 
   const activeTag = tags.find((tag) => tag.id === filters.tagId);
   const activeCategory = categories.find((category) => category.id === filters.categoryId);
@@ -59,12 +44,6 @@ export function MediaListPage() {
   };
 
   const chips: FilterChip[] = [
-    {
-      id: "all",
-      label: "All",
-      active: !filters.isFavorite && !filters.tagId && !filters.categoryId,
-      onClick: () => updateSearchParams({ is_favorite: undefined, tag_id: undefined, category_id: undefined }),
-    },
     {
       id: "favorite",
       label: "Favorites",
@@ -115,17 +94,29 @@ export function MediaListPage() {
     <>
       <FilterToolbar
         chips={chips}
-        filterOptions={FILTER_OPTIONS}
-        selectedFilter={filters.mediaType ?? ""}
-        onFilterChange={(value) => updateSearchParams({ media_type: value || undefined })}
-        sortOptions={SORT_OPTIONS}
-        selectedSort={filters.sort ?? "created_at"}
+        filterSlot={
+          <MediaTypeDropdown
+            includeAll
+            value={filters.mediaType && filters.mediaType !== "academic_book" ? filters.mediaType : "all"}
+            onChange={(value) => updateSearchParams({ media_type: value === "all" ? undefined : value })}
+          />
+        }
+        sortOptions={MEDIA_SORT_OPTIONS}
+        selectedSort={filters.sort ?? DEFAULT_MEDIA_SORT}
         onSortChange={(value) => updateSearchParams({ sort: value })}
         searchValue={filters.title ?? ""}
         onSearchChange={(value) => updateSearchParams({ title: value || undefined })}
+        trailing={
+          <DisplaySettingsDropdown
+            thumbnailOrientation={thumbnailOrientation}
+            onThumbnailOrientationChange={(value) => updateSearchParams({ thumbnail: value === "vertical" ? "vertical" : undefined })}
+            columns={columns}
+            onColumnsChange={(value) => updateSearchParams({ cols: value ? String(value) : undefined })}
+          />
+        }
       />
 
-      <MediaGrid items={mediaCards} density="compact" />
+      <MediaGrid items={mediaCards} density="compact" thumbnailOrientation={thumbnailOrientation} columns={columns} />
 
       <div ref={sentinelRef}>
         <LoadMoreSentinel loading={Boolean(hasNextPage) && isFetchingNextPage} text={hasNextPage ? "Load more results" : "All items loaded"} />

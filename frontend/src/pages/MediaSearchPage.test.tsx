@@ -188,7 +188,8 @@ describe("MediaSearchPage", () => {
     renderWithRouter();
 
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByRole("combobox", { name: "種別" }), "movie");
+    await user.click(screen.getByRole("button", { name: "メディア種別" }));
+    await user.click(screen.getByRole("option", { name: "映画" }));
     await user.type(screen.getByRole("textbox", { name: "作品名" }), "インセプション");
     await user.click(screen.getByRole("button", { name: "検索" }));
 

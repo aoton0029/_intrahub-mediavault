@@ -28,4 +28,5 @@ export * from "./StreamingLinkAddModal";
 export * from "./FileAddModal";
 export * from "./TrailerAddModal";
 export * from "./LinkAddModal";
-export * from "./MediaTypeSelector";
+export * from "./MediaTypeDropdown";
+export * from "./DisplaySettingsDropdown";

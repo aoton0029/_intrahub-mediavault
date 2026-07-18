@@ -110,6 +110,13 @@ pub struct ListItemsQuery {
     /// 🔵 信頼性レベル: TASK-0029要件定義2.2表#3「title部分一致」に直接対応
     #[serde(default)]
     pub title: Option<String>,
+    /// 年フィルタ（年別コレクションページ用）。`date_field`で指定した日付カラムの
+    /// 年が一致するアイテムのみ返す。未指定時は影響なし（後方互換）
+    #[serde(default)]
+    pub year: Option<i32>,
+    /// `year`フィルタの対象日付カラム（未指定時はrelease扱い）
+    #[serde(default)]
+    pub date_field: Option<DateField>,
     pub limit: Option<u32>,
     /// keysetページネーションのカーソル（前回レスポンスのnext_after_created_atを渡す）。
     /// after_idと両方指定された場合のみ有効（片方のみの場合は先頭ページとして扱う）
@@ -118,6 +125,84 @@ pub struct ListItemsQuery {
     /// keysetページネーションのカーソル（前回レスポンスのnext_after_idを渡す）
     #[serde(default)]
     pub after_id: Option<Uuid>,
+    /// 並び順（未指定時はcreated_at＝登録日時の降順）
+    #[serde(default)]
+    pub sort: Option<ItemSort>,
+    /// sortがcreated_at以外の場合のkeysetカーソル（前回レスポンスのnext_after_valueを渡す）。
+    /// after_created_at/after_idと合わせて指定された場合のみ有効
+    #[serde(default)]
+    pub after_value: Option<String>,
+}
+
+/// `GET /items` の並び順
+///
+/// SQL組み立て時は`order_expr`が返す静的文字列のみを埋め込むため、
+/// ユーザー入力がSQLへ直接混入することはない。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemSort {
+    CreatedAt,
+    UpdatedAt,
+    Rating,
+    Title,
+    ReleaseDate,
+}
+
+impl ItemSort {
+    /// ORDER BY・カーソル比較に使うソート式（静的文字列）。
+    /// NULL可のカラムは番兵値でCOALESCEし、keysetのタプル比較を成立させる
+    pub fn order_expr(self) -> &'static str {
+        match self {
+            ItemSort::CreatedAt => "created_at",
+            ItemSort::UpdatedAt => "updated_at",
+            ItemSort::Rating => "COALESCE(rating, -1)",
+            ItemSort::Title => "title",
+            ItemSort::ReleaseDate => "COALESCE(release_date, DATE '0001-01-01')",
+        }
+    }
+
+    /// 降順ソートかどうか（titleのみ昇順）
+    pub fn is_descending(self) -> bool {
+        !matches!(self, ItemSort::Title)
+    }
+}
+
+/// 年グルーピングの基準日付カラム（`GET /items` の`year`フィルタおよび`GET /items/years`用）
+///
+/// SQL組み立て時は`column_name`が返す静的文字列のみを埋め込むため、
+/// ユーザー入力がSQLへ直接混入することはない。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DateField {
+    Release,
+    Consumed,
+}
+
+impl DateField {
+    /// 対応するitemsテーブルのカラム名（静的文字列）
+    pub fn column_name(self) -> &'static str {
+        match self {
+            DateField::Release => "release_date",
+            DateField::Consumed => "consumed_date",
+        }
+    }
+}
+
+/// `GET /items/years` クエリパラメータDTO
+#[derive(Debug, Clone, Deserialize)]
+pub struct ListItemYearsQuery {
+    /// 集計対象の日付カラム（未指定時はrelease扱い）
+    #[serde(default)]
+    pub date_field: Option<DateField>,
+    #[serde(default)]
+    pub media_type: Option<MediaType>,
+}
+
+/// `GET /items/years` レスポンス要素（年と件数）
+#[derive(Debug, Clone, Copy, Serialize, sqlx::FromRow)]
+pub struct YearCount {
+    pub year: i32,
+    pub count: i64,
 }
 
 /// アイテム部分更新リクエスト（PATCH semantics）

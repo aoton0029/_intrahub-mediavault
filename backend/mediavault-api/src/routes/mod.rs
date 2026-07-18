@@ -45,8 +45,8 @@ use crate::handlers::item_trailers::{
 };
 use crate::handlers::items::{
     count_items_by_media_type_handler, create_item_handler, delete_item_handler, get_item_handler,
-    import_item_handler, list_items_handler, search_items_handler, update_item_handler,
-    update_item_status_handler,
+    import_item_handler, list_item_years_handler, list_items_handler, search_items_handler,
+    update_item_handler, update_item_status_handler,
 };
 use crate::handlers::mylists::{
     add_mylist_item_handler, create_mylist_handler, list_item_mylists_handler,
@@ -80,6 +80,9 @@ pub fn build_router(state: AppState) -> Router {
             "/items/counts-by-media-type",
             get(count_items_by_media_type_handler),
         )
+        // GET /items/years（年別コレクション用の年別件数集計）を/items/{id}より前に
+        // リテラル登録し誤マッチ防止（/items/search等と同一方針）
+        .route("/items/years", get(list_item_years_handler))
         // 【TASK-0011】: GET /items/{id}（個別詳細取得） 🟡
         // 【TASK-0012】: PATCH /items/{id}（部分更新）を同一パスに追加 🔵
         // 【TASK-0013】: DELETE /items/{id}（カスケード削除）を同一パスに追加 🔵

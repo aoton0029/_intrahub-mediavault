@@ -8,6 +8,17 @@ export type ResourceEntry = { id: string; label: string; detail: string; onRemov
 export const resourceTabLabels: Record<ResourceTabKey, string> = { links: "リンク", files: "ファイル", trailers: "トレーラー" };
 export const resourceTabIcons = { links: FiLink2, files: FiPaperclip, trailers: FiFilm } satisfies Record<ResourceTabKey, typeof FiLink2>;
 
+export function ExternalLinkText({ text }: { text: string }) {
+  if (/^https?:\/\//.test(text)) {
+    return (
+      <a className="sub" href={text} target="_blank" rel="noopener noreferrer">
+        {text}
+      </a>
+    );
+  }
+  return <span className="sub">{text}</span>;
+}
+
 export function ResourceEntryList({ entries }: { entries: ResourceEntry[] }) {
   return (
     <>
@@ -15,7 +26,7 @@ export function ResourceEntryList({ entries }: { entries: ResourceEntry[] }) {
         <div key={entry.id} className="prop-list-item">
           <span className="label">{entry.label}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="sub">{entry.detail}</span>
+            <ExternalLinkText text={entry.detail} />
             {entry.onRemove ? (
               <button type="button" className="btn btn-danger btn-sm" onClick={() => entry.onRemove?.(entry.id)}>
                 <FiTrash2 className="icon" />

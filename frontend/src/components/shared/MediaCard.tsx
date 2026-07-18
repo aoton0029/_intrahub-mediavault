@@ -20,6 +20,7 @@ export type MediaCardProps = {
   onAction?: () => void;
   href?: string;
   imageUrl?: string | null;
+  thumbnailOrientation?: "vertical" | "horizontal";
 };
 
 export function MediaCard({
@@ -37,6 +38,7 @@ export function MediaCard({
   onAction,
   href,
   imageUrl,
+  thumbnailOrientation = "horizontal",
 }: MediaCardProps) {
   const isSearchResult = variant === "search-result" || variant === "picker";
   const className = cn(
@@ -45,6 +47,7 @@ export function MediaCard({
     variant === "search-result" && "search-result is-compact",
     variant === "picker" && "search-result is-dense",
     variant === "horizontal" && "is-horizontal",
+    thumbnailOrientation === "vertical" && "cover-portrait",
   );
 
   const body = (

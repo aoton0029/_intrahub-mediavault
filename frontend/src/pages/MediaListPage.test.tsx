@@ -71,7 +71,7 @@ describe("MediaListPage", () => {
   it("renders the toolbar, compact grid, and completion sentinel", () => {
     const { container } = renderWithRouter("/media?tag_id=tag-1");
 
-    expect(screen.getByRole("combobox", { name: "種別" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "メディア種別" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "並び順" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "タイトル検索" })).toBeInTheDocument();
     expect(screen.getByText("Ghost in the Shell")).toBeInTheDocument();
@@ -81,10 +81,11 @@ describe("MediaListPage", () => {
     expect(screen.getByText("# SF")).toBeInTheDocument();
   });
 
-  it("updates media_type in search params when the select changes", () => {
+  it("updates media_type in search params when a dropdown option is selected", () => {
     renderWithRouter("/media");
 
-    fireEvent.change(screen.getByRole("combobox", { name: "種別" }), { target: { value: "movie" } });
+    fireEvent.click(screen.getByRole("button", { name: "メディア種別" }));
+    fireEvent.click(screen.getByRole("option", { name: "映画" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent("?media_type=movie");
   });

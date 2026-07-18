@@ -7,6 +7,7 @@ import { MediaListPage } from "@/pages/MediaListPage";
 import { MediaSearchPage } from "@/pages/MediaSearchPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { CollageToolPage } from "@/pages/CollageToolPage";
+import { YearlyMediaPage } from "@/pages/YearlyMediaPage";
 
 export const router = createBrowserRouter([
   {
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           actions: <Link className="btn btn-accent" to="/academic-books/search">＋ 作品を追加</Link>,
         },
       },
+      { path: "collection/yearly", element: <YearlyMediaPage />, handle: { title: "年別" } },
       { path: "tools/collage", element: <CollageToolPage />, handle: { title: "並べてシェア" } },
       { path: "settings", element: <SettingsPage />, handle: { title: "設定" } },
     ],

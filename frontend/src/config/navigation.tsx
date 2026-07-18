@@ -1,5 +1,5 @@
 import type { IconType } from "react-icons";
-import { FiBook, FiBookOpen, FiFileText, FiFilm, FiFolder, FiGrid, FiHome, FiMonitor, FiSettings, FiTv } from "react-icons/fi";
+import { FiBook, FiBookOpen, FiCalendar, FiFileText, FiFilm, FiFolder, FiGrid, FiHome, FiMonitor, FiSettings, FiTv } from "react-icons/fi";
 
 export type NavigationItem = {
   label: string;
@@ -35,7 +35,13 @@ export const navigationSections: NavigationSection[] = [
       { label: "論文・文献", to: "/research/papers", icon: FiFileText },
     ],
   },
-  { label: "コレクション", items: [{ label: "マイリスト", to: "/mylists", icon: FiFolder }] },
+  {
+    label: "コレクション",
+    items: [
+      { label: "マイリスト", to: "/mylists", icon: FiFolder },
+      { label: "年別", to: "/collection/yearly", icon: FiCalendar },
+    ],
+  },
   { label: "ツール", items: [{ label: "並べてシェア", to: "/tools/collage", icon: FiGrid }] },
   { label: "Misc", grow: true, items: [{ label: "設定", to: "/settings", icon: FiSettings }] },
 ];

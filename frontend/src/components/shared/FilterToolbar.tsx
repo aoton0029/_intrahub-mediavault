@@ -20,34 +20,46 @@ export type FilterOption = {
   value: string;
 };
 
+/** 一覧・年別ページ共通のソート選択肢（valueはGET /itemsのsortパラメータに対応） */
+export const MEDIA_SORT_OPTIONS: FilterOption[] = [
+  { label: "Rating", value: "rating" },
+  { label: "Recently added", value: "created_at" },
+  { label: "Recently updated", value: "updated_at" },
+  { label: "Title", value: "title" },
+  { label: "Release date", value: "release_date" },
+];
+
+/** ソート未指定時のデフォルト（rating降順） */
+export const DEFAULT_MEDIA_SORT = "rating";
+
 type FilterToolbarProps = {
   chips?: FilterChip[];
-  filterOptions?: FilterOption[];
-  selectedFilter?: string;
-  onFilterChange?: (value: string) => void;
+  /** Rendered before the chips, e.g. a media type dropdown. */
+  filterSlot?: ReactNode;
   sortOptions?: FilterOption[];
   selectedSort?: string;
   onSortChange?: (value: string) => void;
   searchValue?: string;
   searchPlaceholder?: string;
   onSearchChange?: (value: string) => void;
+  trailing?: ReactNode;
 };
 
 export function FilterToolbar({
   chips = [],
-  filterOptions = [],
-  selectedFilter = "",
-  onFilterChange,
+  filterSlot,
   sortOptions = [],
   selectedSort = "",
   onSortChange,
   searchValue = "",
   searchPlaceholder = "タイトルで検索...",
   onSearchChange,
+  trailing,
 }: FilterToolbarProps) {
   return (
     <div className="filter-toolbar">
       <div className="filter-bar">
+        {filterSlot}
         {chips.map((chip) => {
           if (chip.removable) {
             return (
@@ -79,19 +91,6 @@ export function FilterToolbar({
             </button>
           );
         })}
-
-        {filterOptions.length ? (
-          <label className="filter-select">
-            種別
-            <select aria-label="種別" value={selectedFilter} onChange={(event) => onFilterChange?.(event.target.value)}>
-              {filterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
       </div>
       <div className="sort-search-group">
         {sortOptions.length ? (
@@ -110,6 +109,7 @@ export function FilterToolbar({
           <FiSearch className="icon" />
           <input aria-label="タイトル検索" value={searchValue} placeholder={searchPlaceholder} onChange={(event) => onSearchChange?.(event.target.value)} />
         </label>
+        {trailing}
       </div>
     </div>
   );

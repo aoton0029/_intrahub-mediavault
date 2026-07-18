@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { FiBookmark, FiCheck, FiEdit2, FiFileText, FiFilm, FiFolder, FiGitBranch, FiImage, FiLayers, FiTag, FiTv, FiUsers, FiX } from "react-icons/fi";
 import { FaAmazon } from "react-icons/fa";
 import { SiAppletv, SiDmm, SiNetflix } from "react-icons/si";
-import { PropertyList, type PropertyItem, RelatedWorksList, ResourceEntryList, resourceTabIcons, resourceTabLabels, Tabs, type TabItem, TagList, type TagListItem, type RelatedWork, type ResourceTabKey } from "@/components/shared";
+import { PropertyList, type PropertyItem, RelatedWorksList, ExternalLinkText, ResourceEntryList, resourceTabIcons, resourceTabLabels, Tabs, type TabItem, TagList, type TagListItem, type RelatedWork, type ResourceTabKey } from "@/components/shared";
 
 export type RailSectionListItem = { id: string; label: string; actionLabel?: string };
 export type Episode = { id: string; number: string; title: string };
@@ -196,7 +196,7 @@ export function StreamingLinks({
             {link.label}
           </span>
           <div className="detail-section-actions">
-            <span className="sub">{link.sub}</span>
+            <ExternalLinkText text={link.sub} />
             {link.actionLabel ? (
               <button type="button" className="btn btn-danger btn-sm" onClick={() => link.onAction?.(link.id)}>
                 {link.actionLabel}

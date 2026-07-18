@@ -61,3 +61,10 @@ export const SearchResultImported: Story = {
     imported: true,
   },
 };
+
+export const Portrait: Story = {
+  args: {
+    ...Default.args,
+    thumbnailOrientation: "vertical",
+  },
+};

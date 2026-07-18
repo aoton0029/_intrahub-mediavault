@@ -10,9 +10,9 @@ use axum::response::IntoResponse;
 use crate::AppState;
 use crate::models::external_search::SearchResultItem;
 use crate::models::item::{
-    Item, ItemDetail, ItemWithRefs, ListItemsQuery, MediaType, MediaTypeCounts, UpdateItemRequest,
-    UpdateStatusRequest, deserialize_request, parse_create_item_request, parse_item_id,
-    validate_update_title,
+    Item, ItemDetail, ItemSort, ItemWithRefs, ListItemYearsQuery, ListItemsQuery, MediaType,
+    MediaTypeCounts, UpdateItemRequest, UpdateStatusRequest, YearCount, deserialize_request,
+    parse_create_item_request, parse_item_id, validate_update_title,
 };
 use crate::models::item_episode::CreateItemEpisodeRequest;
 use crate::models::item_group::{CreateItemGroupRequest, GroupType};
@@ -100,11 +100,24 @@ pub async fn list_items_handler(
     if has_more {
         items.truncate(limit as usize);
     }
-    let (next_after_created_at, next_after_id) = if has_more {
+    let (next_after_created_at, next_after_id, next_after_value) = if has_more {
         let last = items.last().expect("has_more implies non-empty items");
-        (Some(last.created_at), Some(last.id))
+        // 【次カーソル値】: sortに応じたソートキー値を文字列で返す（NULLはSQL側のCOALESCE番兵値と揃える）
+        let next_after_value = match normalized_query.sort.unwrap_or(ItemSort::CreatedAt) {
+            ItemSort::CreatedAt => None,
+            ItemSort::UpdatedAt => {
+                Some(last.updated_at.format("%Y-%m-%dT%H:%M:%S%.6f").to_string())
+            }
+            ItemSort::Rating => Some(last.rating.unwrap_or(-1.0).to_string()),
+            ItemSort::Title => Some(last.title.clone()),
+            ItemSort::ReleaseDate => Some(
+                last.release_date
+                    .map_or_else(|| "0001-01-01".to_string(), |date| date.to_string()),
+            ),
+        };
+        (Some(last.created_at), Some(last.id), next_after_value)
     } else {
-        (None, None)
+        (None, None, None)
     };
 
     // 【tags/categories付与】: カードUIのタグピル表示のため、一覧アイテムにもtags/categoriesを
@@ -135,6 +148,7 @@ pub async fn list_items_handler(
             has_more,
             next_after_created_at,
             next_after_id,
+            next_after_value,
         },
     ))
 }
@@ -146,6 +160,16 @@ pub async fn count_items_by_media_type_handler(
 ) -> Result<ApiOk<MediaTypeCounts>, ApiError> {
     let counts = item_repository::count_items_by_media_type(&state.db).await?;
     Ok(ApiOk::new(counts))
+}
+
+/// 【機能概要】: `GET /items/years` ハンドラ。年別コレクションページ用に、指定日付カラム
+/// （release_date/consumed_date）の年ごとのアイテム件数を降順で返す
+pub async fn list_item_years_handler(
+    State(state): State<AppState>,
+    Query(query): Query<ListItemYearsQuery>,
+) -> Result<ApiOk<Vec<YearCount>>, ApiError> {
+    let years = item_repository::list_item_years(&state.db, &query).await?;
+    Ok(ApiOk::new(years))
 }
 
 /// 【機能概要】: `GET /items/:id` ハンドラ。アイテム詳細をメディア別詳細テーブル・タグ・

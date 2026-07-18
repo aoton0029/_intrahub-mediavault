@@ -227,6 +227,9 @@ pub struct Pagination {
     pub has_more: bool,
     pub next_after_created_at: Option<chrono::NaiveDateTime>,
     pub next_after_id: Option<uuid::Uuid>,
+    /// sortがcreated_at以外の場合の次ページカーソル（ソートキー値の文字列表現）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_after_value: Option<String>,
 }
 
 /// ページネーション付き統一APIレスポンス（成功）
@@ -353,6 +356,7 @@ mod tests {
                 next_after_id: Some(
                     uuid::Uuid::parse_str("b2b5c1a0-0000-0000-0000-000000000000").unwrap(),
                 ),
+                next_after_value: None,
             },
         );
 
@@ -416,6 +420,7 @@ mod tests {
                 has_more: false,
                 next_after_created_at: None,
                 next_after_id: None,
+                next_after_value: None,
             },
         );
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { FiKey, FiPlusCircle, FiRepeat, FiSearch } from "react-icons/fi";
-import { EmptyState, MediaGrid, MediaTypeSelector, type MediaCardProps } from "@/components/shared";
+import { EmptyState, MediaGrid, MediaTypeDropdown, type MediaCardProps } from "@/components/shared";
 import { MediaSearchError, useMediaSearch, type SearchMediaType } from "@/hooks/useMediaSearch";
 import { apiFetch } from "@/lib/apiClient";
 
@@ -167,7 +167,7 @@ export function MediaSearchPage() {
   return (
     <>
       <div className="filter-bar">
-        <MediaTypeSelector value={selectedMediaType} onChange={(value) => setSelectedMediaType(value as SearchMediaType)} />
+        <MediaTypeDropdown value={selectedMediaType} onChange={(value) => setSelectedMediaType(value as SearchMediaType)} />
         <label className="search-box" style={{ marginLeft: 0, flex: 1 }}>
           <FiSearch className="icon" aria-hidden="true" />
           <input aria-label="作品名" placeholder="作品名で検索…" value={query} onChange={(event) => setQuery(event.target.value)} />

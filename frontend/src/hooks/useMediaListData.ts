@@ -15,7 +15,7 @@ type CategoryRef = {
   name: string;
 };
 
-type ItemWithRefs = {
+export type ItemWithRefs = {
   id: string;
   media_type: MediaType;
   title: string;
@@ -23,17 +23,20 @@ type ItemWithRefs = {
   rating: number | null;
   is_favorite: boolean;
   cover_image_url: string | null;
+  release_date: string | null;
+  consumed_date: string | null;
   tags: TagRef[];
   categories: CategoryRef[];
 };
 
-type PaginatedItemsResponse = {
+export type PaginatedItemsResponse = {
   success: boolean;
   data: ItemWithRefs[];
   pagination: {
     has_more: boolean;
     next_after_created_at: string | null;
     next_after_id: string | null;
+    next_after_value?: string | null;
   };
 };
 
@@ -50,9 +53,10 @@ type CategoryResponse = {
   data: CategoryOption[];
 };
 
-type Cursor = {
+export type Cursor = {
   afterCreatedAt: string | null;
   afterId: string | null;
+  afterValue: string | null;
 };
 
 export type MediaListFilters = {
@@ -81,7 +85,7 @@ type UseMediaListDataOptions = {
   getItemHref?: (item: ItemWithRefs) => string;
 };
 
-function buildQueryString(params: Record<string, string | number | boolean | undefined | null>) {
+export function buildQueryString(params: Record<string, string | number | boolean | undefined | null>) {
   const searchParams = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -103,9 +107,11 @@ async function fetchItemsPage(filters: MediaListFilters, pageParam: Cursor) {
       category_id: filters.categoryId,
       title: filters.title,
       status: filters.status,
+      sort: filters.sort,
       limit: 20,
       after_created_at: pageParam.afterCreatedAt,
       after_id: pageParam.afterId,
+      after_value: pageParam.afterValue,
     })}`,
   );
 
@@ -138,7 +144,7 @@ async function fetchCategories() {
   return json.data;
 }
 
-function mapItemToMediaCard(item: ItemWithRefs, options?: UseMediaListDataOptions): MediaCardProps {
+export function mapItemToMediaCard(item: ItemWithRefs, options?: UseMediaListDataOptions): MediaCardProps {
   return {
     title: item.title,
     badge: options?.getBadgeLabel?.(item) ?? MEDIA_TYPE_LABELS[item.media_type],
@@ -158,7 +164,7 @@ export function useMediaListData(filters: MediaListFilters, options?: UseMediaLi
   const itemsQuery = useInfiniteQuery<PaginatedItemsResponse, Error, InfiniteData<PaginatedItemsResponse, Cursor>, [string, MediaListFilters], Cursor>({
     queryKey: ["media-list", effectiveFilters],
     queryFn: ({ pageParam }) => fetchItemsPage(effectiveFilters, pageParam),
-    initialPageParam: { afterCreatedAt: null, afterId: null },
+    initialPageParam: { afterCreatedAt: null, afterId: null, afterValue: null },
     getNextPageParam: (lastPage) => {
       if (!lastPage.pagination.has_more) {
         return undefined;
@@ -167,6 +173,7 @@ export function useMediaListData(filters: MediaListFilters, options?: UseMediaLi
       return {
         afterCreatedAt: lastPage.pagination.next_after_created_at,
         afterId: lastPage.pagination.next_after_id,
+        afterValue: lastPage.pagination.next_after_value ?? null,
       };
     },
   });

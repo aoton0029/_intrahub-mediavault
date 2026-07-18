@@ -8,8 +8,9 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;
 
 use crate::models::item::{
-    CategoryRef, CreateItemRequest, Item, ItemSource, ListItemsQuery, MediaType, MediaTypeCounts,
-    TagRef, UpdateItemRequest, UpdateStatusRequest, has_any_update_field,
+    CategoryRef, CreateItemRequest, DateField, Item, ItemSort, ItemSource, ListItemYearsQuery,
+    ListItemsQuery, MediaType, MediaTypeCounts, TagRef, UpdateItemRequest, UpdateStatusRequest,
+    YearCount, has_any_update_field,
 };
 use crate::models::response::{ApiError, ApiErrorCode};
 
@@ -227,6 +228,16 @@ fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItems
         builder.push(")");
     }
 
+    // 【yearフィルタ】: 年別コレクションページ用。date_fieldで対象カラム（release_date/
+    // consumed_date）を選択し、EXTRACT(YEAR FROM <col>)で年一致を判定する。
+    // カラム名はDateField::column_name()が返す静的文字列のみを埋め込むためSQLインジェクションの余地はない
+    if let Some(year) = query.year {
+        push_clause_prefix!();
+        let column = query.date_field.unwrap_or(DateField::Release).column_name();
+        builder.push(format!("EXTRACT(YEAR FROM {column})::int = "));
+        builder.push_bind(year);
+    }
+
     // 【TASK-0029】: titleフィルタ（部分一致・ILIKE）。/internal/items/search の検索条件として
     // list_items_handlerの検索ロジックを再利用するために追加した 🔵
     if let Some(title) = &query.title {
@@ -238,10 +249,35 @@ fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItems
     has_condition
 }
 
+/// sortがcreated_at以外の場合のkeysetカーソル値（after_valueをソートキーの型へパースしたもの）
+enum SortCursorValue {
+    Float(f32),
+    Date(chrono::NaiveDate),
+    DateTime(chrono::NaiveDateTime),
+    Text(String),
+}
+
+/// after_valueを`sort`に対応する型へパースする。パース不能な場合はNone（先頭ページ扱い）
+fn parse_sort_cursor(sort: ItemSort, after_value: &str) -> Option<SortCursorValue> {
+    match sort {
+        ItemSort::CreatedAt => None,
+        ItemSort::Rating => after_value.parse().ok().map(SortCursorValue::Float),
+        ItemSort::ReleaseDate => after_value.parse().ok().map(SortCursorValue::Date),
+        ItemSort::UpdatedAt => after_value.parse().ok().map(SortCursorValue::DateTime),
+        ItemSort::Title => Some(SortCursorValue::Text(after_value.to_string())),
+    }
+}
+
 /// 【機能概要】: GET /items 一覧取得用のSELECTクエリをQueryBuilderで構築する（keysetページネーション）
-/// 【実装方針】: SELECT ... FROM items [WHERE ...] ORDER BY created_at DESC, id LIMIT ... の形で
-/// クエリを組み立てる。OFFSETは使わず、after_created_at/after_idが両方指定された場合のみ
-/// `(created_at, id) < (?, ?)` のカーソル条件を追加する。LIMITはhas_more判定のため+1して発行する
+/// 【実装方針】: SELECT ... FROM items [WHERE ...] ORDER BY <ソートキー>, created_at, id LIMIT ...
+/// の形でクエリを組み立てる。OFFSETは使わない。
+/// - sort未指定/created_at: 従来どおり `ORDER BY created_at DESC, id` とし、
+///   after_created_at/after_idが両方指定された場合のみ `(created_at, id) < (?, ?)` を追加する
+/// - それ以外のsort: `ORDER BY <式> <向き>, created_at <向き>, id <向き>` とし、
+///   after_value/after_created_at/after_idが全て指定された場合のみ3要素タプル比較を追加する。
+///   NULL可のカラムは番兵値でCOALESCEするため、タプル比較が常に成立する。
+///
+/// LIMITはhas_more判定のため+1して発行する
 pub fn build_list_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgres> {
     let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(
         "SELECT id, media_type, title, original_title, description, cover_image_url, \
@@ -253,25 +289,64 @@ pub fn build_list_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgr
     // WHERE/AND判定に使う 🟡
     let mut has_condition = push_item_filters(&mut builder, query);
 
-    // 【カーソル条件追加】: after_created_at/after_idが両方指定された場合のみkeyset条件を追加する。
-    // ORDER BY created_at DESC, id と対応する複合キー比較で「前回最後の行より後」を表現する 🔵
-    if let (Some(after_created_at), Some(after_id)) = (query.after_created_at, query.after_id) {
-        if has_condition {
-            builder.push(" AND (created_at, id) < (");
-        } else {
-            builder.push(" WHERE (created_at, id) < (");
-            has_condition = true;
+    let sort = query.sort.unwrap_or(ItemSort::CreatedAt);
+
+    if sort == ItemSort::CreatedAt {
+        // 【カーソル条件追加】: after_created_at/after_idが両方指定された場合のみkeyset条件を追加する。
+        // ORDER BY created_at DESC, id と対応する複合キー比較で「前回最後の行より後」を表現する 🔵
+        if let (Some(after_created_at), Some(after_id)) = (query.after_created_at, query.after_id) {
+            if has_condition {
+                builder.push(" AND (created_at, id) < (");
+            } else {
+                builder.push(" WHERE (created_at, id) < (");
+                has_condition = true;
+            }
+            builder.push_bind(after_created_at);
+            builder.push(", ");
+            builder.push_bind(after_id);
+            builder.push(")");
         }
-        builder.push_bind(after_created_at);
-        builder.push(", ");
-        builder.push_bind(after_id);
-        builder.push(")");
+    } else {
+        let cursor = query
+            .after_value
+            .as_deref()
+            .and_then(|value| parse_sort_cursor(sort, value));
+        if let (Some(cursor), Some(after_created_at), Some(after_id)) =
+            (cursor, query.after_created_at, query.after_id)
+        {
+            let operator = if sort.is_descending() { " < (" } else { " > (" };
+            let prefix = if has_condition { " AND (" } else { " WHERE (" };
+            builder.push(format!(
+                "{prefix}{expr}, created_at, id){operator}",
+                expr = sort.order_expr()
+            ));
+            has_condition = true;
+            match cursor {
+                SortCursorValue::Float(value) => builder.push_bind(value),
+                SortCursorValue::Date(value) => builder.push_bind(value),
+                SortCursorValue::DateTime(value) => builder.push_bind(value),
+                SortCursorValue::Text(value) => builder.push_bind(value),
+            };
+            builder.push(", ");
+            builder.push_bind(after_created_at);
+            builder.push(", ");
+            builder.push_bind(after_id);
+            builder.push(")");
+        }
     }
     let _ = has_condition;
 
     // 【LIMIT句追加】: has_more判定のため、要求されたlimitに+1した件数を取得する 🔵
     let limit = query.limit.unwrap_or(20);
-    builder.push(" ORDER BY created_at DESC, id LIMIT ");
+    if sort == ItemSort::CreatedAt {
+        builder.push(" ORDER BY created_at DESC, id LIMIT ");
+    } else {
+        let direction = if sort.is_descending() { "DESC" } else { "ASC" };
+        builder.push(format!(
+            " ORDER BY {expr} {direction}, created_at {direction}, id {direction} LIMIT ",
+            expr = sort.order_expr(),
+        ));
+    }
     builder.push_bind(limit as i64 + 1);
 
     builder
@@ -289,6 +364,33 @@ pub async fn list_items(pool: &PgPool, query: &ListItemsQuery) -> Result<Vec<Ite
         .await
         .map_err(db_error)?;
     Ok(items)
+}
+
+/// 【機能概要】: 年別コレクションページ用に、指定日付カラムの年ごとのアイテム件数を集計する
+/// 【実装方針】: `GROUP BY EXTRACT(YEAR FROM <col>)`で年ごとの件数を降順取得する。
+/// NULL日付の行は集計対象外（WHERE <col> IS NOT NULL）。カラム名はDateField::column_name()の
+/// 静的文字列のみを埋め込む。count_items_by_media_typeと同様にdb_errorでエラー変換する
+pub async fn list_item_years(
+    pool: &PgPool,
+    query: &ListItemYearsQuery,
+) -> Result<Vec<YearCount>, ApiError> {
+    let column = query.date_field.unwrap_or(DateField::Release).column_name();
+    let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(format!(
+        "SELECT EXTRACT(YEAR FROM {column})::int AS year, COUNT(*) AS count \
+        FROM items WHERE {column} IS NOT NULL"
+    ));
+    if let Some(media_type) = query.media_type {
+        builder.push(" AND media_type = ");
+        builder.push_bind(media_type);
+    }
+    builder.push(" GROUP BY year ORDER BY year DESC");
+
+    let years: Vec<YearCount> = builder
+        .build_query_as()
+        .fetch_all(pool)
+        .await
+        .map_err(db_error)?;
+    Ok(years)
 }
 
 /// 【機能概要】: 指定UUIDのitemsレコードを1件取得する
@@ -743,9 +845,13 @@ mod tests {
             is_favorite: None,
             status: None,
             title: None,
+            year: None,
+            date_field: None,
             limit: None,
             after_created_at: None,
             after_id: None,
+            sort: None,
+            after_value: None,
         }
     }
 
@@ -806,6 +912,45 @@ mod tests {
         let sql = builder.sql();
 
         assert!(sql.contains("AND (created_at, id) < (")); // 【確認内容】: 他フィルタがある場合はANDでカーソル条件が繋がることを確認
+    }
+
+    /// yearフィルタ指定時（date_field未指定）はrelease_dateの年一致条件が追加される
+    #[test]
+    fn build_list_items_sql_contains_release_year_condition_by_default() {
+        let mut query = empty_query();
+        query.year = Some(2026);
+
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(sql.contains("WHERE EXTRACT(YEAR FROM release_date)::int = ")); // 【確認内容】: date_field未指定時はrelease_dateを対象とすることを確認
+    }
+
+    /// date_field=consumed指定時はconsumed_dateの年一致条件が追加される
+    #[test]
+    fn build_list_items_sql_uses_consumed_date_when_date_field_is_consumed() {
+        let mut query = empty_query();
+        query.year = Some(2025);
+        query.date_field = Some(DateField::Consumed);
+
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(sql.contains("EXTRACT(YEAR FROM consumed_date)::int = ")); // 【確認内容】: date_field=consumed時はconsumed_dateを対象とすることを確認
+        assert!(!sql.contains("release_date)::int")); // 【確認内容】: release_dateの年条件は付かないことを確認
+    }
+
+    /// date_fieldのみ指定（year未指定）の場合は年条件が追加されない（後方互換）
+    #[test]
+    fn build_list_items_sql_ignores_date_field_without_year() {
+        let mut query = empty_query();
+        query.date_field = Some(DateField::Consumed);
+
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(!sql.contains("EXTRACT")); // 【確認内容】: year未指定時は年条件が生成されないことを確認
+        assert!(!sql.contains("WHERE")); // 【確認内容】: 他フィルタも無いためWHERE自体が生成されないことを確認
     }
 
     /// after_created_at/after_idの片方のみ指定された場合はカーソル条件が無視される
