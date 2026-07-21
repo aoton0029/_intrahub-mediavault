@@ -478,7 +478,12 @@ fn parse_rakuten_sales_date(raw: &str) -> Option<NaiveDate> {
 }
 
 /// 楽天ブックス`BookModel`（manga/novel/academic_book共通）から`CreateItemRequest`を構築する。
-fn build_book_create_request(book: &BookModel, media_type: MediaType) -> CreateItemRequest {
+///
+/// `pub(crate)`: ブクログCSVインポート（`handlers::import_booklog`）のISBNエンリッチメントからも再利用する。
+pub(crate) fn build_book_create_request(
+    book: &BookModel,
+    media_type: MediaType,
+) -> CreateItemRequest {
     let details = serde_json::json!({
         "authors": book.author.clone(),
         "publisher": book.publisher_name.clone(),

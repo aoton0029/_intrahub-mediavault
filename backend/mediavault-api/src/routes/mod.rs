@@ -20,7 +20,9 @@ use crate::handlers::categories::{
     detach_category_handler, list_categories_handler,
 };
 use crate::handlers::health::health_handler;
-use crate::handlers::import_booklog::import_booklog_handler;
+use crate::handlers::import_booklog::{
+    cancel_booklog_import_job_handler, get_booklog_import_job_handler, import_booklog_handler,
+};
 use crate::handlers::import_steam::import_steam_handler;
 use crate::handlers::item_episodes::{create_item_episode_handler, list_item_episodes_handler};
 use crate::handlers::item_files::{
@@ -261,6 +263,17 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/import/booklog",
             axum::routing::post(import_booklog_handler),
+        )
+        // 【ブクログインポート進捗ポーリング】: 楽天エンリッチメントを含むバックグラウンドジョブの
+        // 進捗（processed/total）と完了後のImportSummaryを返す
+        .route(
+            "/import/booklog/jobs/{job_id}",
+            axum::routing::get(get_booklog_import_job_handler),
+        )
+        // 【ブクログインポート中止】: 実行中ジョブへ中止をリクエストする
+        .route(
+            "/import/booklog/jobs/{job_id}/cancel",
+            axum::routing::post(cancel_booklog_import_job_handler),
         )
         // 【TASK-0031】: POST /import/steam（Steamライブラリインポート）。既存/import/booklogと
         // 同様にトップレベルの専用リテラルパスとして登録する 🔵

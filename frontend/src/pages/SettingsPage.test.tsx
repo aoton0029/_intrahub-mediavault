@@ -12,7 +12,9 @@ const mockUseSettingsData = vi.mocked(useSettingsData);
 describe("SettingsPage", () => {
   const saveApiKey = vi.fn();
   const fetchApiKeyStatuses = vi.fn();
-  const importBooklog = vi.fn();
+  const startBooklogImport = vi.fn();
+  const fetchBooklogImportJob = vi.fn();
+  const cancelBooklogImportJob = vi.fn();
   const importSteam = vi.fn();
   const exportBackup = vi.fn();
   const importBackup = vi.fn();
@@ -21,7 +23,9 @@ describe("SettingsPage", () => {
   beforeEach(() => {
     saveApiKey.mockReset();
     fetchApiKeyStatuses.mockReset();
-    importBooklog.mockReset();
+    startBooklogImport.mockReset();
+    fetchBooklogImportJob.mockReset();
+    cancelBooklogImportJob.mockReset();
     importSteam.mockReset();
     exportBackup.mockReset();
     importBackup.mockReset();
@@ -32,7 +36,9 @@ describe("SettingsPage", () => {
     mockUseSettingsData.mockReturnValue({
       saveApiKey,
       fetchApiKeyStatuses,
-      importBooklog,
+      startBooklogImport,
+      fetchBooklogImportJob,
+      cancelBooklogImportJob,
       importSteam,
       exportBackup,
       importBackup,
@@ -91,15 +97,21 @@ describe("SettingsPage", () => {
     expect(screen.getByText("provider: tmdb ・ 設定済み")).toBeInTheDocument();
   });
 
-  it("imports a Booklog CSV and shows the latest import result", async () => {
+  it("imports a Booklog CSV and shows the latest import result after the job completes", async () => {
     const user = userEvent.setup();
-    importBooklog.mockResolvedValue({
-      successCount: 10,
-      failureCount: 2,
-      failures: [
-        { row: 5, reason: "タイトルが空です" },
-        { row: 9, reason: "不正な評価値です" },
-      ],
+    startBooklogImport.mockResolvedValue("job-123");
+    fetchBooklogImportJob.mockResolvedValueOnce({
+      status: "completed",
+      total: 12,
+      processed: 12,
+      summary: {
+        successCount: 10,
+        failureCount: 2,
+        failures: [
+          { row: 5, reason: "タイトルが空です" },
+          { row: 9, reason: "不正な評価値です" },
+        ],
+      },
     });
     render(<SettingsPage />);
 
@@ -110,13 +122,64 @@ describe("SettingsPage", () => {
     await user.click(screen.getByRole("button", { name: "アップロードして取り込む" }));
 
     await waitFor(() => {
-      expect(importBooklog).toHaveBeenCalledWith(file);
+      expect(startBooklogImport).toHaveBeenCalledWith(file);
     });
-    expect(screen.getByText("直近のインポート結果")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchBooklogImportJob).toHaveBeenCalledWith("job-123");
+    });
+    expect(await screen.findByText("直近のインポート結果")).toBeInTheDocument();
     expect(screen.getByText("成功: 10件")).toBeInTheDocument();
     expect(screen.getByText("失敗: 2件")).toBeInTheDocument();
     expect(screen.getByText("5行目")).toBeInTheDocument();
     expect(screen.getByText("reason: タイトルが空です")).toBeInTheDocument();
+  });
+
+  it("shows progress while the Booklog import job is still running", async () => {
+    const user = userEvent.setup();
+    startBooklogImport.mockResolvedValue("job-456");
+    fetchBooklogImportJob
+      .mockResolvedValueOnce({ status: "running", total: 100, processed: 30, summary: null })
+      .mockResolvedValueOnce({
+        status: "completed",
+        total: 100,
+        processed: 100,
+        summary: { successCount: 100, failureCount: 0, failures: [] },
+      });
+    render(<SettingsPage />);
+
+    await user.click(screen.getByRole("button", { name: "データインポート" }));
+    const fileInput = screen.getByLabelText("CSVファイル") as HTMLInputElement;
+    const file = new File(["title"], "booklog.csv", { type: "text/csv" });
+    await user.upload(fileInput, file);
+    await user.click(screen.getByRole("button", { name: "アップロードして取り込む" }));
+
+    expect(await screen.findByText("30 / 100件処理済み（楽天ブックスAPIの制限により時間がかかる場合があります）")).toBeInTheDocument();
+    expect(await screen.findByText("成功: 100件")).toBeInTheDocument();
+  });
+
+  it("shows a cancel button while the Booklog import job is running and cancels it", async () => {
+    const user = userEvent.setup();
+    startBooklogImport.mockResolvedValue("job-789");
+    cancelBooklogImportJob.mockResolvedValue(undefined);
+    fetchBooklogImportJob
+      .mockResolvedValueOnce({ status: "running", total: 100, processed: 10, summary: null })
+      .mockResolvedValueOnce({ status: "cancelled", total: 100, processed: 12, summary: { successCount: 10, failureCount: 2, failures: [] } });
+    render(<SettingsPage />);
+
+    await user.click(screen.getByRole("button", { name: "データインポート" }));
+    const fileInput = screen.getByLabelText("CSVファイル") as HTMLInputElement;
+    const file = new File(["title"], "booklog.csv", { type: "text/csv" });
+    await user.upload(fileInput, file);
+    await user.click(screen.getByRole("button", { name: "アップロードして取り込む" }));
+
+    const cancelButton = await screen.findByRole("button", { name: "中止" });
+    await user.click(cancelButton);
+
+    await waitFor(() => {
+      expect(cancelBooklogImportJob).toHaveBeenCalledWith("job-789");
+    });
+    expect(await screen.findByText("取り込みを中止しました")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "中止" })).not.toBeInTheDocument();
   });
 
   it("imports a Steam library with the entered Steam ID", async () => {

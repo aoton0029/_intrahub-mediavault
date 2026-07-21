@@ -17,6 +17,13 @@ export type ImportSummary = {
   failures: { row: number; reason: string }[];
 };
 
+export type ImportJobStatus = {
+  status: "running" | "cancelling" | "cancelled" | "completed";
+  total: number;
+  processed: number;
+  summary: ImportSummary | null;
+};
+
 export type HealthStatus = {
   database: "ok" | "error";
 };
@@ -77,16 +84,18 @@ function mapImportSummary(data: ImportSummaryPayload): ImportSummary {
   };
 }
 
-function extractImportSummaryPayload(payload: ApiEnvelope<ImportSummaryPayload> | ImportSummaryPayload | null): ImportSummaryPayload | null {
-  if (!payload) {
-    return null;
-  }
+type ImportJobStatusPayload = {
+  status?: "running" | "cancelling" | "cancelled" | "completed";
+  total?: number;
+  processed?: number;
+  summary?: ImportSummaryPayload | null;
+};
 
-  if ("success" in payload || "error" in payload || "data" in payload) {
-    return payload.data ?? null;
+function mapImportJobStatus(status: ImportJobStatusPayload["status"]): ImportJobStatus["status"] {
+  if (status === "completed" || status === "cancelling" || status === "cancelled") {
+    return status;
   }
-
-  return payload as ImportSummaryPayload;
+  return "running";
 }
 
 export async function saveApiKey(provider: string, apiKey: string): Promise<ApiCredential> {
@@ -125,7 +134,8 @@ export async function fetchApiKeyStatuses(): Promise<ApiKeyStatus[]> {
   return payload.data;
 }
 
-export async function importBooklog(file: File): Promise<ImportSummary> {
+/** Booklog CSVをアップロードしてインポートジョブを起動し、job_idを返す */
+export async function startBooklogImport(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -133,18 +143,42 @@ export async function importBooklog(file: File): Promise<ImportSummary> {
     method: "POST",
     body: formData,
   });
-  const payload = (await readJson(response)) as ApiEnvelope<ImportSummaryPayload> | ImportSummaryPayload | null;
+  const payload = (await readJson(response)) as ApiEnvelope<{ job_id?: string }> | null;
+
+  if (!response.ok || !payload?.data?.job_id) {
+    throw new Error(getErrorMessage(payload, "Booklogの取り込み開始に失敗しました"));
+  }
+
+  return payload.data.job_id;
+}
+
+/** ブクログインポートジョブの進捗・完了後の結果を取得する（ポーリング用） */
+export async function fetchBooklogImportJob(jobId: string): Promise<ImportJobStatus> {
+  const response = await apiFetch(`/import/booklog/jobs/${jobId}`);
+  const payload = (await readJson(response)) as ApiEnvelope<ImportJobStatusPayload> | null;
+
+  if (!response.ok || !payload?.data) {
+    throw new Error(getErrorMessage(payload, "インポート進捗の取得に失敗しました"));
+  }
+
+  return {
+    status: mapImportJobStatus(payload.data.status),
+    total: payload.data.total ?? 0,
+    processed: payload.data.processed ?? 0,
+    summary: payload.data.summary ? mapImportSummary(payload.data.summary) : null,
+  };
+}
+
+/** 実行中のブクログインポートジョブへ中止をリクエストする */
+export async function cancelBooklogImportJob(jobId: string): Promise<void> {
+  const response = await apiFetch(`/import/booklog/jobs/${jobId}/cancel`, {
+    method: "POST",
+  });
 
   if (!response.ok) {
-    throw new Error(getErrorMessage(payload, "Booklogの取り込みに失敗しました"));
+    const payload = await readJson(response);
+    throw new Error(getErrorMessage(payload, "インポートの中止に失敗しました"));
   }
-
-  const data = extractImportSummaryPayload(payload);
-  if (!data) {
-    throw new Error("Booklogの取り込み結果を取得できませんでした");
-  }
-
-  return mapImportSummary(data);
 }
 
 export async function importSteam(steamId: string): Promise<ImportSummary> {
@@ -237,7 +271,9 @@ export function useSettingsData() {
   return {
     saveApiKey,
     fetchApiKeyStatuses,
-    importBooklog,
+    startBooklogImport,
+    fetchBooklogImportJob,
+    cancelBooklogImportJob,
     importSteam,
     exportBackup,
     importBackup,

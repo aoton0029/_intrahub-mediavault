@@ -1,2 +1,6 @@
 # Environment variables
 .env
+
+# pgAdmin local secrets
+docker/pgadmin/pgpass
+booklog*.csv

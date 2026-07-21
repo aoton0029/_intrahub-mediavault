@@ -114,6 +114,8 @@ pub enum ApiErrorCode {
     DuplicateStreamingLink,
     /// バックアップファイルのschema_versionが未対応（POST /backup/import時400）
     UnsupportedBackupVersion,
+    /// 指定されたブクログインポートジョブが見つからない（GET /import/booklog/jobs/:job_id時404）
+    ImportJobNotFound,
 }
 
 impl ApiErrorCode {
@@ -163,6 +165,7 @@ impl ApiErrorCode {
             ApiErrorCode::UnsupportedBackupVersion => {
                 ("UNSUPPORTED_BACKUP_VERSION", StatusCode::BAD_REQUEST)
             }
+            ApiErrorCode::ImportJobNotFound => ("IMPORT_JOB_NOT_FOUND", StatusCode::NOT_FOUND),
         }
     }
 

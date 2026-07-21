@@ -66,6 +66,29 @@ impl ImportSummary {
     }
 }
 
+/// ブクログインポートジョブの進行状態
+///
+/// `Cancelling`は中止リクエストを受け付けた直後、バックグラウンドループが次の行の
+/// 処理に入る前にチェックするまでの過渡状態。実際に処理を打ち切ると`Cancelled`になる。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImportJobState {
+    Running,
+    Cancelling,
+    Cancelled,
+    Completed,
+}
+
+/// `GET /import/booklog/jobs/:job_id` の応答。楽天エンリッチメントを含む
+/// バックグラウンド処理の進捗（処理済み件数/全体件数）と、完了後は最終結果を保持する。
+#[derive(Debug, Clone, Serialize)]
+pub struct ImportJobStatus {
+    pub status: ImportJobState,
+    pub total: u32,
+    pub processed: u32,
+    pub summary: Option<ImportSummary>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

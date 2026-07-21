@@ -5,6 +5,12 @@ import { FormActions, FormField, FormSection } from "@/components/shared/Forms";
 import { SettingsShell } from "@/components/shared/SettingsShell";
 import { useSettingsData, type BackupImportReport, type HealthStatus, type ImportSummary } from "@/hooks/useSettingsData";
 
+const BOOKLOG_POLL_INTERVAL_MS = 1000;
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
 type ProviderKey = "tmdb" | "steam" | "annict" | "rakuten";
 
 type ProviderEntry = {
@@ -143,7 +149,7 @@ function ImportResultList({ result }: { result: ImportSummary }) {
 }
 
 function ImportPanel() {
-  const { importBooklog, importSteam } = useSettingsData();
+  const { startBooklogImport, fetchBooklogImportJob, cancelBooklogImportJob, importSteam } = useSettingsData();
   const [booklogFile, setBooklogFile] = useState<File | null>(null);
   const [steamId, setSteamId] = useState("");
   const [importResult, setImportResult] = useState<ImportSummary | null>(null);
@@ -151,6 +157,9 @@ function ImportPanel() {
   const [steamError, setSteamError] = useState<string | undefined>();
   const [isImportingBooklog, setIsImportingBooklog] = useState(false);
   const [isImportingSteam, setIsImportingSteam] = useState(false);
+  const [isCancellingBooklog, setIsCancellingBooklog] = useState(false);
+  const [booklogJobId, setBooklogJobId] = useState<string | null>(null);
+  const [booklogProgress, setBooklogProgress] = useState<{ processed: number; total: number } | null>(null);
 
   async function handleBooklogImport() {
     if (!booklogFile) {
@@ -159,13 +168,49 @@ function ImportPanel() {
     }
 
     setBooklogError(undefined);
+    setImportResult(null);
+    setBooklogProgress(null);
+    setIsCancellingBooklog(false);
     setIsImportingBooklog(true);
     try {
-      setImportResult(await importBooklog(booklogFile));
+      const jobId = await startBooklogImport(booklogFile);
+      setBooklogJobId(jobId);
+
+      // 楽天ブックスAPIでのエンリッチメントはリクエスト間隔制約により長時間かかることがあるため、
+      // ジョブが完了する（または中止される）まで進捗をポーリングして表示する
+      for (;;) {
+        const job = await fetchBooklogImportJob(jobId);
+        setBooklogProgress({ processed: job.processed, total: job.total });
+        if (job.status === "completed" || job.status === "cancelled") {
+          setImportResult(job.summary);
+          if (job.status === "cancelled") {
+            setBooklogError("取り込みを中止しました");
+          }
+          break;
+        }
+        await sleep(BOOKLOG_POLL_INTERVAL_MS);
+      }
     } catch (error) {
       setBooklogError(error instanceof Error ? error.message : "Booklogの取り込みに失敗しました");
     } finally {
       setIsImportingBooklog(false);
+      setIsCancellingBooklog(false);
+      setBooklogProgress(null);
+      setBooklogJobId(null);
+    }
+  }
+
+  async function handleCancelBooklogImport() {
+    if (!booklogJobId) {
+      return;
+    }
+
+    setIsCancellingBooklog(true);
+    try {
+      await cancelBooklogImportJob(booklogJobId);
+    } catch (error) {
+      setBooklogError(error instanceof Error ? error.message : "インポートの中止に失敗しました");
+      setIsCancellingBooklog(false);
     }
   }
 
@@ -209,7 +254,30 @@ function ImportPanel() {
               <FiUpload className="icon" />
               {isImportingBooklog ? "取り込み中..." : "アップロードして取り込む"}
             </button>
+            {isImportingBooklog ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={isCancellingBooklog}
+                onClick={() => void handleCancelBooklogImport()}
+              >
+                <FiXCircle className="icon" />
+                {isCancellingBooklog ? "中止中..." : "中止"}
+              </button>
+            ) : null}
           </FormActions>
+          {isImportingBooklog && booklogProgress ? (
+            <div style={{ width: "100%" }}>
+              <progress
+                value={booklogProgress.processed}
+                max={Math.max(booklogProgress.total, 1)}
+                style={{ width: "100%" }}
+              />
+              <p className="field-hint" role="status">
+                {booklogProgress.processed} / {booklogProgress.total}件処理済み（楽天ブックスAPIの制限により時間がかかる場合があります）
+              </p>
+            </div>
+          ) : null}
         </div>
       </FormSection>
 

@@ -1,45 +1,75 @@
 //! ブクログCSVインポートハンドラ
 //!
-//! TASK-0030: ブクログCSVインポート実装
-//!
 //! 【機能概要】: `POST /import/booklog`ハンドラ。multipart/form-dataでCSVファイルを受け取り、
-//! `import::booklog_csv`でパース・バリデーションし、正常行を`item_repository::create_item_with_source`
-//! 経由で登録、`ImportSummary`を200で返す
-//! 【実装方針】: ファイル未添付・0バイトは400 VALIDATION_ERRORで早期リターン。それ以外は
-//! 行単位スキップ方式（EDGE-002）に従い、全行不正でも例外を起こさず200で返す（TC-016-E01）
-//! 【テスト対応】: TC-N-01, TC-N-05, TC-E-06, TC-E-07, TC-E-08, TC-B-01〜TC-B-03, TC-B-05
-//! 🔵🟡 信頼性レベル: api-endpoints.md「POST /import/booklog」・要件定義書2章・3章に基づく
+//! `import::booklog_csv`でパース・バリデーションし、OpenBDのCコードで小説/学術書・専門書を
+//! 再分類したうえで、ジョブをバックグラウンド起動して`job_id`を返す。
+//! 楽天ブックスAPI（ISBNごとの書誌エンリッチメント: タイトル・説明・カバー画像・発売日等、
+//! media_type以外の情報）は1リクエスト/ISBN・約1秒間隔でしか呼べず、実サンプル規模（数千ISBN）
+//! では完走に数十分かかるため、リクエストをブロックせずバックグラウンドジョブとして処理する。
+//! クライアントは`GET /import/booklog/jobs/:job_id`をポーリングして進捗と最終`ImportSummary`を取得する。
+//!
+//!   1. `parse_booklog_csv`でパース（タイプ=マンガ→Manga確定、タイプ=雑誌→Novel確定、
+//!      それ以外はISBNがあれば暫定NovelかつOpenBD再分類対象としてマーク）
+//!   2. 再分類対象のISBNをOpenBDへチャンク単位（`OPENBD_CHUNK_SIZE`件ずつ）で問い合わせ、
+//!      Cコードの内容分類（9=文芸→Novel、それ以外→AcademicBook）で`media_type`を上書きする。
+//!      チャンク間は`OPENBD_REQUEST_INTERVAL`だけ間隔を空け、OpenBD呼び出し失敗時は
+//!      当該チャンクをNovelのままフォールバックして処理を継続する。
+//!   3. ここまでを同期的に終えたらジョブを登録し、`job_id`を返す。
+//!   4. バックグラウンドで各行を順に処理する: ISBNがあれば楽天ブックスへ`RAKUTEN_REQUEST_INTERVAL`
+//!      間隔で問い合わせ、タイトル/説明/カバー画像/発売日/詳細情報を上書きする
+//!      （rating・consumed_dateはユーザー個人データのためCSV値を常に維持し、media_typeも
+//!      OpenBD判定済みの値を維持する）。楽天キー未設定・呼び出し失敗時はCSV由来の値のまま処理継続する。
+//!      `find_existing_import`で(media_type, ISBN)の重複を確認し、既存なら"already imported"としてスキップ、
+//!      なければ登録する。1行処理するごとにジョブの進捗を1件進める。
+
+use std::time::Duration;
 
 use axum::Json;
-use axum::extract::{Multipart, State};
+use axum::extract::{Multipart, Path, State};
 use axum::response::IntoResponse;
+use serde::Serialize;
+use sqlx::PgPool;
+use uuid::Uuid;
+
+use api_client_lib::auth::AuthStrategy;
+use api_client_lib::clients::openbd::OpenBdClient;
+use api_client_lib::clients::openbd::models::content_category_digit;
+use api_client_lib::clients::openbd::requests::OpenBdGetRequest;
+use api_client_lib::clients::rakuten::RakutenClient;
+use api_client_lib::clients::rakuten::requests::SearchBooksRequest;
 
 use crate::AppState;
-use crate::import::booklog_csv::parse_booklog_csv;
+use crate::import::booklog_csv::{ParsedBooklogRow, parse_booklog_csv};
+use crate::models::api_credential::ApiProvider;
 use crate::models::import::{ImportFailure, ImportSummary};
-use crate::models::item::ItemSource;
+use crate::models::item::{ItemSource, MediaType};
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
-use crate::repositories::item_repository;
+use crate::repositories::{api_credential_repository, item_repository};
+use crate::services::external_search::build_book_create_request;
+use crate::services::import_job_store;
 
-/// 【機能概要】: `POST /import/booklog`ハンドラ本体
-/// 【実装方針】:
-///   1. multipartから`file`または`csv`フィールドのバイト列を取得（必須・存在確認）
-///   2. 0バイトの場合は400 VALIDATION_ERROR（TC-E-07）
-///   3. `parse_booklog_csv`で行単位パース・バリデーションを行う
-///   4. 成功行を`create_item_with_source`（source=Manual, external_id=ISBN）で登録
-///   5. DB登録自体が失敗した行はfailureとして記録し処理継続する（TC-E-08方針: スキップ扱い）
-///   6. すべての処理結果を`ImportSummary`として200で返す（全行不正でも200、TC-016-E01）
-///
-/// 🔵 信頼性レベル: api-endpoints.md「POST /import/booklog」・要件定義書2章データフローに直接対応
+/// OpenBDへの1リクエストにまとめるISBN件数の上限
+const OPENBD_CHUNK_SIZE: usize = 1000;
+/// OpenBDへのチャンク間リクエスト間隔（レート制限配慮）
+const OPENBD_REQUEST_INTERVAL: Duration = Duration::from_millis(500);
+/// 楽天ブックスAPIへのリクエスト間隔（公式レート上限非公開のため保守的に1req/1.1秒とする）
+const RAKUTEN_REQUEST_INTERVAL: Duration = Duration::from_millis(1100);
+
+/// `POST /import/booklog`のレスポンスボディ。ジョブ起動直後に返す識別子。
+#[derive(Debug, Clone, Serialize)]
+struct ImportJobAccepted {
+    job_id: Uuid,
+}
+
+/// `POST /import/booklog`ハンドラ本体
 pub async fn import_booklog_handler(
     State(state): State<AppState>,
     mut multipart: Multipart,
 ) -> Result<axum::response::Response, ApiError> {
-    // 【multipart解析】: file/csvいずれかのフィールド名でCSVバイト列を受け取る（TC-E-06） 🟡
+    // 【multipart解析】: file/csvいずれかのフィールド名でCSVバイト列を受け取る
     let mut file_bytes: Option<Vec<u8>> = None;
 
     while let Some(field) = multipart.next_field().await.map_err(|err| {
-        // 【エラー捕捉】: multipart自体の解析失敗（不正なboundary等）はVALIDATION_ERRORとして扱う 🟡
         tracing::error!("booklog import multipart parse error: {err}");
         ApiError::new(
             ApiErrorCode::ValidationError,
@@ -59,11 +89,9 @@ pub async fn import_booklog_handler(
         }
     }
 
-    // 【必須条件検証】: ファイル未添付はVALIDATION_ERROR（TC-E-06） 🔵
     let file_bytes =
         file_bytes.ok_or_else(|| ApiError::new(ApiErrorCode::ValidationError, "fileは必須です"))?;
 
-    // 【必須条件検証】: 0バイトはVALIDATION_ERROR（TC-E-07）。データ0行（ヘッダーのみ）とは区別する 🔵
     if file_bytes.is_empty() {
         return Err(ApiError::new(
             ApiErrorCode::ValidationError,
@@ -71,26 +99,113 @@ pub async fn import_booklog_handler(
         ));
     }
 
-    // 【行単位パース】: CSVを1行ずつ解析し、成功行・失敗行を分離する（EDGE-002） 🔵
-    // 【Green実装】: parse_booklog_csvの戻り値をParsedBooklogRow（row_number・external_id保持）へ
-    // 変更したことで、DB登録時までrow_number・ISBN(external_id)を失わずに引き渡せる 🔵
-    let (parsed_rows, mut failures) = parse_booklog_csv(&file_bytes);
+    // 【行単位パース】: CSVを1行ずつ解析し、成功行・失敗行を分離する
+    let (mut parsed_rows, failures) = parse_booklog_csv(&file_bytes);
 
-    // 【DB登録】: 成功行をsource=Manual・external_id=ISBNでitemsへ登録する。
-    // 【TC-E-08方針確定】: DB登録自体の失敗は「パース・バリデーション済みの正常行」に対して
-    // 発生する基盤障害であるが、1行のDB起因失敗で他の正常行の登録・処理全体を止めることは
-    // EDGE-002の「行単位スキップで処理継続」という設計方針と一貫させるべきと判断した。
-    // よって、DB登録失敗は500 INTERNAL_ERRORにはせず、当該行のみImportFailure（reason="db error"）
-    // として記録し、後続行の処理を継続する（パニックさせない・処理を中断しない）。 🟡
+    // 【ジャンル再分類】: OpenBDのCコードで暫定Novel行をNovel/AcademicBookへ再分類する（同期・高速）
+    classify_media_types(&mut parsed_rows).await;
+
+    // 【ジョブ登録】: 楽天エンリッチメント＋DB登録はバックグラウンドで実行し、即座にjob_idを返す
+    let job_id = import_job_store::create_job(parsed_rows.len() as u32);
+    let db = state.db.clone();
+    tokio::spawn(run_booklog_import_job(db, job_id, parsed_rows, failures));
+
+    Ok(Json(ApiOk::new(ImportJobAccepted { job_id })).into_response())
+}
+
+/// `GET /import/booklog/jobs/:job_id`ハンドラ本体。進捗・完了後は最終`ImportSummary`を返す。
+pub async fn get_booklog_import_job_handler(
+    Path(job_id): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let job_id = Uuid::parse_str(&job_id)
+        .map_err(|_| ApiError::new(ApiErrorCode::ValidationError, "job_idの形式が不正です"))?;
+
+    match import_job_store::get(job_id) {
+        Some(status) => Ok(Json(ApiOk::new(status)).into_response()),
+        None => Err(ApiError::new(
+            ApiErrorCode::ImportJobNotFound,
+            "指定されたインポートジョブが見つかりません",
+        )),
+    }
+}
+
+/// `POST /import/booklog/jobs/:job_id/cancel`ハンドラ本体。
+/// 中止リクエストを受け付け、バックグラウンドループが次の行に進む前に検知して打ち切る
+/// （既に完了/中止済みのジョブへのリクエストは無害な無視として扱う）。
+pub async fn cancel_booklog_import_job_handler(
+    Path(job_id): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let job_id = Uuid::parse_str(&job_id)
+        .map_err(|_| ApiError::new(ApiErrorCode::ValidationError, "job_idの形式が不正です"))?;
+
+    if import_job_store::get(job_id).is_none() {
+        return Err(ApiError::new(
+            ApiErrorCode::ImportJobNotFound,
+            "指定されたインポートジョブが見つかりません",
+        ));
+    }
+
+    import_job_store::request_cancel(job_id);
+
+    let status = import_job_store::get(job_id).expect("job existence checked above");
+    Ok(Json(ApiOk::new(status)).into_response())
+}
+
+/// バックグラウンドジョブ本体: 楽天ブックスでのエンリッチメント → 重複チェック → DB登録を
+/// 行単位で順に実行し、1行ごとに`import_job_store::advance`で進捗を進める。
+/// 各行の処理を始める前に中止リクエストを確認し、リクエストがあればその時点までの
+/// `ImportSummary`で`Cancelled`として打ち切る（実行中の1行は最後まで完了させる）。
+async fn run_booklog_import_job(
+    db: PgPool,
+    job_id: Uuid,
+    parsed_rows: Vec<ParsedBooklogRow>,
+    initial_failures: Vec<ImportFailure>,
+) {
     let mut summary = ImportSummary::empty();
-    summary.failures.append(&mut failures);
-    // 【failure_count同期】: パース層の失敗をfailuresへ取り込んだ直後にfailure_countを同期させる
-    // （record_failureはfailures.len()を都度同期するが、append直後はまだ呼ばれていないため明示的に揃える） 🔵
+    summary.failures = initial_failures;
     summary.failure_count = summary.failures.len() as u32;
 
-    for parsed in parsed_rows {
+    let rakuten_client = build_rakuten_client(&db).await;
+    let mut is_first_rakuten_call = true;
+
+    for mut parsed in parsed_rows {
+        if import_job_store::is_cancelling(job_id) {
+            import_job_store::cancel(job_id, summary);
+            return;
+        }
+
+        if let (Some(client), Some(isbn)) = (rakuten_client.as_ref(), parsed.external_id.clone()) {
+            if !is_first_rakuten_call {
+                tokio::time::sleep(RAKUTEN_REQUEST_INTERVAL).await;
+            }
+            is_first_rakuten_call = false;
+            enrich_from_rakuten(client, &isbn, &mut parsed).await;
+        }
+
+        // 【重複チェック】: ISBNがある行は(media_type, external_id)で既存重複を確認し、
+        // 既存であれば登録をスキップして"already imported"を記録する
+        if let Some(external_id) = parsed.external_id.as_deref() {
+            match item_repository::find_existing_import(&db, parsed.request.media_type, external_id)
+                .await
+            {
+                Ok(true) => {
+                    summary
+                        .record_failure(ImportFailure::new(parsed.row_number, "already imported"));
+                    import_job_store::advance(job_id);
+                    continue;
+                }
+                Ok(false) => {}
+                Err(err) => {
+                    tracing::error!("booklog import duplicate check error: {err:?}");
+                    summary.record_failure(ImportFailure::new(parsed.row_number, "db error"));
+                    import_job_store::advance(job_id);
+                    continue;
+                }
+            }
+        }
+
         match item_repository::create_item_with_source(
-            &state.db,
+            &db,
             parsed.request,
             ItemSource::Manual,
             parsed.external_id,
@@ -99,16 +214,149 @@ pub async fn import_booklog_handler(
         {
             Ok(_) => summary.record_success(),
             Err(err) => {
-                // 【DB起因失敗の記録】: 内部エラー詳細はログにのみ出力し、クライアントには
-                // 汎用的な理由文言のみ返す（内部スキーマ情報の漏洩防止、item_repository db_error準拠） 🟡
                 tracing::error!("booklog import db registration error: {err:?}");
                 summary.record_failure(ImportFailure::new(parsed.row_number, "db error"));
             }
         }
+
+        import_job_store::advance(job_id);
     }
 
-    // 【成功レスポンス】: 全行不正でも200でImportSummaryを返す（TC-016-E01） 🔵
-    Ok(Json(ApiOk::new(summary)).into_response())
+    import_job_store::complete(job_id, summary);
+}
+
+/// providerに登録済みの楽天APIキー（"applicationId:accessKey"形式）から`RakutenClient`を構築する。
+/// キー未設定・不正形式・クライアント初期化失敗の場合はNoneを返し、呼び出し側はCSV由来の値のまま処理継続する。
+async fn build_rakuten_client(db: &PgPool) -> Option<RakutenClient> {
+    let credential =
+        match api_credential_repository::find_by_provider(db, ApiProvider::Rakuten).await {
+            Ok(Some(credential)) => credential,
+            Ok(None) => {
+                tracing::warn!("rakuten api key not configured, skipping booklog enrichment");
+                return None;
+            }
+            Err(err) => {
+                tracing::error!("rakuten credential lookup failed: {err:?}");
+                return None;
+            }
+        };
+
+    let Some((application_id, access_key)) = credential.api_key.split_once(':') else {
+        tracing::error!("invalid rakuten credential format (expected \"applicationId:accessKey\")");
+        return None;
+    };
+
+    let auth = AuthStrategy::RakutenAppAuth {
+        application_id: application_id.to_string(),
+        access_key: access_key.to_string(),
+    };
+
+    match RakutenClient::new(auth) {
+        Ok(client) => Some(client),
+        Err(err) => {
+            tracing::error!("rakuten client init failed: {err}");
+            None
+        }
+    }
+}
+
+/// 楽天ブックスをISBN検索し、見つかった書誌でタイトル/説明/カバー画像/発売日/詳細情報を上書きする。
+/// rating・consumed_date（ユーザー個人データ）とmedia_type（OpenBD判定済み）は維持する。
+/// 該当書誌なし・呼び出し失敗時は何もせずCSV由来の値のまま処理を継続する。
+async fn enrich_from_rakuten(client: &RakutenClient, isbn: &str, parsed: &mut ParsedBooklogRow) {
+    let response = match client
+        .search_books(SearchBooksRequest {
+            isbn: Some(isbn.to_string()),
+            ..Default::default()
+        })
+        .await
+    {
+        Ok(response) => response,
+        Err(err) => {
+            tracing::warn!(
+                "rakuten enrichment failed for booklog row {}: {err}",
+                parsed.row_number
+            );
+            return;
+        }
+    };
+
+    let Some(book) = response.model.into_iter().next() else {
+        return;
+    };
+
+    let media_type = parsed.request.media_type;
+    let rating = parsed.request.rating;
+    let consumed_date = parsed.request.consumed_date;
+
+    let mut enriched = build_book_create_request(&book, media_type);
+    if enriched.title.trim().is_empty() {
+        enriched.title = parsed.request.title.clone();
+    }
+    enriched.rating = rating;
+    enriched.consumed_date = consumed_date;
+
+    parsed.request = enriched;
+}
+
+/// OpenBDのCコードを使い、`needs_classification=true`な行の`media_type`を
+/// Novel/AcademicBookへ再分類する。ISBNをチャンク化してリクエスト数を抑え、
+/// チャンク間は`OPENBD_REQUEST_INTERVAL`だけ間隔を空ける。
+/// OpenBDクライアント初期化・通信に失敗した場合は暫定Novelのままとし、処理を止めない。
+async fn classify_media_types(parsed_rows: &mut [ParsedBooklogRow]) {
+    let target_indices: Vec<usize> = parsed_rows
+        .iter()
+        .enumerate()
+        .filter(|(_, row)| row.needs_classification)
+        .map(|(idx, _)| idx)
+        .collect();
+
+    if target_indices.is_empty() {
+        return;
+    }
+
+    let client = match OpenBdClient::new() {
+        Ok(client) => client,
+        Err(err) => {
+            tracing::error!("openbd client init failed, keeping Novel fallback: {err}");
+            return;
+        }
+    };
+
+    for (chunk_idx, chunk) in target_indices.chunks(OPENBD_CHUNK_SIZE).enumerate() {
+        if chunk_idx > 0 {
+            tokio::time::sleep(OPENBD_REQUEST_INTERVAL).await;
+        }
+
+        let isbns: Vec<String> = chunk
+            .iter()
+            .filter_map(|&idx| parsed_rows[idx].external_id.clone())
+            .collect();
+
+        let response = match client.get(OpenBdGetRequest { isbns }).await {
+            Ok(response) => response,
+            Err(err) => {
+                tracing::warn!("openbd batch lookup failed, keeping Novel fallback: {err}");
+                continue;
+            }
+        };
+
+        for (&idx, item) in chunk.iter().zip(response.model) {
+            if let Some(media_type) = item
+                .and_then(|item| item.c_code)
+                .and_then(|c_code| content_category_digit(&c_code))
+                .map(|digit| {
+                    if digit == 9 {
+                        MediaType::Novel
+                    } else {
+                        MediaType::AcademicBook
+                    }
+                })
+            {
+                parsed_rows[idx].request.media_type = media_type;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -116,13 +364,13 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
+    use serde_json::Value;
     use tower::ServiceExt;
 
     /// テスト用ヘルパー: DATABASE_URL接続のAppStateを構築する
-    /// 🟡 信頼性レベル: routes/mod.rs既存test_app_stateパターンと同様
     async fn test_app_state() -> AppState {
-        let database_url = std::env::var("DATABASE_URL")
-            .expect("TASK-0030統合テストにはDATABASE_URL環境変数が必要です");
+        let database_url =
+            std::env::var("DATABASE_URL").expect("統合テストにはDATABASE_URL環境変数が必要です");
         let db = sqlx::PgPool::connect(&database_url)
             .await
             .expect("テスト用DBへの接続に失敗しました");
@@ -132,12 +380,20 @@ mod tests {
         }
     }
 
-    /// テスト用ヘルパー: ルーター単体（本ハンドラのみ）を構築する
+    /// テスト用ヘルパー: ルーター（本ハンドラ + ジョブ状態取得ハンドラ）を構築する
     fn build_test_router(state: AppState) -> axum::Router {
         axum::Router::new()
             .route(
                 "/import/booklog",
                 axum::routing::post(import_booklog_handler),
+            )
+            .route(
+                "/import/booklog/jobs/{job_id}",
+                axum::routing::get(get_booklog_import_job_handler),
+            )
+            .route(
+                "/import/booklog/jobs/{job_id}/cancel",
+                axum::routing::post(cancel_booklog_import_job_handler),
             )
             .with_state(state)
     }
@@ -156,27 +412,16 @@ mod tests {
         (boundary.to_string(), body)
     }
 
-    /// TC-N-01: 正常CSV全行登録（ImportSummary成功サマリ）
-    /// 【テスト目的】: POST /import/boglogに正常行のみのCSVをmultipartで送信したとき、
-    /// 全行がitemsに登録され、ImportSummaryが成功サマリを返すことを確認する
-    /// 【テスト内容】: ヘッダー+データ3行（全列妥当）のCSVをアップロードする
-    /// 【期待される動作】: HTTP200、data.success_count==3、data.failure_count==0
-    /// 🔵 信頼性レベル: TC-016-01・要件定義4章「正常CSV全行登録」に直接対応
-    #[tokio::test]
-    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
-    async fn import_booklog_with_all_valid_rows_returns_success_summary() {
-        // 【テスト前準備】: 実DBプールとルーターを構築する
-        let state = test_app_state().await;
-        let app = build_test_router(state);
+    /// テスト用ヘルパー: 17列固定のブクログCSV1行（タイプ=マンガ固定、OpenBD/楽天呼び出し回避）を組み立てる
+    fn booklog_manga_row(isbn: &str, title: &str) -> String {
+        format!(
+            "\"1\",\"0000000000\",\"{isbn}\",\"\",\"\",\"読み終わった\",\"\",\"\",\"\",\"2022-06-16 12:32:57\",\"\",\"{title}\",\"著者\",\"出版社\",\"2020\",\"マンガ\",\"300\""
+        )
+    }
 
-        // 【テストデータ準備】: ヘッダー+正常データ3行のCSVを用意する
-        let csv = "作品名,感想/レビュー,読了日,評価,ISBN\r\n\
-吾輩は猫である,面白い,2024-01-15,4.5,9784101010014\r\n\
-星の王子さま,,,, \r\n\
-ノルウェイの森,良かった,2023-05-01,4.0,\r\n";
+    /// テスト用ヘルパー: POST /import/booklogを実行しjob_idを取り出す
+    async fn post_booklog_csv(app: axum::Router, csv: &str) -> (StatusCode, Option<Uuid>) {
         let (boundary, body) = multipart_body_with_file(csv);
-
-        // 【実際の処理実行】: POST /import/booklogを実行する
         let response = app
             .oneshot(
                 Request::builder()
@@ -191,23 +436,71 @@ mod tests {
             )
             .await
             .unwrap();
-
-        // 【結果検証】: HTTP200で全3行が成功登録されることを確認
-        assert_eq!(response.status(), StatusCode::OK); // 【確認内容】: 正常CSV全行登録時にHTTP200が返ることを確認 🔵
+        let status = response.status();
+        if status != StatusCode::OK {
+            return (status, None);
+        }
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: Value = serde_json::from_slice(&bytes).unwrap();
+        let job_id = Uuid::parse_str(json["data"]["job_id"].as_str().unwrap()).unwrap();
+        (status, Some(job_id))
     }
 
-    /// TC-E-06: ファイル未添付 → 400 VALIDATION_ERROR
-    /// 【テスト目的】: multipartにファイルフィールドが無い場合に400を返すことを確認する
-    /// 【テスト内容】: fileフィールドを含まないmultipartリクエストを送信する
-    /// 【期待される動作】: HTTP400、error.code=="VALIDATION_ERROR"
-    /// 🔵 信頼性レベル: 要件定義書2章エラーレスポンス表・TC-016-04に対応
+    /// テスト用ヘルパー: ジョブが完了するまでポーリングし、最終`ImportSummary`のJSONを返す
+    async fn wait_for_job_completion(app: axum::Router, job_id: Uuid) -> Value {
+        loop {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("GET")
+                        .uri(format!("/import/booklog/jobs/{job_id}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: Value = serde_json::from_slice(&bytes).unwrap();
+            if json["data"]["status"] == "completed" {
+                return json["data"]["summary"].clone();
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    /// 正常CSV全行登録（ジョブ完了後のImportSummary成功サマリ）。
+    /// タイプ=マンガ固定行を使い、OpenBD/楽天への外部呼び出しを回避する。
+    #[tokio::test]
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn import_booklog_with_all_valid_rows_returns_success_summary() {
+        let state = test_app_state().await;
+        let app = build_test_router(state);
+
+        let csv = format!(
+            "{}\r\n{}\r\n",
+            booklog_manga_row("9784063876500", "進撃の巨人 1"),
+            booklog_manga_row("9784063876517", "進撃の巨人 2"),
+        );
+        let (status, job_id) = post_booklog_csv(app.clone(), &csv).await;
+        assert_eq!(status, StatusCode::OK);
+
+        let summary = wait_for_job_completion(app, job_id.unwrap()).await;
+        assert_eq!(summary["success_count"], 2);
+        assert_eq!(summary["failure_count"], 0);
+    }
+
+    /// ファイル未添付 → 400 VALIDATION_ERROR
     #[tokio::test]
     #[ignore]
     async fn import_booklog_without_file_field_returns_400() {
         let state = test_app_state().await;
         let app = build_test_router(state);
 
-        // 【テストデータ準備】: fileフィールドを含まない空のmultipartボディを構築する
         let boundary = "----EmptyBoundary";
         let body = format!("--{boundary}--\r\n").into_bytes();
 
@@ -226,21 +519,16 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: ファイル未添付が400 VALIDATION_ERRORで拒否されることを確認 🔵
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
-    /// TC-E-07: 0バイトファイル → 400 VALIDATION_ERROR
-    /// 【テスト目的】: 添付ファイルが0バイトの場合に400を返すことを確認する
-    /// 【テスト内容】: fileフィールドの内容が空文字列のmultipartリクエストを送信する
-    /// 【期待される動作】: HTTP400、error.code=="VALIDATION_ERROR"
-    /// 🔵 信頼性レベル: 要件定義書2章「0バイトでないこと」・TC-016-04に対応
+    /// 0バイトファイル → 400 VALIDATION_ERROR
     #[tokio::test]
     #[ignore]
     async fn import_booklog_with_zero_byte_file_returns_400() {
         let state = test_app_state().await;
         let app = build_test_router(state);
 
-        // 【テストデータ準備】: fileフィールドの内容が0バイトのmultipartボディを構築する
         let (boundary, body) = multipart_body_with_file("");
 
         let response = app
@@ -258,229 +546,195 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST); // 【確認内容】: 0バイトファイルが400 VALIDATION_ERRORで拒否されることを確認 🔵
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
-    /// TC-B-01: ヘッダーのみ（データ0行）→ 200 success=0/failure=0
-    /// 【テスト目的】: ヘッダー行のみでデータ行が無いCSV（非0バイト）は200で空サマリを返すことを確認する
-    /// 【テスト内容】: ヘッダー行のみのCSVをアップロードする
-    /// 【期待される動作】: HTTP200、data.success_count==0、data.failure_count==0
-    /// 🟡 信頼性レベル: 要件定義の「0バイト=400」「全行処理後にサマリ返却」からの妥当な推測
+    /// 全行不正でも200・パニックせず完走する（ジョブ完了後にfailure_countが行数と一致）
     #[tokio::test]
     #[ignore]
-    async fn import_booklog_with_header_only_returns_200_empty_summary() {
+    async fn import_booklog_with_all_invalid_rows_returns_failure_summary() {
         let state = test_app_state().await;
         let app = build_test_router(state);
 
-        // 【テストデータ準備】: ヘッダー行のみ（データ行なし、非0バイト）のCSVを用意する
-        let csv = "作品名,感想/レビュー,読了日,評価,ISBN\r\n";
-        let (boundary, body) = multipart_body_with_file(csv);
+        let csv = format!(
+            "{}\r\n{}\r\n{}\r\n",
+            booklog_manga_row("", ""),
+            booklog_manga_row("", ""),
+            booklog_manga_row("", ""),
+        );
+        let (status, job_id) = post_booklog_csv(app.clone(), &csv).await;
+        assert_eq!(status, StatusCode::OK);
+
+        let summary = wait_for_job_completion(app, job_id.unwrap()).await;
+        assert_eq!(summary["success_count"], 0);
+        assert_eq!(summary["failure_count"], 3);
+    }
+
+    /// 同一ISBNを2回登録すると2回目は"already imported"としてスキップされ、重複登録されない
+    #[tokio::test]
+    #[ignore]
+    async fn import_booklog_skips_already_imported_isbn_on_second_upload() {
+        let state = test_app_state().await;
+        let app1 = build_test_router(state.clone());
+        let app2 = build_test_router(state);
+
+        let csv = format!("{}\r\n", booklog_manga_row("9784063876500", "進撃の巨人 1"));
+
+        let (status1, job_id1) = post_booklog_csv(app1.clone(), &csv).await;
+        assert_eq!(status1, StatusCode::OK);
+        let first_summary = wait_for_job_completion(app1, job_id1.unwrap()).await;
+        assert_eq!(first_summary["success_count"], 1);
+
+        let (status2, job_id2) = post_booklog_csv(app2.clone(), &csv).await;
+        assert_eq!(status2, StatusCode::OK);
+        let second_summary = wait_for_job_completion(app2, job_id2.unwrap()).await;
+        assert_eq!(second_summary["success_count"], 0);
+        assert_eq!(second_summary["failure_count"], 1);
+        assert_eq!(second_summary["failures"][0]["reason"], "already imported");
+    }
+
+    /// 存在しないjob_idへのポーリングは404 IMPORT_JOB_NOT_FOUND
+    #[tokio::test]
+    async fn get_booklog_import_job_with_unknown_job_id_returns_404() {
+        let app = axum::Router::new().route(
+            "/import/booklog/jobs/{job_id}",
+            axum::routing::get(get_booklog_import_job_handler),
+        );
 
         let response = app
             .oneshot(
                 Request::builder()
-                    .method("POST")
-                    .uri("/import/booklog")
-                    .header(
-                        "content-type",
-                        format!("multipart/form-data; boundary={boundary}"),
-                    )
-                    .body(Body::from(body))
+                    .method("GET")
+                    .uri(format!("/import/booklog/jobs/{}", Uuid::new_v4()))
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK); // 【確認内容】: ヘッダーのみCSVが400ではなく200で空サマリを返すことを確認（TC-E-07との境界） 🟡
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    /// TC-B-02: 全行不正 → 200・success_count=0・failure_count=行数（TC-016-E01直接対応）
-    /// 【テスト目的】: 全データ行が不正でも200でImportSummaryを返し、例外で落ちないことを確認する
-    /// 【テスト内容】: データ3行すべて作品名空のCSVをアップロードする
-    /// 【期待される動作】: HTTP200、data.success_count==0、data.failure_count==3
-    /// 🔵 信頼性レベル: TC-016-E01に直接対応
+    /// job_idがUUID形式でない場合は400 VALIDATION_ERROR
     #[tokio::test]
-    #[ignore]
-    async fn import_booklog_with_all_invalid_rows_returns_200_with_failure_summary() {
-        let state = test_app_state().await;
-        let app = build_test_router(state);
-
-        // 【テストデータ準備】: 全データ3行が作品名空（不正）のCSVを用意する
-        let csv = "作品名,感想/レビュー,読了日,評価,ISBN\r\n\
-,,,,\r\n\
-,,,,\r\n\
-,,,,\r\n";
-        let (boundary, body) = multipart_body_with_file(csv);
+    async fn get_booklog_import_job_with_invalid_job_id_returns_400() {
+        let app = axum::Router::new().route(
+            "/import/booklog/jobs/{job_id}",
+            axum::routing::get(get_booklog_import_job_handler),
+        );
 
         let response = app
             .oneshot(
                 Request::builder()
-                    .method("POST")
-                    .uri("/import/booklog")
-                    .header(
-                        "content-type",
-                        format!("multipart/form-data; boundary={boundary}"),
-                    )
-                    .body(Body::from(body))
+                    .method("GET")
+                    .uri("/import/booklog/jobs/not-a-uuid")
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
 
-        // 【結果検証】: 全行不正でも例外にならず200が返ることを確認（最重要：パニックで落ちないこと）
-        assert_eq!(response.status(), StatusCode::OK); // 【確認内容】: 全行不正でもHTTP200が返ること（例外で落ちないこと）を確認 🔵
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
-    /// TC-B-03: 1行のみ正常CSV（最小成功）
-    /// 【テスト目的】: データ1行の正常CSVで1件登録されることを確認する
-    /// 【テスト内容】: ヘッダー+正常データ1行のCSVをアップロードする
-    /// 【期待される動作】: HTTP200、data.success_count==1、data.failure_count==0
-    /// 🟡 信頼性レベル: REQ-016からの妥当な推測
+    /// 存在しないjob_idへの中止リクエストは404 IMPORT_JOB_NOT_FOUND
     #[tokio::test]
-    #[ignore]
-    async fn import_booklog_with_single_valid_row_registers_one_item() {
-        let state = test_app_state().await;
-        let app = build_test_router(state);
-
-        // 【テストデータ準備】: ヘッダー+正常データ1行のCSVを用意する
-        let csv = "作品名,感想/レビュー,読了日,評価,ISBN\r\n\
-吾輩は猫である,面白い,2024-01-15,4.5,9784101010014\r\n";
-        let (boundary, body) = multipart_body_with_file(csv);
+    async fn cancel_booklog_import_job_with_unknown_job_id_returns_404() {
+        let app = axum::Router::new().route(
+            "/import/booklog/jobs/{job_id}/cancel",
+            axum::routing::post(cancel_booklog_import_job_handler),
+        );
 
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/import/booklog")
-                    .header(
-                        "content-type",
-                        format!("multipart/form-data; boundary={boundary}"),
-                    )
-                    .body(Body::from(body))
+                    .uri(format!("/import/booklog/jobs/{}/cancel", Uuid::new_v4()))
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK); // 【確認内容】: 1行のみの正常CSVでHTTP200が返ることを確認 🟡
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    /// TC-N-05: 読了日→consumed_dateがDBに永続化される（設計判断#1の一気通貫確認）
-    /// 【テスト目的】: CSVの読了日が登録itemのconsumed_dateへ実際に保存されることを確認する
-    /// 【テスト内容】: 読了日=2024-01-15を含む1行CSVをアップロードする
-    /// 【期待される動作】: HTTP200で処理が成功する（DB上のconsumed_date検証はGreenフェーズで
-    /// レスポンスにitem一覧を含めるか別途SELECTする方式を確定する）
-    /// 🔵 信頼性レベル: 設計判断#1（ユーザー確定）に基づく
+    /// job_idがUUID形式でない場合は400 VALIDATION_ERROR
     #[tokio::test]
-    #[ignore]
-    async fn import_booklog_persists_consumed_date_from_csv() {
-        let state = test_app_state().await;
-        let app = build_test_router(state);
-
-        // 【テストデータ準備】: 読了日2024-01-15を持つ正常1行CSVを用意する
-        let csv = "作品名,感想/レビュー,読了日,評価,ISBN\r\n\
-ノルウェイの森,,2024-01-15,,\r\n";
-        let (boundary, body) = multipart_body_with_file(csv);
+    async fn cancel_booklog_import_job_with_invalid_job_id_returns_400() {
+        let app = axum::Router::new().route(
+            "/import/booklog/jobs/{job_id}/cancel",
+            axum::routing::post(cancel_booklog_import_job_handler),
+        );
 
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/import/booklog")
-                    .header(
-                        "content-type",
-                        format!("multipart/form-data; boundary={boundary}"),
-                    )
-                    .body(Body::from(body))
+                    .uri("/import/booklog/jobs/not-a-uuid/cancel")
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK); // 【確認内容】: 読了日付きCSVインポートがHTTP200で成功することを確認 🔵
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
-    /// TC-B-05: 数百行CSVの完走（タイムアウトしない軽い確認）
-    /// 【テスト目的】: 数百行規模のCSVがタイムアウトせず完走することを確認する
-    /// 【テスト内容】: 正常行を約300行含むCSVをアップロードする
-    /// 【期待される動作】: HTTP200、data.success_count==300
-    /// 🟡 信頼性レベル: 統合テスト要件からの妥当な推測（厳密検証は範囲外）
+    /// 実行中ジョブへ中止をリクエストするとジョブは打ち切られ、最終ステータスがcancelledになる
+    /// （多数行・楽天キー未設定でRakuten間隔スリープが挟まらないため、進捗を数件確認した直後に
+    /// 中止リクエストを送ることでバックグラウンドループの中止チェックに間に合わせる）
     #[tokio::test]
-    #[ignore]
-    async fn import_booklog_completes_for_large_csv_without_timeout() {
+    #[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+    async fn cancelling_a_running_job_marks_it_cancelled() {
         let state = test_app_state().await;
         let app = build_test_router(state);
 
-        // 【テストデータ準備】: 正常行を300行生成する
-        let mut csv = String::from("作品名,感想/レビュー,読了日,評価,ISBN\r\n");
-        for i in 0..300 {
-            csv.push_str(&format!("作品{i},,,, \r\n"));
-        }
-        let (boundary, body) = multipart_body_with_file(&csv);
+        let rows: Vec<String> = (0..500)
+            .map(|i| booklog_manga_row(&format!("97841010100{i:02}"), &format!("巻{i}")))
+            .collect();
+        let csv = format!("{}\r\n", rows.join("\r\n"));
 
-        let response = app
+        let (status, job_id) = post_booklog_csv(app.clone(), &csv).await;
+        assert_eq!(status, StatusCode::OK);
+        let job_id = job_id.unwrap();
+
+        let cancel_response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/import/booklog")
-                    .header(
-                        "content-type",
-                        format!("multipart/form-data; boundary={boundary}"),
-                    )
-                    .body(Body::from(body))
+                    .uri(format!("/import/booklog/jobs/{job_id}/cancel"))
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
+        assert_eq!(cancel_response.status(), StatusCode::OK);
 
-        assert_eq!(response.status(), StatusCode::OK); // 【確認内容】: 数百行規模CSVでもタイムアウトせずHTTP200で完走することを確認 🟡
-    }
-
-    /// TC-E-08: DB登録失敗時もパニックせず安全に失敗を扱う（接続不能プール、方針確認）
-    /// 【テスト目的】: パース・バリデーションは通ったが、DB起因で登録が失敗する場合に
-    /// パニックせず安全に処理が終わることを確認する（最終挙動はGreenフェーズで確定）
-    /// 【テスト内容】: 接続不能なPgPoolに対し正常行CSVを投入する
-    /// 【期待される動作】: レスポンスがpanicによる接続切断にならないこと（最低限の安全性）。
-    /// 具体的なステータス（200のfailure記録 or 500）はGreenフェーズで確定する
-    /// 🟡 信頼性レベル: note.md L172 / db_error 設計からの妥当な推測（最終方針はGreenで確定）
-    #[tokio::test]
-    #[ignore]
-    async fn import_booklog_with_unreachable_db_does_not_panic() {
-        // 【テスト前準備】: 接続不能なPgPoolを構築する（実際にはconnect自体が失敗するため、
-        // 本テストはGreenフェーズでのDB起因エラー方針確定後に詳細化する）
-        let db = sqlx::PgPool::connect("postgres://invalid:invalid@127.0.0.1:1/invalid")
-            .await
-            .expect("到達不能プールの構築検証用接続に失敗しました");
-        let state = AppState {
-            db,
-            internal_api_key: String::new(),
+        let final_status = loop {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("GET")
+                        .uri(format!("/import/booklog/jobs/{job_id}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: Value = serde_json::from_slice(&bytes).unwrap();
+            let status = json["data"]["status"].as_str().unwrap().to_string();
+            if status == "cancelled" || status == "completed" {
+                break status;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
         };
-        let app = build_test_router(state);
 
-        // 【テストデータ準備】: 正常行1件のCSVを用意する
-        let csv = "作品名,感想/レビュー,読了日,評価,ISBN\r\n\
-吾輩は猫である,,,,\r\n";
-        let (boundary, body) = multipart_body_with_file(csv);
-
-        // 【実際の処理実行】: 接続不能DBに対してインポートを実行する
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/import/booklog")
-                    .header(
-                        "content-type",
-                        format!("multipart/form-data; boundary={boundary}"),
-                    )
-                    .body(Body::from(body))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // 【結果検証】: パニックによる接続断ではなく、何らかのHTTPレスポンスが返ることを確認
-        let status = response.status();
-        let _ = status; // 仮の安全性確認（Greenで方針確定後に具体化） 🟡
-        assert_ne!(status, StatusCode::INTERNAL_SERVER_ERROR); // 【確認内容】: DB接続不能でも500固定にならず安全に処理されることを確認（最終方針はGreenで確定） 🟡
+        assert_eq!(final_status, "cancelled");
     }
 }
