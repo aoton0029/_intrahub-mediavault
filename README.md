@@ -1,8 +1,15 @@
 # MediaVault
 
-## 統合環境（frontend + backend + db）の起動
+## docker-compose ファイルの使い分け
 
-ローカルでbackend・frontend・dbをまとめて起動し結合確認するための、リポジトリルート専用の統合`docker-compose.yml`。`backend/docker-compose.yml`（backend単体起動用）とは別ファイルであり、既存のbackend単体起動手順に影響しない。
+| ファイル | 用途 | 起動コマンド |
+|---|---|---|
+| `docker-compose.test.yml` | ローカルでbackend・frontend・dbをまとめてbuildし結合確認するための統合環境（旧 `docker-compose.yml`） | `docker compose -f docker-compose.test.yml --env-file .env up -d --build` |
+| `docker-compose.yml` | 本番（ミニPC）向け。自作サービスはGHCRのイメージを参照し、ローカルbuildは行わない。バンドルOSS（Jellyfin/Calibre-Web）を含むフルスタック構成 | `docker compose -p mediavault --env-file .env.production up -d` |
+
+`backend/docker-compose.yml`（backend単体起動用）は上記いずれとも別ファイルであり、既存のbackend単体起動手順に影響しない。
+
+## 統合環境（frontend + backend + db）の起動（テスト用）
 
 ```bash
 # 1. ルートの .env を準備する（.env.example からコピー）
@@ -12,10 +19,10 @@ cp .env.example .env
 cp backend/.env.example backend/.env
 
 # 3. 統合環境を起動する
-docker compose up -d --build
+docker compose -f docker-compose.test.yml --env-file .env up -d --build
 
 # 4. 起動状態を確認する（db・backend・frontend が Up、migrate は Exited (0) なら正常）
-docker compose ps
+docker compose -f docker-compose.test.yml ps
 ```
 
 起動後、ブラウザで [http://localhost](http://localhost) にアクセスする。フロントエンドはnginx経由で配信され、`/api/`宛のリクエストはnginxが自動的にbackend（`http://backend:8080`）へリバースプロキシする。`backend`（8080番）・`db`（5432番）はホストに公開されず、`frontend`（80番）のみアクセス可能。
@@ -24,8 +31,25 @@ docker compose ps
 
 停止するには:
 ```bash
-docker compose down
+docker compose -f docker-compose.test.yml down
 ```
+
+## 本番環境（docker-compose.yml）の起動
+
+ミニPC実機を想定した本番用構成。`mediavault-web`/`mediavault-api`/`mediavault-worker`/`mediavault-mcp`はGHCRへpush済みのイメージ（コミットSHAタグまたはSemVerタグ固定）を参照し、Jellyfin・Calibre-Webをバンドルする。個々のコンテナはホストへポートを公開せず、外部リバースプロキシ用の`proxy-net`（本グループ外で作成・注入される）経由でのみ公開される。詳細な構成意図は[インフラ設計側のMediaVault/README.md](../インフラ設計/デバイス/ミニPC/サービス/MediaVault/README.md)を参照。
+
+```bash
+# 1. 本番用 .env を準備する（.env.production.example からコピーし値を書き換える）
+cp .env.production.example .env.production
+
+# 2. 起動する（proxy-net は事前に外部で作成されている前提）
+docker compose -p mediavault --env-file .env.production up -d
+
+# 3. 起動状態を確認する（migrate は Exited (0) なら正常）
+docker compose -p mediavault --env-file .env.production ps
+```
+
+環境依存値（`DATA_ROOT`/`MEDIA_ROOT`/`DOCUMENTS_ROOT`/`TZ`/`PUID`/`PGID`/Postgres認証情報/検索バックエンド/LLMエンドポイント/GHCRイメージ参照等）はすべて`.env.production`に外だししてある。`.env.production`はコミットしない（`.gitignore`で除外済み）。
 
 ## backend
 ```

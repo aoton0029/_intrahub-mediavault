@@ -1,0 +1,174 @@
+# MediaVault 本番用 docker-compose.yml
+#
+# ローカル結合確認用の docker-compose.test.yml (旧 docker-compose.yml) とは別ファイル。
+# 自作サービス (mediavault-web / mediavault-api / mediavault-worker / mediavault-mcp / migrate)
+# はソースリポジトリの CI が GHCR へ push したイメージを参照する（ローカル build は行わない）。
+# イメージタグ・環境依存値はすべて .env に外だしする（.env.production.example を参照）。
+#
+# 起動例:
+#   cp .env.production.example .env.production
+#   docker compose -p mediavault --env-file .env.production up -d
+#
+# 参照元設計:
+#   インフラ設計/デバイス/ミニPC/サービス/MediaVault/README.md
+#   インフラ設計/デバイス/ミニPC/README.md
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: mediavault-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      TZ: ${TZ:-Asia/Tokyo}
+    volumes:
+      - ${DATA_ROOT:-/srv}/db/mediavault-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?} -d ${POSTGRES_DB:?}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - db-net
+    # ホストへのポート公開はしない（db-net内部のみ）
+
+  migrate:
+    image: ${MEDIAVAULT_MIGRATE_IMAGE:?MEDIAVAULT_MIGRATE_IMAGE is required}
+    container_name: mediavault-migrate
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - db-net
+
+  mediavault-api:
+    image: ${MEDIAVAULT_API_IMAGE:?MEDIAVAULT_API_IMAGE is required}
+    container_name: mediavault-api
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Tokyo}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+      MEDIA_ROOT: /data/media
+      DOCUMENTS_ROOT: /data/documents
+      SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
+      MEILI_URL: ${MEILI_URL:-}
+    volumes:
+      - ${MEDIA_ROOT:-/srv/media}:/data/media
+      - ${DOCUMENTS_ROOT:-/srv/documents}:/data/documents
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - db-net
+      - proxy-net
+    # ホストへのポート公開はしない（proxy-net経由でのみ公開）
+
+  mediavault-web:
+    image: ${MEDIAVAULT_WEB_IMAGE:?MEDIAVAULT_WEB_IMAGE is required}
+    container_name: mediavault-web
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Tokyo}
+    depends_on:
+      mediavault-api:
+        condition: service_healthy
+    networks:
+      - proxy-net
+    # ホストへのポート公開はしない（proxy-net経由でのみ公開）
+
+  mediavault-worker:
+    image: ${MEDIAVAULT_WORKER_IMAGE:?MEDIAVAULT_WORKER_IMAGE is required}
+    container_name: mediavault-worker
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Tokyo}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+      MEDIA_ROOT: /data/media
+      DOCUMENTS_ROOT: /data/documents
+      SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
+      MEILI_URL: ${MEILI_URL:-}
+      # wiki/embed を自ら実行する場合のみ使用（既定は KnowledgeHub 側エージェントに委譲）
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    volumes:
+      - ${MEDIA_ROOT:-/srv/media}:/data/media
+      - ${DOCUMENTS_ROOT:-/srv/documents}:/data/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - db-net
+    # proxy-net には参加しない（ホスト非公開、db-net経由でのみ postgres/data にアクセス）
+
+  mediavault-mcp:
+    image: ${MEDIAVAULT_MCP_IMAGE:?MEDIAVAULT_MCP_IMAGE is required}
+    container_name: mediavault-mcp
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Tokyo}
+      MEDIAVAULT_API_BASE_URL: http://mediavault-api:8080
+    depends_on:
+      mediavault-api:
+        condition: service_healthy
+    networks:
+      - proxy-net
+    # ホストへのポート公開はしない（proxy-net経由でのみ公開。外部MCPクライアントは`mcp.`FQDN、
+    # KnowledgeHub側常駐エージェントは内部網から直接到達する想定）
+
+  jellyfin:
+    image: ${JELLYFIN_IMAGE:-jellyfin/jellyfin:10}
+    container_name: mediavault-jellyfin
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Tokyo}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    volumes:
+      - ${DATA_ROOT:-/srv}/db/jellyfin/config:/config
+      - ${MEDIA_ROOT:-/srv/media}/video:/data/media/video
+      - ${MEDIA_ROOT:-/srv/media}/photo:/data/media/photo
+    networks:
+      - proxy-net
+    # ホストへのポート公開はしない（proxy-net経由、jellyfin.aoton.win でCaddy公開）
+
+  calibre-web:
+    image: ${CALIBRE_WEB_IMAGE:-lscr.io/linuxserver/calibre-web:0.6}
+    container_name: mediavault-calibre-web
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Tokyo}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      DOCKER_MODS: linuxserver/mods:universal-calibre
+    volumes:
+      - ${DATA_ROOT:-/srv}/db/calibre-web:/config
+      - ${DATA_ROOT:-/srv}/db/calibre-web/library:/books
+      - ${DOCUMENTS_ROOT:-/srv/documents}/pdf:/imports/pdf:ro
+      - ${DOCUMENTS_ROOT:-/srv/documents}/manga:/imports/manga:ro
+    networks:
+      - proxy-net
+    # ホストへのポート公開はしない（proxy-net経由、calibre.aoton.win でCaddy公開）
+    # Calibre-Webからmediavault-apiへのコールバックは行わない（一方向設計）
+
+networks:
+  db-net:
+    # MediaVault-api/worker と postgres の内部接続専用。本compose内で完結し、外部公開しない
+    driver: bridge
+  proxy-net:
+    # グループ外（上位のリバースプロキシ用compose）で用意され注入されるネットワーク
+    external: true
+    name: ${PROXY_NET_NAME:-proxy-net}
