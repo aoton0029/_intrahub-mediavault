@@ -1,6 +1,12 @@
 # Environment variables
+# 実ファイル（.env / .env.production / .env.test / .env.local ...）は一切コミットしない。
+# サンプル（.env.example / .env.production.example ...）のみ追跡する。
 .env
-.env.production
+.env.*
+!.env*.example
+
+# backend のローカル書込先（MEDIA_STORAGE_PATH / PDF_STORAGE_PATH の既定値）
+backend/.local/
 
 # pgAdmin local secrets
 docker/pgadmin/pgpass

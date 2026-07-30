@@ -1,13 +1,17 @@
 # MediaVault 本番用 docker-compose.yml
 #
 # ローカル結合確認用の docker-compose.test.yml (旧 docker-compose.yml) とは別ファイル。
-# 自作サービス (mediavault-web / mediavault-api / mediavault-worker / mediavault-mcp / migrate)
-# はソースリポジトリの CI が GHCR へ push したイメージを参照する（ローカル build は行わない）。
-# イメージタグ・環境依存値はすべて .env に外だしする（.env.production.example を参照）。
+# 自作サービス (mediavault-api / mediavault-web / mediavault-worker / mediavault-mcp) は
+# 本リポジトリのソースからローカル build する（GHCRのイメージは参照しない）。
+# バンドルOSS (Jellyfin / Calibre-Web) のイメージタグは本ファイルに直接固定する（:latest は使わない）。
+# 環境依存値・秘密のみ .env に外だしする（.env.production.example を参照）。
 #
 # 起動例:
 #   cp .env.production.example .env.production
-#   docker compose -p mediavault --env-file .env.production up -d
+#   docker compose -p mediavault --env-file .env.production up -d --build
+#
+# マイグレーションは mediavault-api が起動時に自ら適用する
+# （backend/mediavault-api/src/main.rs の db::run_migrations）。専用の migrate サービスは持たない。
 #
 # 参照元設計:
 #   インフラ設計/デバイス/ミニPC/サービス/MediaVault/README.md
@@ -34,20 +38,11 @@ services:
       - db-net
     # ホストへのポート公開はしない（db-net内部のみ）
 
-  migrate:
-    image: ${MEDIAVAULT_MIGRATE_IMAGE:?MEDIAVAULT_MIGRATE_IMAGE is required}
-    container_name: mediavault-migrate
-    restart: "no"
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - db-net
-
   mediavault-api:
-    image: ${MEDIAVAULT_API_IMAGE:?MEDIAVAULT_API_IMAGE is required}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: mediavault-api:local
     container_name: mediavault-api
     restart: unless-stopped
     environment:
@@ -55,8 +50,26 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
       MEDIA_ROOT: /data/media
       DOCUMENTS_ROOT: /data/documents
+      # アップロード書込先。mediavault-api は MEDIA_ROOT ではなく *_STORAGE_PATH を参照する
+      # （backend/mediavault-api/src/services/file_storage.rs の resolve_base_dir）。
+      # 未設定だと既定の /srv/media/photos・/srv/files/pdf へ書かれ、下のマウント外となり消える。
+      MEDIA_STORAGE_PATH: /data/media/photos
+      PDF_STORAGE_PATH: /data/documents/pdf
       SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
       MEILI_URL: ${MEILI_URL:-}
+      # /internal/* のBearer認証キー。未設定だと空文字となり内部APIが無認証になるため必須扱い
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      # 単一オリジンのみ指定可。不正値は起動時panic（main.rs）
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-https://mediavault.aoton.win}
+      # 外部メタデータAPIの認証情報（未設定のプロバイダは起動時seedをスキップする）
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      STEAM_API_KEY: ${STEAM_API_KEY:-}
+      STEAM_USER_ID: ${STEAM_USER_ID:-}
+      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
+      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
+      ANNICT_ACCESS_TOKEN: ${ANNICT_ACCESS_TOKEN:-}
+      RAKUTEN_APPLICATION_ID: ${RAKUTEN_APPLICATION_ID:-}
+      RAKUTEN_ACCESS_KEY: ${RAKUTEN_ACCESS_KEY:-}
     volumes:
       - ${MEDIA_ROOT:-/srv/media}:/data/media
       - ${DOCUMENTS_ROOT:-/srv/documents}:/data/documents
@@ -68,15 +81,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     networks:
-      - db-net
-      - proxy-net
+      db-net:
+      proxy-net:
+        # mediavault-web の nginx.conf は upstream を `backend` というホスト名で参照する
+        # （docker-compose.test.yml のサービス名に合わせてある）。本番のサービス名は
+        # mediavault-api なので、nginx.conf を環境ごとに分けずに済むようエイリアスを与える。
+        aliases:
+          - backend
     # ホストへのポート公開はしない（proxy-net経由でのみ公開）
 
   mediavault-web:
-    image: ${MEDIAVAULT_WEB_IMAGE:?MEDIAVAULT_WEB_IMAGE is required}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: mediavault-web:local
     container_name: mediavault-web
     restart: unless-stopped
     environment:
@@ -89,7 +108,15 @@ services:
     # ホストへのポート公開はしない（proxy-net経由でのみ公開）
 
   mediavault-worker:
-    image: ${MEDIAVAULT_WORKER_IMAGE:?MEDIAVAULT_WORKER_IMAGE is required}
+    # 【未実装】backend/Dockerfile.worker は未作成のため、現時点では build が失敗する。
+    # worker の実装が入るまでは `docker compose up` 時に本サービスを除外すること:
+    #   docker compose -p mediavault --env-file .env.production up -d --build \
+    #     postgres mediavault-api mediavault-web jellyfin calibre-web
+    # 設計は docs/backend/mediavault-worker/PRD.md を参照。
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    image: mediavault-worker:local
     container_name: mediavault-worker
     restart: unless-stopped
     environment:
@@ -108,14 +135,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
+      # マイグレーション適用は mediavault-api が担うため、その起動完了を待つ
+      mediavault-api:
+        condition: service_healthy
     networks:
       - db-net
     # proxy-net には参加しない（ホスト非公開、db-net経由でのみ postgres/data にアクセス）
 
   mediavault-mcp:
-    image: ${MEDIAVAULT_MCP_IMAGE:?MEDIAVAULT_MCP_IMAGE is required}
+    # 【未実装】backend/Dockerfile.mcp は未作成のため、現時点では build が失敗する。
+    # 設計は docs/backend/mediavault-mcp/PRD.md を参照。
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.mcp
+    image: mediavault-mcp:local
     container_name: mediavault-mcp
     restart: unless-stopped
     environment:
@@ -130,7 +163,8 @@ services:
     # KnowledgeHub側常駐エージェントは内部網から直接到達する想定）
 
   jellyfin:
-    image: ${JELLYFIN_IMAGE:-jellyfin/jellyfin:10}
+    # バンドルOSSはメジャーバージョン固定で直接埋め込む（:latest は使用しない）
+    image: jellyfin/jellyfin:10
     container_name: mediavault-jellyfin
     restart: unless-stopped
     environment:
@@ -146,7 +180,8 @@ services:
     # ホストへのポート公開はしない（proxy-net経由、jellyfin.aoton.win でCaddy公開）
 
   calibre-web:
-    image: ${CALIBRE_WEB_IMAGE:-lscr.io/linuxserver/calibre-web:0.6}
+    # バンドルOSSはメジャーバージョン固定で直接埋め込む（:latest は使用しない）
+    image: lscr.io/linuxserver/calibre-web:0.6
     container_name: mediavault-calibre-web
     restart: unless-stopped
     environment:
