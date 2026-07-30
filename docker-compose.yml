@@ -48,13 +48,15 @@ services:
     environment:
       TZ: ${TZ:-Asia/Tokyo}
       DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+      # 実データ領域（録画・手動配置）のリンク先解決に使う。MediaVault はここへ書き込まない
       MEDIA_ROOT: /data/media
       DOCUMENTS_ROOT: /data/documents
-      # アップロード書込先。mediavault-api は MEDIA_ROOT ではなく *_STORAGE_PATH を参照する
-      # （backend/mediavault-api/src/services/file_storage.rs の resolve_base_dir）。
-      # 未設定だと既定の /srv/media/photos・/srv/files/pdf へ書かれ、下のマウント外となり消える。
-      MEDIA_STORAGE_PATH: /data/media/photos
-      PDF_STORAGE_PATH: /data/documents/pdf
+      # アップロード書込先（MediaVault専用領域）。保存先は STORAGE_ROOT + ファイル種別サブディレクトリ
+      # （backend/mediavault-api/src/services/file_storage.rs の resolve_base_dir）で決まり、
+      # video/ image/ audio/ pdf/ archive/ other/ に自動で振り分けられる。
+      # 種別サブディレクトリを変えたい場合のみ .env.production で STORAGE_SUBDIR_* を設定する
+      # （ここで ${VAR:-} と書くと空文字が既定値を潰すため、compose には書かない）。
+      STORAGE_ROOT: /data/vault
       SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
       MEILI_URL: ${MEILI_URL:-}
       # /internal/* のBearer認証キー。未設定だと空文字となり内部APIが無認証になるため必須扱い
@@ -71,8 +73,11 @@ services:
       RAKUTEN_APPLICATION_ID: ${RAKUTEN_APPLICATION_ID:-}
       RAKUTEN_ACCESS_KEY: ${RAKUTEN_ACCESS_KEY:-}
     volumes:
-      - ${MEDIA_ROOT:-/srv/media}:/data/media
-      - ${DOCUMENTS_ROOT:-/srv/documents}:/data/documents
+      # 実データ領域。MediaVault は Item へのリンク参照のみで書き込まないため read-only
+      - ${MEDIA_ROOT:-/srv/media}:/data/media:ro
+      - ${DOCUMENTS_ROOT:-/srv/documents}:/data/documents:ro
+      # MediaVault専用領域（アップロード書込先）。mediavault-api だけが書き込む
+      - ${VAULT_ROOT:-/srv/mediavault}:/data/vault
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
       interval: 10s

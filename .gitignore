@@ -5,7 +5,7 @@
 .env.*
 !.env*.example
 
-# backend のローカル書込先（MEDIA_STORAGE_PATH / PDF_STORAGE_PATH の既定値）
+# backend のローカル書込先（backend/.env.example の STORAGE_ROOT）
 backend/.local/
 
 # pgAdmin local secrets

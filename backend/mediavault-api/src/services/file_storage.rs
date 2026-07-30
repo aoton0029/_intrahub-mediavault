@@ -4,12 +4,12 @@
 //! ベースディレクトリからの相対パスを返す。書込失敗時のロールバック（DBレコード未作成）・
 //! パストラバーサル防止・コンテナ内非保存（REQ-402）を担う。
 //!
-//! 【Red フェーズ注記】: 本ファイルは未実装（todo!()スタブ）。tdd-green で実装する。
-//!
 //! 設計決定（テストケース定義書 第8章の未確定事項をRed着手前に確定）:
 //! 1. file_type="photo" は既存 FileType::Image の表記ゆれとして扱う（enum拡張なし）。
-//!    画像ディレクトリ（MEDIA_STORAGE_PATH、デフォルト /srv/media/photos）に配置する。
-//! 2. FileType::Other も画像ディレクトリ（MEDIA_STORAGE_PATH）に配置する（pdf以外を集約）。
+//! 2. 保存先は `STORAGE_ROOT` 配下に `FileType` ごとのサブディレクトリを持つ構成とし、
+//!    6種すべてを別ディレクトリへ分ける（`resolve_base_dir` / `subdir_spec` 参照）。
+//!    この領域は MediaVault-api だけが書き込む「MediaVault専用領域」であり、
+//!    録画データ等の実データ領域（/data/media・/data/documents）とは分離する。
 //! 3. 書込失敗時は `ApiErrorCode::FileStorageWriteFailed`（500）を返す（models/response.rsに追加済み）。
 //! 4. 書込失敗注入は `FileWriter` トレイトで行う。本番は `TokioFileWriter`、テストでは
 //!    常に失敗する `FailingFileWriter` を注入する（DIフレームワーク不使用、trait objectで十分）。
@@ -24,22 +24,78 @@ use uuid::Uuid;
 use crate::models::item_file::FileType;
 use crate::models::response::{ApiError, ApiErrorCode};
 
+/// アップロード保存先ルートの環境変数名。MediaVault専用領域を指す。
+const STORAGE_ROOT_ENV: &str = "STORAGE_ROOT";
+
+/// `STORAGE_ROOT` 未設定時の既定値。コンテナ内で `/data/vault` にマウントされる
+/// MediaVault専用領域（ホスト側 `/srv/mediavault`）を指す。カレントディレクトリを
+/// 指さないことでコンテナ内非保存（REQ-402）を担保する。
+const DEFAULT_STORAGE_ROOT: &str = "/data/vault";
+
+/// `FileType` ごとの、サブディレクトリ上書き用環境変数名と既定サブディレクトリ名を返す。
+///
+/// 保存先は「ルート1本 + 種別サブディレクトリ」で構成する。種別を第1階層に置くことで、
+/// mergerfs の `category.create=epmfs` が種別単位で物理ディスクをまとめてくれる
+/// （大きい動画と小さい画像が同じディスクを奪い合わない）。
+fn subdir_spec(file_type: FileType) -> (&'static str, &'static str) {
+    match file_type {
+        FileType::Pdf => ("STORAGE_SUBDIR_PDF", "pdf"),
+        FileType::Image => ("STORAGE_SUBDIR_IMAGE", "image"),
+        FileType::Video => ("STORAGE_SUBDIR_VIDEO", "video"),
+        FileType::Audio => ("STORAGE_SUBDIR_AUDIO", "audio"),
+        FileType::Archive => ("STORAGE_SUBDIR_ARCHIVE", "archive"),
+        FileType::Other => ("STORAGE_SUBDIR_OTHER", "other"),
+    }
+}
+
+/// サブディレクトリ環境変数の値を検証する。ルート配下に収まらない値（絶対パス・`..` を含む）は
+/// ルート外への脱出になるため拒否し、`None` を返して既定値へフォールバックさせる。
+/// `generate_object_name` がファイル名側のトラバーサルを潰しているのと対になる防御。
+fn validate_subdir(env_name: &str, value: &str) -> Option<String> {
+    use std::path::Component;
+
+    if value.is_empty() {
+        return None;
+    }
+
+    let path = Path::new(value);
+    let is_safe = path
+        .components()
+        .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
+
+    if is_safe {
+        Some(value.to_string())
+    } else {
+        tracing::warn!(
+            "{env_name} の値 {value:?} はルート外を指す可能性があるため無視し、既定値を使用します"
+        );
+        None
+    }
+}
+
 /// 書込先ベースディレクトリを環境変数から解決する（デフォルト値つき）。
+///
+/// `STORAGE_ROOT`（MediaVault専用領域のルート）配下に、`FileType` ごとのサブディレクトリを
+/// 結合したパスを返す。サブディレクトリは `STORAGE_SUBDIR_*` で上書きでき、
+/// `video/2026` のようなネストした相対パスも許容する。
+///
+/// 【重要】ここが返すのはアップロードファイルの書込先（MediaVault専用領域）だけである。
+/// 録画データ等の実データ領域（`/data/media`・`/data/documents`）へは MediaVault は書き込まず、
+/// `POST /items/:id/files` による絶対パス登録（リンク）で参照するのみ。
 /// 🟡 信頼性レベル: 要件定義書 第3章「API制約 / 環境変数」より
 pub fn resolve_base_dir(file_type: FileType) -> PathBuf {
-    match file_type {
-        FileType::Pdf => std::env::var("PDF_STORAGE_PATH")
-            .unwrap_or_else(|_| "/srv/files/pdf".to_string())
-            .into(),
-        // 設計決定1・2: pdf以外（image/video/audio/archive/other）はメディア用ベースディレクトリへ集約する
-        FileType::Image
-        | FileType::Video
-        | FileType::Audio
-        | FileType::Archive
-        | FileType::Other => std::env::var("MEDIA_STORAGE_PATH")
-            .unwrap_or_else(|_| "/srv/media/photos".to_string())
-            .into(),
-    }
+    let root = std::env::var(STORAGE_ROOT_ENV)
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| DEFAULT_STORAGE_ROOT.to_string());
+
+    let (env_name, default_subdir) = subdir_spec(file_type);
+    let subdir = std::env::var(env_name)
+        .ok()
+        .and_then(|v| validate_subdir(env_name, &v))
+        .unwrap_or_else(|| default_subdir.to_string());
+
+    PathBuf::from(root).join(subdir)
 }
 
 /// クライアント指定の元ファイル名から、サーバー側で一意なオブジェクト名（UUID + 元拡張子）を生成する。
@@ -184,7 +240,7 @@ mod tests {
     use super::*;
     use std::sync::Mutex;
 
-    /// `PDF_STORAGE_PATH` / `MEDIA_STORAGE_PATH` はプロセス全体で共有される環境変数であり、
+    /// `STORAGE_ROOT` / `STORAGE_SUBDIR_*` はプロセス全体で共有される環境変数であり、
     /// cargo testはデフォルトで各`#[test]`関数を別スレッドで並列実行するため、
     /// 複数のテストが同時にこれらの環境変数をset_var/remove_varすると競合（flaky failure）が起きる。
     /// このMutexで当該環境変数を触るテスト全体を直列化し、テスト間の独立性を保証する。
@@ -282,34 +338,34 @@ mod tests {
     fn store_file_returns_relative_path_under_base_dir() {
         // 【テスト目的】: store_file()がベースディレクトリ配下に書込み、絶対パスを含まない相対パスを
         // 返すことを確認する
-        // 【テスト内容】: 一時ディレクトリをPDF_STORAGE_PATHとして用いてstore_file()を呼ぶ
+        // 【テスト内容】: 一時ディレクトリをSTORAGE_ROOTとして用いてstore_file()を呼ぶ
         // 【期待される動作】: 返却relative_pathが絶対パスでなく、base.join(relative_path)が実在ファイル
         // 🔵 信頼性レベル: 要件定義書 第2章出力仕様「相対パス保存」・TC-019-U05に直接対応
 
         // 【テストデータ準備】: 一時ベースディレクトリと環境変数を設定する
-        // 【初期条件設定】: PDF_STORAGE_PATHを一時ディレクトリに切り替える
+        // 【初期条件設定】: STORAGE_ROOTを一時ディレクトリに切り替える（PDFは既定サブディレクトリ pdf/ 配下になる）
         // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
-        let _guard = ENV_MUTEX.lock().unwrap();
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        clear_storage_env();
         let root = temp_storage_root();
         unsafe {
-            std::env::set_var("PDF_STORAGE_PATH", root.path());
+            std::env::set_var(STORAGE_ROOT_ENV, root.path());
         }
         let writer = TokioFileWriter;
 
         // 【実際の処理実行】: store_file()でpdfバイト列を書き込む
-        // 【処理内容】: 一意名生成→書込→相対パス算出（未実装のためtodo!()でpanicする想定）
+        // 【処理内容】: 一意名生成→書込→相対パス算出
         let result = store_file(&writer, FileType::Pdf, "example.pdf", b"%PDF-1.4 dummy");
 
         // 【結果検証】: 戻り値のrelative_pathが絶対パス・ベースディレクトリ文字列を含まないことを確認
         // 【期待値確認】: item_files.pathに絶対パスが漏れないことの保証（要件定義書第2章）
         let stored = result.expect("正常書込が成功するはず");
         assert!(!stored.relative_path.starts_with('/')); // 【確認内容】: 相対パスが先頭'/'を持たないことを確認 🔵
-        assert!(root.path().join(&stored.relative_path).exists()); // 【確認内容】: base.join(相対パス)が実ファイルとして存在することを確認 🔵
+        assert!(stored.base_dir.join(&stored.relative_path).exists()); // 【確認内容】: base.join(相対パス)が実ファイルとして存在することを確認 🔵
+        assert_eq!(stored.base_dir, root.path().join("pdf")); // 【確認内容】: 種別サブディレクトリ配下に書かれることを確認 🔵
 
         // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
-        unsafe {
-            std::env::remove_var("PDF_STORAGE_PATH");
-        }
+        clear_storage_env();
     }
 
     /// TC-019-E01-SERVICE: 書込失敗注入（FailingFileWriter）でApiError(FileStorageWriteFailed)が返る
@@ -335,115 +391,147 @@ mod tests {
         assert_eq!(err.error.code, "FILE_STORAGE_WRITE_FAILED"); // 【確認内容】: 書込失敗が専用エラーコードへマッピングされることを確認 🟡
     }
 
-    /// TC-019-02: file_type=ImageはMEDIA_STORAGE_PATH（画像ディレクトリ）へ解決される
-    /// 🔵 信頼性レベル: 要件定義書 第1章「file_typeに応じたディレクトリ分岐」・TC-019-02に直接対応
-    #[test]
-    fn resolve_base_dir_for_image_uses_media_storage_path() {
-        // 【テスト目的】: FileType::Imageが画像用ベースディレクトリ（MEDIA_STORAGE_PATH）に解決されることを確認する
-        // 【テスト内容】: MEDIA_STORAGE_PATHを一時パスに設定し、resolve_base_dir(Image)の戻り値を検証する
-        // 【期待される動作】: 戻り値がMEDIA_STORAGE_PATHの値と一致する
-        // 🔵 信頼性レベル: 要件定義書第1章・TC-019-02・設計決定1（photo→Image・画像ディレクトリ）に対応
-
-        // 【テストデータ準備】: 環境変数MEDIA_STORAGE_PATHを一時値に設定する
-        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
-        let _guard = ENV_MUTEX.lock().unwrap();
+    /// `STORAGE_ROOT` と全 `STORAGE_SUBDIR_*` を未設定に戻すヘルパー。
+    /// 各テストは `ENV_MUTEX` を保持した状態でこれを呼び、他テストの設定残りの影響を排除する。
+    fn clear_storage_env() {
         unsafe {
-            std::env::set_var("MEDIA_STORAGE_PATH", "/tmp/mediavault-test-media");
-        }
-        // 【実際の処理実行】: resolve_base_dir(FileType::Image)を呼び出す
-        let base = resolve_base_dir(FileType::Image);
-
-        // 【結果検証】: 設定した環境変数の値と一致することを確認
-        assert_eq!(base, PathBuf::from("/tmp/mediavault-test-media")); // 【確認内容】: Image種別が画像用ベースディレクトリに解決されることを確認 🔵
-
-        // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
-        unsafe {
-            std::env::remove_var("MEDIA_STORAGE_PATH");
+            std::env::remove_var(STORAGE_ROOT_ENV);
+            for ft in ALL_FILE_TYPES {
+                std::env::remove_var(subdir_spec(ft).0);
+            }
         }
     }
 
-    /// TC-019-B05: file_type=OtherはMEDIA_STORAGE_PATH（画像ディレクトリ集約）へ解決される
-    /// 🟡 信頼性レベル: 設計決定2（Other→画像ディレクトリ集約）・要件定義書第6章5より
+    /// テストで全種別を走査するための一覧（`FileType` に追加があればここも更新する）
+    const ALL_FILE_TYPES: [FileType; 6] = [
+        FileType::Pdf,
+        FileType::Image,
+        FileType::Video,
+        FileType::Audio,
+        FileType::Archive,
+        FileType::Other,
+    ];
+
+    /// TC-019-01/02: FileType 6種すべてがSTORAGE_ROOT配下の「互いに異なる」既定サブディレクトリへ解決される
+    /// 🔵 信頼性レベル: 要件定義書 第1章「file_typeに応じたディレクトリ分岐」に直接対応
     #[test]
-    fn resolve_base_dir_for_other_uses_media_storage_path() {
-        // 【テスト目的】: FileType::Otherがpdf以外として画像ディレクトリに集約されることを確認する
-        // 【テスト内容】: MEDIA_STORAGE_PATHを一時値に設定し、resolve_base_dir(Other)の戻り値を検証する
-        // 【期待される動作】: 戻り値がMEDIA_STORAGE_PATHの値と一致する（Imageと同一の集約先）
-        // 🟡 信頼性レベル: 設計決定2（本タスクで確定：otherもphotos集約）に基づく
-
-        // 【テストデータ準備】: 環境変数MEDIA_STORAGE_PATHを一時値に設定する
-        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
-        let _guard = ENV_MUTEX.lock().unwrap();
+    fn resolve_base_dir_maps_every_file_type_to_a_distinct_subdir_under_root() {
+        // 【テスト目的】: 種別ごとに保存先が分かれること（＝どの2種も同じディレクトリに混ざらないこと）を確認する
+        // 【テスト内容】: STORAGE_ROOTのみ設定し、6種すべてのresolve_base_dirの戻り値を集める
+        // 【期待される動作】: すべてSTORAGE_ROOT配下であり、6種の解決結果に重複がない
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        clear_storage_env();
+        let root = temp_storage_root();
         unsafe {
-            std::env::set_var("MEDIA_STORAGE_PATH", "/tmp/mediavault-test-media-other");
+            std::env::set_var(STORAGE_ROOT_ENV, root.path());
         }
-        // 【実際の処理実行】: resolve_base_dir(FileType::Other)を呼び出す
-        let base = resolve_base_dir(FileType::Other);
 
-        // 【結果検証】: Imageと同一のベースディレクトリへ解決されることを確認
-        assert_eq!(base, PathBuf::from("/tmp/mediavault-test-media-other")); // 【確認内容】: Other種別がImageと同一ディレクトリへ集約されることを確認 🟡
+        let resolved: Vec<PathBuf> = ALL_FILE_TYPES
+            .iter()
+            .map(|ft| resolve_base_dir(*ft))
+            .collect();
 
-        // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
-        unsafe {
-            std::env::remove_var("MEDIA_STORAGE_PATH");
+        for (ft, base) in ALL_FILE_TYPES.iter().zip(&resolved) {
+            // 【確認内容】: 各種別の保存先がSTORAGE_ROOT配下に収まることを確認 🔵
+            assert!(
+                base.starts_with(root.path()),
+                "{ft:?} の保存先がルート外: {base:?}"
+            );
+            // 【確認内容】: ルート直下ではなく種別サブディレクトリが付与されることを確認 🔵
+            assert_ne!(
+                base.as_path(),
+                root.path(),
+                "{ft:?} にサブディレクトリが付与されていない"
+            );
         }
+
+        let mut unique = resolved.clone();
+        unique.sort();
+        unique.dedup();
+        // 【確認内容】: 6種の保存先がすべて異なる＝種別ごとに保存先が分離されていることを確認 🔵
+        assert_eq!(
+            unique.len(),
+            ALL_FILE_TYPES.len(),
+            "種別間で保存先が重複している: {resolved:?}"
+        );
+
+        clear_storage_env();
     }
 
-    /// TC-019-01: file_type=PdfはPDF_STORAGE_PATH（PDFディレクトリ）へ解決される
-    /// 🔵 信頼性レベル: 要件定義書 第1章・TC-019-01に直接対応
+    /// 種別ごとのサブディレクトリを環境変数で上書きできる（ネストした相対パスも許容する）
+    /// 🔵 信頼性レベル: 「保存先を環境変数で設定できるようにする」要件に直接対応
     #[test]
-    fn resolve_base_dir_for_pdf_uses_pdf_storage_path() {
-        // 【テスト目的】: FileType::Pdfが画像ディレクトリと排他的に異なるPDF用ディレクトリへ解決されることを確認する
-        // 【テスト内容】: PDF_STORAGE_PATHを一時値に設定し、resolve_base_dir(Pdf)の戻り値を検証する
-        // 【期待される動作】: 戻り値がPDF_STORAGE_PATHの値と一致し、MEDIA_STORAGE_PATHとは異なる
-        // 🔵 信頼性レベル: 要件定義書第1章「pdf→/srv/files/pdf」・TC-019-01に直接対応
-
-        // 【テストデータ準備】: 環境変数PDF_STORAGE_PATHを一時値に設定する
-        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
-        let _guard = ENV_MUTEX.lock().unwrap();
+    fn resolve_base_dir_honors_subdir_override_env_var() {
+        // 【テスト目的】: STORAGE_SUBDIR_* による保存先の上書きが効くことを確認する
+        // 【期待される動作】: 指定したネスト付き相対パスがSTORAGE_ROOTへ結合される
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        clear_storage_env();
         unsafe {
-            std::env::set_var("PDF_STORAGE_PATH", "/tmp/mediavault-test-pdf");
+            std::env::set_var(STORAGE_ROOT_ENV, "/tmp/mediavault-test-vault");
+            std::env::set_var("STORAGE_SUBDIR_VIDEO", "video/2026");
         }
-        // 【実際の処理実行】: resolve_base_dir(FileType::Pdf)を呼び出す
-        let base = resolve_base_dir(FileType::Pdf);
 
-        // 【結果検証】: 設定した環境変数の値と一致することを確認
-        assert_eq!(base, PathBuf::from("/tmp/mediavault-test-pdf")); // 【確認内容】: Pdf種別が画像用ディレクトリとは異なるPDF専用ディレクトリへ解決されることを確認 🔵
+        let base = resolve_base_dir(FileType::Video);
 
-        // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
-        unsafe {
-            std::env::remove_var("PDF_STORAGE_PATH");
-        }
+        // 【確認内容】: 上書き値がそのままルート配下へ結合されることを確認 🔵
+        assert_eq!(base, PathBuf::from("/tmp/mediavault-test-vault/video/2026"));
+
+        clear_storage_env();
     }
 
-    /// TC-019-E07: ベースディレクトリ未設定時もデフォルトが`/srv/*`配下でありカレントディレクトリにならない（REQ-402）
+    /// STORAGE_SUBDIR_* にルート外を指す値（絶対パス・`..`）が渡されても既定値へフォールバックする
+    /// 🟡 信頼性レベル: generate_object_nameのパストラバーサル防止と対になる新規のセキュリティ要件
+    #[test]
+    fn resolve_base_dir_rejects_subdir_escaping_the_storage_root() {
+        // 【テスト目的】: 設定ミス・悪意ある設定値でルート外へ書き込まれないことを確認する
+        // 【テスト内容】: 絶対パスと`..`入りの値をそれぞれ与えてresolve_base_dirを呼ぶ
+        // 【期待される動作】: いずれも無視され、ルート配下の既定サブディレクトリが使われる
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        clear_storage_env();
+        unsafe {
+            std::env::set_var(STORAGE_ROOT_ENV, "/tmp/mediavault-test-vault");
+        }
+
+        for malicious in ["/etc", "../../etc", "video/../../etc"] {
+            unsafe {
+                std::env::set_var("STORAGE_SUBDIR_VIDEO", malicious);
+            }
+            let base = resolve_base_dir(FileType::Video);
+            // 【確認内容】: ルート外への脱出が拒否され、既定サブディレクトリへ戻ることを確認 🟡
+            assert_eq!(
+                base,
+                PathBuf::from("/tmp/mediavault-test-vault/video"),
+                "{malicious:?} がルート外への脱出を許している"
+            );
+        }
+
+        clear_storage_env();
+    }
+
+    /// TC-019-E07: ベースディレクトリ未設定時もデフォルトがカレントディレクトリにならない（REQ-402）
     /// 🟡 信頼性レベル: note.md・要件定義書第3章REQ-402より妥当推測
     #[test]
     fn resolve_base_dir_default_does_not_point_to_current_directory() {
         // 【テスト目的】: 環境変数未設定時のデフォルト値がカレントディレクトリ（"."）にならず、
-        // /srv配下を指すことを確認する（REQ-402: コンテナ内非保存）
-        // 【テスト内容】: PDF_STORAGE_PATH/MEDIA_STORAGE_PATHを未設定にしてresolve_base_dir()を呼ぶ
-        // 【期待される動作】: 戻り値が"/srv/"で始まる
-        // 🟡 信頼性レベル: note.md L296-297・要件定義書REQ-402からの妥当な推測
+        // マウント済みのMediaVault専用領域を指すことを確認する（REQ-402: コンテナ内非保存）
+        // 【期待される動作】: 戻り値がDEFAULT_STORAGE_ROOT配下になる
+        // 【注記】: デプロイ先はLinuxコンテナだが本テストはWindows上でも走るため、`is_absolute()`
+        // （Windowsでは`/data/vault`をfalseと判定する）ではなくプレフィックス一致で検証する。
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        clear_storage_env();
 
-        // 【テストデータ準備】: 環境変数を確実に未設定の状態にする
-        // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
-        let _guard = ENV_MUTEX.lock().unwrap();
-        unsafe {
-            std::env::remove_var("PDF_STORAGE_PATH");
+        for ft in ALL_FILE_TYPES {
+            let base = resolve_base_dir(ft);
+            // 【確認内容】: デフォルトパスがコンテナ内カレントでなく専用領域配下であることを確認 🟡
+            assert!(
+                base.starts_with(DEFAULT_STORAGE_ROOT),
+                "{ft:?} のデフォルトパスが専用領域外: {base:?}"
+            );
+            assert!(
+                !base.starts_with("."),
+                "{ft:?} のデフォルトパスがカレントディレクトリ相対: {base:?}"
+            );
         }
-        unsafe {
-            std::env::remove_var("MEDIA_STORAGE_PATH");
-        }
-        // 【実際の処理実行】: デフォルト値でresolve_base_dir()を呼び出す
-        let pdf_base = resolve_base_dir(FileType::Pdf);
-        let media_base = resolve_base_dir(FileType::Image);
-
-        // 【結果検証】: いずれも/srv配下であり、カレントディレクトリ（"."）でないことを確認
-        assert!(pdf_base.starts_with("/srv")); // 【確認内容】: PDFデフォルトパスがコンテナ内カレントでなく/srv配下であることを確認 🟡
-        assert!(media_base.starts_with("/srv")); // 【確認内容】: 画像デフォルトパスがコンテナ内カレントでなく/srv配下であることを確認 🟡
-
-        // 【テスト後処理】: 環境変数は既に未設定のため追加のクリーンアップは不要
     }
 
     /// IT-019-02: DB登録失敗を模してcleanup_file()で書込済みファイルが削除される
@@ -458,10 +546,11 @@ mod tests {
 
         // 【テストデータ準備】: 一時ディレクトリへ実際に書込んでおく
         // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
-        let _guard = ENV_MUTEX.lock().unwrap();
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        clear_storage_env();
         let root = temp_storage_root();
         unsafe {
-            std::env::set_var("PDF_STORAGE_PATH", root.path());
+            std::env::set_var(STORAGE_ROOT_ENV, root.path());
         }
         let writer = TokioFileWriter;
         let stored = store_file(&writer, FileType::Pdf, "example.pdf", b"dummy")
@@ -475,8 +564,6 @@ mod tests {
         assert!(!stored.absolute_path.exists()); // 【確認内容】: ロールバック後に書込済みファイルが存在しないことを確認 🟡
 
         // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
-        unsafe {
-            std::env::remove_var("PDF_STORAGE_PATH");
-        }
+        clear_storage_env();
     }
 }

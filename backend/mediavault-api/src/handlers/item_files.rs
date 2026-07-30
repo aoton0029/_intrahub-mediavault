@@ -58,7 +58,17 @@ pub async fn list_item_files_handler(
 }
 
 /// 【機能概要】: `DELETE /items/:id/files/:file_id` ハンドラ。指定ファイルのレコードを削除し、
-/// 対応する物理ファイルもクリーンアップする
+/// **アップロード方式で保存された物理ファイルのみ**クリーンアップする。
+///
+/// 【path の規約】: `item_files.path` は登録経路によって意味が異なる。
+/// - **相対パス** = アップロード（`POST /files/upload`）。実体は MediaVault 専用領域
+///   （`file_storage::resolve_base_dir` が返すディレクトリ）配下にあり、MediaVault が所有する。
+/// - **絶対パス** = パス登録によるリンク（`POST /files`）。実体は録画データ等の実データ領域にあり、
+///   MediaVault は参照しているだけで所有していない。
+///
+/// リンクの削除は「Item との紐付けを外す」操作であり、実データを消す操作ではない。
+/// `Path::join` は絶対パスを渡されるとそれをそのまま返すため、分岐なしでは実データ領域の
+/// ファイルを削除してしまう。ここで明示的に絶対パスを除外する。
 /// 🟡 信頼性レベル: handlers::item_links::delete_item_link_handlerと対称、
 /// 物理ファイル削除はupload_item_file_handlerのロールバック処理（file_storage::cleanup_file）を再利用
 pub async fn delete_item_file_handler(
@@ -75,6 +85,15 @@ pub async fn delete_item_file_handler(
             "指定されたファイルが見つかりません",
         )
     })?;
+
+    // 【リンク保護】: 絶対パス＝実データ領域へのリンクなので、DBレコードのみ削除して実体は残す
+    if std::path::Path::new(&file.path).is_absolute() {
+        tracing::info!(
+            "item_files delete: リンク（絶対パス）のためレコードのみ削除し実ファイルは保持する: {}",
+            file.path
+        );
+        return Ok(StatusCode::NO_CONTENT.into_response());
+    }
 
     let base_dir = file_storage::resolve_base_dir(file.file_type);
     let absolute_path = base_dir.join(&file.path);
@@ -392,12 +411,12 @@ mod tests {
     async fn post_item_file_upload_with_pdf_returns_201_and_relative_path() {
         // 【テスト目的】: file_type="pdf"のmultipartアップロードで、PDF用ベースディレクトリ配下に
         // ファイルが書き込まれ、相対パスがitem_files.pathに保存され201が返ることを確認する
-        // 【テスト内容】: 一時ディレクトリをPDF_STORAGE_PATHに設定し、実在itemへPOSTする
+        // 【テスト内容】: 一時ディレクトリをSTORAGE_ROOTに設定し、実在itemへPOSTする
         // 【期待される動作】: 201・data.file_type=="pdf"・data.pathが相対パスかつ拡張子.pdf・ファイル実在
         // 🔵 信頼性レベル: TASK-0027.md テストケース1（L65-68）・完了条件L24-26に直接対応
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
         unsafe {
-            std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+            std::env::set_var("STORAGE_ROOT", temp_root.path());
         }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
@@ -428,12 +447,12 @@ mod tests {
     #[ignore]
     async fn post_item_file_upload_with_image_returns_201() {
         // 【テスト目的】: file_type="image"のとき、pdfとは異なる画像用ベースディレクトリへ配置されることを確認する
-        // 【テスト内容】: MEDIA_STORAGE_PATHを一時ディレクトリに設定し、実在itemへPOSTする
+        // 【テスト内容】: STORAGE_ROOTを一時ディレクトリに設定し、実在itemへPOSTする
         // 【期待される動作】: 201・data.file_type=="image"
         // 🔵 信頼性レベル: TASK-0027.md テストケース2（L70-73）・設計決定1に対応
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
         unsafe {
-            std::env::set_var("MEDIA_STORAGE_PATH", temp_root.path());
+            std::env::set_var("STORAGE_ROOT", temp_root.path());
         }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
@@ -468,7 +487,7 @@ mod tests {
         // 🔵 信頼性レベル: TC-019-N03・item_file.rsのlabel: Option<String>より
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
         unsafe {
-            std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+            std::env::set_var("STORAGE_ROOT", temp_root.path());
         }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
@@ -502,7 +521,7 @@ mod tests {
         // 🔵 信頼性レベル: TC-019-03・要件定義書第4章（書込前item確認）に対応
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
         unsafe {
-            std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+            std::env::set_var("STORAGE_ROOT", temp_root.path());
         }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state);
@@ -538,7 +557,7 @@ mod tests {
     async fn post_item_file_upload_with_write_failure_returns_500_and_creates_no_record() {
         // 【テスト目的】: 書込失敗時にitem_filesレコードが作成されず500 FILE_STORAGE_WRITE_FAILEDが
         // 返ることを確認する（書込不可な一時パスを注入して失敗を誘発）
-        // 【テスト内容】: PDF_STORAGE_PATHに書込不可なパス（存在しないネスト先かつ作成権限なし相当）を設定する
+        // 【テスト内容】: STORAGE_ROOTに書込不可なパス（存在しないネスト先かつ作成権限なし相当）を設定する
         // 【期待される動作】: 500・error.code=="FILE_STORAGE_WRITE_FAILED"・item_filesの該当item行数が0
         // 🟡 信頼性レベル: TC-019-E01・EDGE-003・フェイク注入手段は妥当推測
         let state = test_app_state().await;
@@ -551,7 +570,7 @@ mod tests {
         std::fs::write(&unwritable_root, b"this is a file, not a directory")
             .expect("書込不可パス用ダミーファイルの作成に失敗しました");
         unsafe {
-            std::env::set_var("PDF_STORAGE_PATH", &unwritable_root);
+            std::env::set_var("STORAGE_ROOT", &unwritable_root);
         }
         let (content_type, body) = multipart_body(b"%PDF-1.4 dummy", "example.pdf", None);
 
@@ -590,7 +609,7 @@ mod tests {
         // 【期待される動作】: 201・data.file_type=="other"
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
         unsafe {
-            std::env::set_var("MEDIA_STORAGE_PATH", temp_root.path());
+            std::env::set_var("STORAGE_ROOT", temp_root.path());
         }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
@@ -683,7 +702,7 @@ mod tests {
         // 🟡 信頼性レベル: テストケース定義書TC-019-B01・本タスクでの設計決定6（空ファイル許容）に基づく
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
         unsafe {
-            std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+            std::env::set_var("STORAGE_ROOT", temp_root.path());
         }
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
@@ -740,6 +759,114 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::CREATED);
+    }
+
+    /// 【テスト用ヘルパー】: 任意のpathでitem_file行を作成しfile_idを返す（DELETE系テスト用）
+    async fn insert_test_item_file_with_path(
+        db: &PgPool,
+        item_id: Uuid,
+        path: &str,
+        file_type: &str,
+    ) -> Uuid {
+        sqlx::query_scalar(
+            "INSERT INTO item_files (item_id, path, label, file_type, calibre_book_id)
+             VALUES ($1, $2, 'DELETEテスト', $3::file_type, NULL)
+             RETURNING id",
+        )
+        .bind(item_id)
+        .bind(path)
+        .bind(file_type)
+        .fetch_one(db)
+        .await
+        .expect("テスト用item_file作成に失敗しました")
+    }
+
+    /// DELETE: リンク（絶対パス登録）の削除ではDBレコードのみ消え、実データ領域のファイルは残る
+    /// 【テスト目的】: `POST /items/:id/files` で登録したリンクを外しても、録画データ等の実体を
+    /// 誤って削除しないことを確認する（Path::joinが絶対パスをそのまま返す挙動への防御）
+    /// 🔵 信頼性レベル: 「リンク＝絶対パス／アップロード＝相対パス」の規約に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn delete_item_file_with_absolute_path_keeps_the_linked_file() {
+        // 【テストデータ準備】: 実データ領域に見立てた一時ディレクトリへ実ファイルを置き、その絶対パスを登録する
+        let real_data_dir = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
+        let linked_file = real_data_dir.path().join("recorded.pdf");
+        std::fs::write(&linked_file, b"%PDF-1.4 linked real data (must survive)")
+            .expect("リンク先ファイルの作成に失敗しました");
+
+        let state = test_app_state().await;
+        let app = crate::routes::build_router(state.clone());
+        let item_id = insert_test_item(&state.db).await;
+        let file_id = insert_test_item_file_with_path(
+            &state.db,
+            item_id,
+            linked_file.to_str().expect("パスがUTF-8でない"),
+            "pdf",
+        )
+        .await;
+
+        // 【実際の処理実行】: リンクをDELETEする
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/items/{item_id}/files/{file_id}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT); // 【確認内容】: 削除が204で成功することを確認 🔵
+
+        // 【結果検証】: DBレコードは消えているが、リンク先の実ファイルは残っていること
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM item_files WHERE id = $1")
+            .bind(file_id)
+            .fetch_one(&state.db)
+            .await
+            .expect("件数取得に失敗しました");
+        assert_eq!(count, 0); // 【確認内容】: Itemとの紐付け（DBレコード）が削除されることを確認 🔵
+        assert!(linked_file.exists()); // 【確認内容】: リンク先の実データが削除されずに残ることを確認 🔵
+    }
+
+    /// DELETE: アップロード（相対パス）の削除では専用領域の実ファイルも削除される
+    /// 【テスト目的】: MediaVaultが所有するファイルについては従来どおり物理削除されることを確認する
+    /// 🔵 信頼性レベル: delete_item_file_handlerの既存仕様（cleanup_file呼び出し）に対応
+    #[tokio::test]
+    #[ignore]
+    async fn delete_item_file_with_relative_path_removes_the_uploaded_file() {
+        // 【テストデータ準備】: STORAGE_ROOT配下のPDFサブディレクトリへ実ファイルを置き、相対パスを登録する
+        let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
+        unsafe {
+            std::env::set_var("STORAGE_ROOT", temp_root.path());
+        }
+        let base_dir = temp_root.path().join("pdf");
+        std::fs::create_dir_all(&base_dir).expect("ベースディレクトリ作成に失敗しました");
+        let object_name = format!("{}.pdf", Uuid::new_v4());
+        let uploaded_file = base_dir.join(&object_name);
+        std::fs::write(&uploaded_file, b"%PDF-1.4 uploaded object")
+            .expect("アップロード実体の作成に失敗しました");
+
+        let state = test_app_state().await;
+        let app = crate::routes::build_router(state.clone());
+        let item_id = insert_test_item(&state.db).await;
+        let file_id =
+            insert_test_item_file_with_path(&state.db, item_id, &object_name, "pdf").await;
+
+        // 【実際の処理実行】: アップロード済みファイルをDELETEする
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/items/{item_id}/files/{file_id}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT); // 【確認内容】: 削除が204で成功することを確認 🔵
+        assert!(!uploaded_file.exists()); // 【確認内容】: MediaVault所有のファイルは物理削除されることを確認 🔵
     }
 
     /// 【テスト用ヘルパー】: 指定file_typeのpdf/image item_file行を作成しfile_idを返す

@@ -2,9 +2,9 @@
 //!
 //! パス指定方式（POST /items/:id/files）とアップロード方式（POST /items/:id/files/upload）の
 //! 両方を、実DB + `tower::ServiceExt::oneshot`によるルーター経由E2Eで検証する。
-//! アップロード方式は`tempfile`crateで作成した一時ディレクトリを`PDF_STORAGE_PATH`へ
+//! アップロード方式は`tempfile`crateで作成した一時ディレクトリを`STORAGE_ROOT`へ
 //! 設定することで、実ファイルシステムを汚さずに検証する（file_storage::resolve_base_dirが
-//! `PDF_STORAGE_PATH`/`MEDIA_STORAGE_PATH`環境変数を読む実装に基づく）。
+//! `STORAGE_ROOT`/`STORAGE_SUBDIR_*`環境変数を読む実装に基づく）。
 //! 🔵 信頼性レベル: main-flow-integration-test-testcases.md IT-004/IT-005に直接対応
 
 mod common;
@@ -119,17 +119,17 @@ async fn it_004_register_file_by_path_persists_exact_path() {
 /// IT-005: ファイル登録（バイナリアップロード方式）
 /// 【テスト目的】: `POST /items/:id/files/upload`にmultipartでバイナリを送信し、配置後の相対パスが
 /// DBに保存されることを確認する
-/// 【テスト内容】: テスト用一時ディレクトリ（`tempfile`crate）をPDF_STORAGE_PATHに設定し、
+/// 【テスト内容】: テスト用一時ディレクトリ（`tempfile`crate）をSTORAGE_ROOTに設定し、
 /// ダミーPDFバイナリをmultipartでアップロードする
 /// 【期待される動作】: 201、レスポンスのpathが配置後の相対パス形式、実ファイルが一時ディレクトリ上に存在する
 /// 🔵 信頼性レベル: main-flow-integration-test-testcases.md IT-005（acceptance-criteria.md TC-019-01）
 #[tokio::test]
 #[ignore]
 async fn it_005_upload_file_via_multipart_persists_relative_path_under_temp_dir() {
-    // 【テストデータ準備】: tempfile crateで一時ディレクトリを作成し、PDF_STORAGE_PATHへ設定する 🔵
+    // 【テストデータ準備】: tempfile crateで一時ディレクトリを作成し、STORAGE_ROOTへ設定する 🔵
     let temp_root = tempfile::tempdir().expect("一時ディレクトリの作成に失敗しました");
     unsafe {
-        std::env::set_var("PDF_STORAGE_PATH", temp_root.path());
+        std::env::set_var("STORAGE_ROOT", temp_root.path());
     }
 
     let state = test_app_state().await;
@@ -161,8 +161,8 @@ async fn it_005_upload_file_via_multipart_persists_relative_path_under_temp_dir(
     let relative_path = json["data"]["path"].as_str().unwrap().to_string();
     assert!(!relative_path.starts_with('/')); // 【確認内容】: 保存されたpathが絶対パスでなく相対パス形式であることを確認 🔵
 
-    // 【結果検証】: 一時ディレクトリ配下に実ファイルが存在することを確認する 🔵
-    let absolute_path = temp_root.path().join(&relative_path);
+    // 【結果検証】: 一時ディレクトリ配下（PDFの既定サブディレクトリ pdf/）に実ファイルが存在することを確認する 🔵
+    let absolute_path = temp_root.path().join("pdf").join(&relative_path);
     assert!(absolute_path.exists()); // 【確認内容】: 配置後の実ファイルが一時ディレクトリ上に存在することを確認 🔵
 
     // 【結果検証】: DB上のpathもレスポンスと同値であることを確認する 🔵

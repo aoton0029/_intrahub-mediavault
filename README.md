@@ -145,10 +145,12 @@ npx shadcn@latest add <component-name>
 
 - 映画・アニメ・漫画・小説・ドラマ・ゲーム・論文/文献・書籍等のメタデータを一元管理するセルフホスト型アプリケーション。
 - コンテナは`selfhosted-net`・`db-net`([PostgreSQL](../PostgreSQL/README.md)利用)・`ai-net`([RAG-Service](../RAG-Service/README.md)の`POST /ingest`呼び出し用)に参加する。Caddy経由(`app.home.lan`)で公開するため`proxy-net`にも参加し、ホスト直接ポート公開は行わない。
-- アップロードファイルはコンテナ内ではなくファイルサーバー用HDDへ直接保存する（バインドマウント）。
-  - PDF: `/srv/files/pdf`（[Calibre-Web](../Calibre-Web/README.md)のライブラリパスと共用）。アップロードされたPDFはCalibre-Webからも自動でライブラリ認識され、MediaVault側の作品詳細にCalibre-Webの閲覧URL(`calibre.home.lan`)へのリンクを保持して直接遷移できるようにする。
-  - 画像: `/srv/media/photos`（Jellyfin/Sambaの`photos`共有と同一パスを共用）。
-  - OCRテキスト: `/srv/files/ocr`（[RAG-Service](../RAG-Service/README.md)が`/ingest`処理時に書き込み、レスポンスで受け取った`ocr_text_path`をPostgreSQLに保存し、作品詳細から参照する）。
+- アップロードファイルはコンテナ内ではなくファイルサーバー用HDDへ直接保存する（バインドマウント）。保存先はファイル種別ごとに分かれる。
+  - 保存先ルートは `STORAGE_ROOT`（ホスト側 `VAULT_ROOT`＝`/srv/mediavault`）で、その配下に種別サブディレクトリ `video/` `image/` `audio/` `pdf/` `archive/` `other/` が作られる。サブディレクトリ名は `STORAGE_SUBDIR_*` で上書きできる。
+  - 録画データ等の実データ領域（`/srv/media`・`/srv/documents`）はこれとは別領域であり、MediaVault は読み取り専用で参照する。既存ファイルを Item に紐付ける場合は `POST /items/:id/files` で絶対パスを登録して**リンク**する（コピー・移動はしない）。
+  - 詳細は [docs/backend/mediavault-api/item-files.md](./docs/backend/mediavault-api/item-files.md) を参照。
+
+> **注記**: 以下のセクション（`selfhosted-net` / `app.home.lan` / RAG-Service 前提の compose 例）は旧構成時点の草案であり、現行の `docker-compose.yml`（`proxy-net` / `mediavault-api` 構成）とは一致しない。**要見直し**。
 
 ```yaml
 # selfhosted/docker-compose.yml (例)
