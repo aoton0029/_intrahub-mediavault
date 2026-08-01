@@ -146,6 +146,6 @@ npx shadcn@latest add <component-name>
 - 映画・アニメ・漫画・小説・ドラマ・ゲーム・論文/文献・書籍等のメタデータを一元管理するセルフホスト型アプリケーション。
 - API/Webは`proxy-net`、API/PostgreSQLは`db-net`で接続し、ホストへ直接ポートを公開しない。
 - アップロードファイルはMediaVault専用領域へ保存する。
-  - 保存先ルートは`STORAGE_ROOT`（ホスト側`MEDIAVAULT_ROOT`と同じ`/srv/mediavault`）で、その配下に種別サブディレクトリ`video/` `image/` `audio/` `pdf/` `archive/` `other/`が作られる。サブディレクトリ名は`STORAGE_SUBDIR_*`で上書きできる。
+  - 保存先ルートは`STORAGE_ROOT`（ホスト側`MEDIAVAULT_ROOT`と同じ`/srv/mediavault`）で、その配下のアップロード領域`files/`（`STORAGE_SUBDIR_FILES`で上書き可）に**アイテムIDごとのフォルダ**を切って保存する（`files/{item_id}/{uuid}.{ext}`）。
   - `/srv/anime`・`/srv/live-action`・`/srv/manga`は読み取り専用で参照する。既存ファイルは`POST /items/:id/files`で絶対パスを登録してリンクし、コピー・移動しない。
   - 詳細は [docs/backend/mediavault-api/item-files.md](./docs/backend/mediavault-api/item-files.md) を参照。

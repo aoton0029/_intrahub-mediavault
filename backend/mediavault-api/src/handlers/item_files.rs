@@ -62,7 +62,9 @@ pub async fn list_item_files_handler(
 ///
 /// 【path の規約】: `item_files.path` は登録経路によって意味が異なる。
 /// - **相対パス** = アップロード（`POST /files/upload`）。実体は MediaVault 専用領域
-///   （`file_storage::resolve_base_dir` が返すディレクトリ）配下にあり、MediaVault が所有する。
+///   （`file_storage::resolve_base_dir` が返すディレクトリ）配下の `{item_id}/{uuid}.{ext}` にあり、
+///   MediaVault が所有する。アイテムIDフォルダ導入前のレコードは `{uuid}.{ext}` 単体で、
+///   実体は旧レイアウト（種別サブディレクトリ）配下に残っているため、そちらもフォールバックで探す。
 /// - **絶対パス** = パス登録によるリンク（`POST /files`）。実体は録画データ等の実データ領域にあり、
 ///   MediaVault は参照しているだけで所有していない。
 ///
@@ -95,18 +97,48 @@ pub async fn delete_item_file_handler(
         return Ok(StatusCode::NO_CONTENT.into_response());
     }
 
-    let base_dir = file_storage::resolve_base_dir(file.file_type);
-    let absolute_path = base_dir.join(&file.path);
+    // 【実体の解決】: 現行レイアウト（アイテムIDフォルダ）を第一候補とし、そこに実体が無い場合だけ
+    // 旧レイアウト（種別サブディレクトリ）を試す。既存ファイルは移行しない方針のため、
+    // どちらのレイアウトのレコードも削除できるようにする。
+    let base_dir = file_storage::resolve_base_dir();
+    let current_path = base_dir.join(&file.path);
+    let (base_dir, absolute_path, is_current_layout) = if current_path.exists() {
+        (base_dir, current_path, true)
+    } else {
+        let legacy_base = file_storage::resolve_legacy_base_dir(file.file_type);
+        let legacy_path = legacy_base.join(&file.path);
+        if legacy_path.exists() {
+            (legacy_base, legacy_path, false)
+        } else {
+            // どちらにも実体が無い場合は現行レイアウトとして削除を試み、失敗はログに留める
+            (base_dir, current_path, true)
+        }
+    };
+
     let writer = TokioFileWriter;
+    let item_dir = if is_current_layout {
+        absolute_path.parent().map(|p| p.to_path_buf())
+    } else {
+        None
+    };
     if let Err(err) = file_storage::cleanup_file(
         &writer,
         &StoredFile {
-            base_dir,
+            base_dir: base_dir.clone(),
             absolute_path,
             relative_path: file.path.clone(),
         },
     ) {
         tracing::error!("file cleanup failed after item_files delete: {err}");
+    }
+
+    // 【空フォルダ掃除】: アイテムの最後のファイルを消したらアイテムIDフォルダも畳む。
+    // remove_dirは空でないディレクトリでは失敗するため、他のファイルが残っていれば何も起きない。
+    // ベースディレクトリ自体（＝旧レイアウトのpathでフォルダが無い場合）は削除しない。
+    if let Some(item_dir) = item_dir
+        && item_dir != base_dir
+    {
+        let _ = std::fs::remove_dir(item_dir);
     }
 
     Ok(StatusCode::NO_CONTENT.into_response())
@@ -188,9 +220,10 @@ pub async fn upload_item_file_handler(
         ));
     }
 
-    // 【ファイル書込】: file_storage::store_file()でfile_typeに応じたディレクトリへ書込む 🔵
+    // 【ファイル書込】: file_storage::store_file()でアップロード領域のアイテムIDフォルダへ書込む。
+    // 保存先は `<base>/{item_id}/{uuid}.{ext}`、DBへ登録する相対パスは `{item_id}/{uuid}.{ext}` 🔵
     let writer = TokioFileWriter;
-    let stored = file_storage::store_file(&writer, file_type, &original_filename, &file_bytes)?;
+    let stored = file_storage::store_file(&writer, item_id, &original_filename, &file_bytes)?;
 
     // 【DB登録】: 書込成功後にitem_filesへINSERTする。失敗時は書込済みファイルを削除する（EDGE-003対称） 🟡
     match item_file_repository::create_item_file(
@@ -437,8 +470,27 @@ mod tests {
             .await
             .unwrap();
 
-        // 【結果検証】: 正常系の中核（201応答）を確認する。相対パス・ファイル実在の詳細検証はGreen実装後に拡張する
+        // 【結果検証】: 201応答に加え、実体がアイテムIDフォルダ配下へ置かれ、
+        // 返却pathが `{item_id}/{uuid}.pdf` の相対パスであることを確認する
         assert_eq!(response.status(), StatusCode::CREATED); // 【確認内容】: pdfアップロードが201で受理されることを確認 🔵
+
+        let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("レスポンスボディの読取に失敗しました");
+        let json: serde_json::Value =
+            serde_json::from_slice(&body_bytes).expect("JSONの解析に失敗しました");
+        let path = json["data"]["path"]
+            .as_str()
+            .expect("data.pathが文字列であるはず");
+
+        let (dir_part, object_name) = path
+            .split_once('/')
+            .expect("pathは `{item_id}/{名前}` 形式のはず");
+        assert_eq!(dir_part, item_id.to_string()); // 【確認内容】: 相対パスの第1階層がアイテムIDであることを確認 🔵
+        assert!(object_name.ends_with(".pdf")); // 【確認内容】: 元拡張子が継承されることを確認 🔵
+
+        let item_dir = temp_root.path().join("files").join(item_id.to_string());
+        assert!(item_dir.join(object_name).exists()); // 【確認内容】: 実体がアイテムIDフォルダ配下に存在することを確認 🔵
     }
 
     /// TC-019-02: imageアップロードで画像（photos）ディレクトリに配置され201が返る（ルーター経由）
@@ -835,23 +887,27 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn delete_item_file_with_relative_path_removes_the_uploaded_file() {
-        // 【テストデータ準備】: STORAGE_ROOT配下のPDFサブディレクトリへ実ファイルを置き、相対パスを登録する
+        // 【テストデータ準備】: アップロード領域のアイテムIDフォルダへ実ファイルを置き、
+        // `{item_id}/{uuid}.pdf` の相対パスを登録する
         let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
         unsafe {
             std::env::set_var("STORAGE_ROOT", temp_root.path());
         }
-        let base_dir = temp_root.path().join("pdf");
-        std::fs::create_dir_all(&base_dir).expect("ベースディレクトリ作成に失敗しました");
-        let object_name = format!("{}.pdf", Uuid::new_v4());
-        let uploaded_file = base_dir.join(&object_name);
-        std::fs::write(&uploaded_file, b"%PDF-1.4 uploaded object")
-            .expect("アップロード実体の作成に失敗しました");
 
         let state = test_app_state().await;
         let app = crate::routes::build_router(state.clone());
         let item_id = insert_test_item(&state.db).await;
+
+        let item_dir = temp_root.path().join("files").join(item_id.to_string());
+        std::fs::create_dir_all(&item_dir).expect("アイテムIDフォルダ作成に失敗しました");
+        let object_name = format!("{}.pdf", Uuid::new_v4());
+        let uploaded_file = item_dir.join(&object_name);
+        std::fs::write(&uploaded_file, b"%PDF-1.4 uploaded object")
+            .expect("アップロード実体の作成に失敗しました");
+
+        let relative_path = format!("{item_id}/{object_name}");
         let file_id =
-            insert_test_item_file_with_path(&state.db, item_id, &object_name, "pdf").await;
+            insert_test_item_file_with_path(&state.db, item_id, &relative_path, "pdf").await;
 
         // 【実際の処理実行】: アップロード済みファイルをDELETEする
         let response = app
@@ -867,6 +923,48 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::NO_CONTENT); // 【確認内容】: 削除が204で成功することを確認 🔵
         assert!(!uploaded_file.exists()); // 【確認内容】: MediaVault所有のファイルは物理削除されることを確認 🔵
+        assert!(!item_dir.exists()); // 【確認内容】: 空になったアイテムIDフォルダも畳まれることを確認 🟡
+    }
+
+    /// DELETE: 旧レイアウト（種別サブディレクトリ直下）で保存された既存ファイルも削除できる
+    /// 【テスト目的】: 既存ファイルを移行しない方針のもと、後方互換の解決が効くことを確認する
+    /// 🟡 信頼性レベル: 「移行なし・削除時のみ後方互換で解決する」方針より
+    #[tokio::test]
+    #[ignore]
+    async fn delete_item_file_falls_back_to_legacy_layout() {
+        // 【テストデータ準備】: 旧レイアウト（STORAGE_ROOT/pdf/{uuid}.pdf）へ実ファイルを置き、
+        // アイテムIDフォルダを含まない相対パスを登録する
+        let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
+        unsafe {
+            std::env::set_var("STORAGE_ROOT", temp_root.path());
+        }
+        let legacy_dir = temp_root.path().join("pdf");
+        std::fs::create_dir_all(&legacy_dir).expect("旧ベースディレクトリ作成に失敗しました");
+        let object_name = format!("{}.pdf", Uuid::new_v4());
+        let legacy_file = legacy_dir.join(&object_name);
+        std::fs::write(&legacy_file, b"%PDF-1.4 legacy object")
+            .expect("旧レイアウト実体の作成に失敗しました");
+
+        let state = test_app_state().await;
+        let app = crate::routes::build_router(state.clone());
+        let item_id = insert_test_item(&state.db).await;
+        let file_id =
+            insert_test_item_file_with_path(&state.db, item_id, &object_name, "pdf").await;
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/items/{item_id}/files/{file_id}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT); // 【確認内容】: 旧レコードの削除も204で成功することを確認 🟡
+        assert!(!legacy_file.exists()); // 【確認内容】: 旧レイアウトの実体も物理削除されることを確認 🟡
+        assert!(legacy_dir.exists()); // 【確認内容】: 旧ベースディレクトリ自体は削除されないことを確認 🟡
     }
 
     /// 【テスト用ヘルパー】: 指定file_typeのpdf/image item_file行を作成しfile_idを返す

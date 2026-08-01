@@ -161,8 +161,11 @@ async fn it_005_upload_file_via_multipart_persists_relative_path_under_temp_dir(
     let relative_path = json["data"]["path"].as_str().unwrap().to_string();
     assert!(!relative_path.starts_with('/')); // 【確認内容】: 保存されたpathが絶対パスでなく相対パス形式であることを確認 🔵
 
-    // 【結果検証】: 一時ディレクトリ配下（PDFの既定サブディレクトリ pdf/）に実ファイルが存在することを確認する 🔵
-    let absolute_path = temp_root.path().join("pdf").join(&relative_path);
+    // 【結果検証】: 相対パスがアイテムIDフォルダで始まることを確認する 🔵
+    assert!(relative_path.starts_with(&format!("{item_id}/"))); // 【確認内容】: アイテムIDごとにフォルダが切られることを確認 🔵
+
+    // 【結果検証】: 一時ディレクトリ配下（既定サブディレクトリ files/）に実ファイルが存在することを確認する 🔵
+    let absolute_path = temp_root.path().join("files").join(&relative_path);
     assert!(absolute_path.exists()); // 【確認内容】: 配置後の実ファイルが一時ディレクトリ上に存在することを確認 🔵
 
     // 【結果検証】: DB上のpathもレスポンスと同値であることを確認する 🔵

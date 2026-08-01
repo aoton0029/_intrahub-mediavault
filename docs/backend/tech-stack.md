@@ -28,7 +28,7 @@
 - **メインDB**: PostgreSQL（Docker）
 - **マイグレーション管理**: sqlx-cli（`sqlx migrate`）
 - **ファイルストレージ**: アプリコンテナ外のファイルサーバーHDDにバインドマウント
-  - **MediaVault専用領域**（アップロード書込先）: `STORAGE_ROOT`（`/srv/mediavault`）配下に、ファイル種別ごとのサブディレクトリ `video/` `image/` `audio/` `pdf/` `archive/` `other/`。`STORAGE_SUBDIR_*` で上書き可
+  - **MediaVault専用領域**（アップロード書込先）: `STORAGE_ROOT`（`/srv/mediavault`）配下のアップロード領域 `files/`（`STORAGE_SUBDIR_FILES` で上書き可）に、**アイテムIDごとのフォルダ**を切って保存する（`files/{item_id}/{uuid}.{ext}`）
   - **実データ領域**（読み取り専用）: `/srv/anime`・`/srv/live-action`・`/srv/manga`。Jellyfin・Calibre-Webも参照する
   - DB（`item_files.path`）は、アップロードなら**保存先ベースディレクトリからの相対パス**、リンク登録なら**実データ領域の絶対パス**を保持する。バイナリ本体はAPI外で管理（[item-files.md](./mediavault-api/item-files.md)）
 

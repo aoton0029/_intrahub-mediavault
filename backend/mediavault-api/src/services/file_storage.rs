@@ -4,10 +4,11 @@
 //! ベースディレクトリからの相対パスを返す。書込失敗時のロールバック（DBレコード未作成）・
 //! パストラバーサル防止・コンテナ内非保存（REQ-402）を担う。
 //!
-//! 設計決定（テストケース定義書 第8章の未確定事項をRed着手前に確定）:
+//! 設計決定:
 //! 1. file_type="photo" は既存 FileType::Image の表記ゆれとして扱う（enum拡張なし）。
-//! 2. 保存先は `STORAGE_ROOT` 配下に `FileType` ごとのサブディレクトリを持つ構成とし、
-//!    6種すべてを別ディレクトリへ分ける（`resolve_base_dir` / `subdir_spec` 参照）。
+//! 2. 保存先は `STORAGE_ROOT/<files>/{item_id}/{uuid}.{ext}` とし、**アイテムIDごとにフォルダを切る**。
+//!    1アイテムのファイルが1ディレクトリにまとまるため、Samba経由の閲覧・バックアップ・手動整理が
+//!    アイテム単位で行える。`FileType` ごとのサブディレクトリ分割（旧レイアウト）は廃止した。
 //!    この領域は MediaVault-api だけが書き込む「MediaVault専用領域」であり、
 //!    読み取り専用のアニメ・実写・マンガ領域とは分離する。
 //! 3. 書込失敗時は `ApiErrorCode::FileStorageWriteFailed`（500）を返す（models/response.rsに追加済み）。
@@ -15,6 +16,8 @@
 //!    常に失敗する `FailingFileWriter` を注入する（DIフレームワーク不使用、trait objectで十分）。
 //! 5. ボディサイズ上限はルーター層の `DefaultBodyLimit` で対応する前提とし、本サービスでは未テスト。
 //! 6. 空（0バイト）ファイルのアップロードは許容する（特別な拒否を行わない）。
+//! 7. 旧レイアウトで保存済みのファイルは移行しない。削除時のみ `resolve_legacy_base_dir` で
+//!    後方互換に解決する（`handlers::item_files::delete_item_file_handler` 参照）。
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -32,12 +35,16 @@ const STORAGE_ROOT_ENV: &str = "STORAGE_ROOT";
 /// 指さないことでコンテナ内非保存（REQ-402）を担保する。
 const DEFAULT_STORAGE_ROOT: &str = "/srv/mediavault";
 
-/// `FileType` ごとの、サブディレクトリ上書き用環境変数名と既定サブディレクトリ名を返す。
+/// アップロード領域のサブディレクトリ上書き用環境変数名と、その既定値。
+/// 保存先は「ルート1本 + このサブディレクトリ + アイテムIDフォルダ」で構成する。
+const STORAGE_SUBDIR_FILES_ENV: &str = "STORAGE_SUBDIR_FILES";
+const DEFAULT_FILES_SUBDIR: &str = "files";
+
+/// 【旧レイアウト】`FileType` ごとの、サブディレクトリ上書き用環境変数名と既定サブディレクトリ名を返す。
 ///
-/// 保存先は「ルート1本 + 種別サブディレクトリ」で構成する。種別を第1階層に置くことで、
-/// mergerfs の `category.create=epmfs` が種別単位で物理ディスクをまとめてくれる
-/// （大きい動画と小さい画像が同じディスクを奪い合わない）。
-fn subdir_spec(file_type: FileType) -> (&'static str, &'static str) {
+/// 種別を第1階層に置く構成は廃止した（アイテム単位で扱えないため）。この対応表は、
+/// 移行せずに残っている既存ファイルを削除時に解決するためだけに保持している。
+fn legacy_subdir_spec(file_type: FileType) -> (&'static str, &'static str) {
     match file_type {
         FileType::Pdf => ("STORAGE_SUBDIR_PDF", "pdf"),
         FileType::Image => ("STORAGE_SUBDIR_IMAGE", "image"),
@@ -73,29 +80,47 @@ fn validate_subdir(env_name: &str, value: &str) -> Option<String> {
     }
 }
 
-/// 書込先ベースディレクトリを環境変数から解決する（デフォルト値つき）。
+/// `STORAGE_ROOT`（MediaVault専用領域のルート）を環境変数から解決する（デフォルト値つき）。
+fn resolve_storage_root() -> PathBuf {
+    let root = std::env::var(STORAGE_ROOT_ENV)
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| DEFAULT_STORAGE_ROOT.to_string());
+    PathBuf::from(root)
+}
+
+/// アップロード領域のベースディレクトリを解決する（`item_files.path` が相対で表す基準点）。
 ///
-/// `STORAGE_ROOT`（MediaVault専用領域のルート）配下に、`FileType` ごとのサブディレクトリを
-/// 結合したパスを返す。サブディレクトリは `STORAGE_SUBDIR_*` で上書きでき、
-/// `video/2026` のようなネストした相対パスも許容する。
+/// `STORAGE_ROOT` 配下に `STORAGE_SUBDIR_FILES`（既定 `files`）を結合したパスを返す。
+/// 実際の書込先はこの下にさらにアイテムIDのフォルダを掘った `<base>/{item_id}/{uuid}.{ext}` になる。
+/// サブディレクトリ値は `vault/2026` のようなネストした相対パスも許容する。
 ///
 /// 【重要】ここが返すのはアップロードファイルの書込先（MediaVault専用領域）だけである。
 /// 読み取り専用のアニメ・実写・マンガ領域へは MediaVault は書き込まず、
 /// `POST /items/:id/files` による絶対パス登録（リンク）で参照するのみ。
 /// 🟡 信頼性レベル: 要件定義書 第3章「API制約 / 環境変数」より
-pub fn resolve_base_dir(file_type: FileType) -> PathBuf {
-    let root = std::env::var(STORAGE_ROOT_ENV)
+pub fn resolve_base_dir() -> PathBuf {
+    let subdir = std::env::var(STORAGE_SUBDIR_FILES_ENV)
         .ok()
-        .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| DEFAULT_STORAGE_ROOT.to_string());
+        .and_then(|v| validate_subdir(STORAGE_SUBDIR_FILES_ENV, &v))
+        .unwrap_or_else(|| DEFAULT_FILES_SUBDIR.to_string());
 
-    let (env_name, default_subdir) = subdir_spec(file_type);
+    resolve_storage_root().join(subdir)
+}
+
+/// 【旧レイアウト】種別サブディレクトリ方式のベースディレクトリを解決する。
+///
+/// アイテムIDフォルダ導入前に保存されたファイルは移行していないため、`item_files.path` が
+/// アイテムIDフォルダを含まない（＝`{uuid}.{ext}` 単体の）レコードの実体はここに残っている。
+/// 削除時のフォールバック解決にのみ使う。新規書込では使用しない。
+pub fn resolve_legacy_base_dir(file_type: FileType) -> PathBuf {
+    let (env_name, default_subdir) = legacy_subdir_spec(file_type);
     let subdir = std::env::var(env_name)
         .ok()
         .and_then(|v| validate_subdir(env_name, &v))
         .unwrap_or_else(|| default_subdir.to_string());
 
-    PathBuf::from(root).join(subdir)
+    resolve_storage_root().join(subdir)
 }
 
 /// クライアント指定の元ファイル名から、サーバー側で一意なオブジェクト名（UUID + 元拡張子）を生成する。
@@ -141,15 +166,15 @@ pub trait FileWriter: Send + Sync {
     fn remove(&self, path: &Path) -> Result<(), io::Error>;
 }
 
-/// 本番用の実装。`tokio::fs`（同期コンテキストでは`std::fs`）でファイルシステムへ書き込む。
-/// 🔵 信頼性レベル: 要件定義書 第3章「tokio::fsによるストリーミング書込」より
+/// 本番用の実装。`std::fs`（同期API）でファイルシステムへ書き込む。
+/// 型名は導入時の経緯を残しているが、実装は同期I/Oである。
 pub struct TokioFileWriter;
 
 impl FileWriter for TokioFileWriter {
     fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), io::Error> {
-        // 【実装内容】: FileWriterトレイトは同期I/Fのため、書込先の親ディレクトリを作成した上で
-        // std::fs（同期）を用いて書き込む。呼び出し元（store_file）は非同期文脈から
-        // tokio::task::spawn_blocking等で呼ぶことを想定せず、ここでは単純にstd::fsで実装する 🔵
+        // 【実装内容】: FileWriterトレイトは同期I/Fのため、書込先の親ディレクトリ
+        // （＝アイテムIDフォルダ）を作成した上で std::fs（同期）を用いて書き込む。
+        // アイテムIDフォルダの作成はここが担うため、store_file側での事前作成は不要 🔵
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -191,21 +216,25 @@ pub struct StoredFile {
     pub relative_path: String,
 }
 
-/// 【機能概要】: file_typeに応じたベースディレクトリへバイナリを書き込み、相対パスを返す。
+/// 【機能概要】: アップロード領域のアイテムIDフォルダ配下へバイナリを書き込み、相対パスを返す。
+/// 書込先は `resolve_base_dir()/{item_id}/{uuid}.{ext}`、返す相対パスは `{item_id}/{uuid}.{ext}`。
 /// 失敗時は `ApiErrorCode::FileStorageWriteFailed` を返す（DBレコードは作成させない）。
 /// 🟡 信頼性レベル: 要件定義書 第2章データフロー・第3章セキュリティ要件・TC-019-01/02/E01/U05に対応
 pub fn store_file(
     writer: &dyn FileWriter,
-    file_type: FileType,
+    item_id: Uuid,
     original_filename: &str,
     bytes: &[u8],
 ) -> Result<StoredFile, ApiError> {
     // 【処理方針】: ベースディレクトリ解決→一意名生成→書込→相対パス算出の順に実行する。
     // 書込が失敗した場合はDBレコードを作らせないため、ここでApiError(FileStorageWriteFailed)
     // へ変換して返す（write-then-record順序保証） 🟡
-    let base_dir = resolve_base_dir(file_type);
+    // 【アイテムIDフォルダ】: item_idはUUIDとしてパース済みの値であり、パス区切りや`..`を
+    // 含み得ないため、そのままディレクトリ名として使って安全である 🔵
+    let base_dir = resolve_base_dir();
     let object_name = generate_object_name(original_filename);
-    let absolute_path = base_dir.join(&object_name);
+    let relative_path = format!("{item_id}/{object_name}");
+    let absolute_path = base_dir.join(item_id.to_string()).join(&object_name);
 
     // 【実処理実行】: FileWriterトレイト経由で実際の書込を行う
     writer.write(&absolute_path, bytes).map_err(|err| {
@@ -218,9 +247,8 @@ pub fn store_file(
         )
     })?;
 
-    // 【相対パス算出】: item_files.pathにはベースディレクトリからの相対パスのみを保存する 🔵
-    let relative_path = object_name;
-
+    // 【相対パス】: item_files.pathにはベースディレクトリからの相対パス（アイテムIDフォルダを含む）
+    // のみを保存する。区切りは `/` 固定とし、Windows開発環境でもDB上の表現を揺らさない 🔵
     Ok(StoredFile {
         base_dir,
         absolute_path,
@@ -343,7 +371,7 @@ mod tests {
         // 🔵 信頼性レベル: 要件定義書 第2章出力仕様「相対パス保存」・TC-019-U05に直接対応
 
         // 【テストデータ準備】: 一時ベースディレクトリと環境変数を設定する
-        // 【初期条件設定】: STORAGE_ROOTを一時ディレクトリに切り替える（PDFは既定サブディレクトリ pdf/ 配下になる）
+        // 【初期条件設定】: STORAGE_ROOTを一時ディレクトリに切り替える（既定サブディレクトリ files/ 配下になる）
         // 環境変数はプロセス全体で共有されるため、ENV_MUTEXで他のテストとの並列実行による競合を防ぐ
         let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         clear_storage_env();
@@ -352,19 +380,59 @@ mod tests {
             std::env::set_var(STORAGE_ROOT_ENV, root.path());
         }
         let writer = TokioFileWriter;
+        let item_id = Uuid::new_v4();
 
         // 【実際の処理実行】: store_file()でpdfバイト列を書き込む
         // 【処理内容】: 一意名生成→書込→相対パス算出
-        let result = store_file(&writer, FileType::Pdf, "example.pdf", b"%PDF-1.4 dummy");
+        let result = store_file(&writer, item_id, "example.pdf", b"%PDF-1.4 dummy");
 
         // 【結果検証】: 戻り値のrelative_pathが絶対パス・ベースディレクトリ文字列を含まないことを確認
         // 【期待値確認】: item_files.pathに絶対パスが漏れないことの保証（要件定義書第2章）
         let stored = result.expect("正常書込が成功するはず");
         assert!(!stored.relative_path.starts_with('/')); // 【確認内容】: 相対パスが先頭'/'を持たないことを確認 🔵
         assert!(stored.base_dir.join(&stored.relative_path).exists()); // 【確認内容】: base.join(相対パス)が実ファイルとして存在することを確認 🔵
-        assert_eq!(stored.base_dir, root.path().join("pdf")); // 【確認内容】: 種別サブディレクトリ配下に書かれることを確認 🔵
+        assert_eq!(stored.base_dir, root.path().join("files")); // 【確認内容】: アップロード領域サブディレクトリ配下に書かれることを確認 🔵
 
         // 【テスト後処理】: 他のテストに影響しないよう環境変数を未設定に戻す
+        clear_storage_env();
+    }
+
+    /// アップロードファイルがアイテムIDごとのフォルダへ保存される（本変更の中心的な振る舞い）
+    /// 🔵 信頼性レベル: 「アイテムIDごとにフォルダを切って保存する」要件に直接対応
+    #[test]
+    fn store_file_places_files_in_a_per_item_directory() {
+        // 【テスト目的】: 保存先が `<base>/{item_id}/{uuid}.{ext}` になり、相対パスもその形になること、
+        // かつ別アイテムのファイルが別フォルダへ分かれることを確認する
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        clear_storage_env();
+        let root = temp_storage_root();
+        unsafe {
+            std::env::set_var(STORAGE_ROOT_ENV, root.path());
+        }
+        let writer = TokioFileWriter;
+        let item_a = Uuid::new_v4();
+        let item_b = Uuid::new_v4();
+
+        // 【実際の処理実行】: 同一アイテムへ種別の異なる2ファイル、別アイテムへ1ファイルを書き込む
+        let first = store_file(&writer, item_a, "cover.jpg", b"jpg").expect("書込成功するはず");
+        let second = store_file(&writer, item_a, "movie.mp4", b"mp4").expect("書込成功するはず");
+        let other = store_file(&writer, item_b, "cover.jpg", b"jpg").expect("書込成功するはず");
+
+        let item_a_dir = root.path().join("files").join(item_a.to_string());
+
+        // 【確認内容】: 相対パスが `{item_id}/{uuid}.{ext}` 形式であることを確認 🔵
+        assert!(first.relative_path.starts_with(&format!("{item_a}/")));
+        assert!(first.relative_path.ends_with(".jpg"));
+
+        // 【確認内容】: 同一アイテムのファイルは種別が違っても同じフォルダに並ぶことを確認 🔵
+        assert_eq!(first.absolute_path.parent(), Some(item_a_dir.as_path()));
+        assert_eq!(second.absolute_path.parent(), Some(item_a_dir.as_path()));
+        assert!(first.absolute_path.exists() && second.absolute_path.exists());
+
+        // 【確認内容】: 別アイテムのファイルは別フォルダへ分かれることを確認 🔵
+        assert_ne!(other.absolute_path.parent(), Some(item_a_dir.as_path()));
+        assert!(other.absolute_path.exists());
+
         clear_storage_env();
     }
 
@@ -383,7 +451,7 @@ mod tests {
         let writer = FailingFileWriter;
 
         // 【実際の処理実行】: store_file()に書込失敗フェイクを注入して呼び出す
-        let result = store_file(&writer, FileType::Pdf, "example.pdf", b"dummy bytes");
+        let result = store_file(&writer, Uuid::new_v4(), "example.pdf", b"dummy bytes");
 
         // 【結果検証】: エラーが返り、ワイヤーコードがFILE_STORAGE_WRITE_FAILEDであることを確認
         // 【期待値確認】: 物理ストレージ障害がクライアントへ一般化されたメッセージで伝わること
@@ -391,13 +459,14 @@ mod tests {
         assert_eq!(err.error.code, "FILE_STORAGE_WRITE_FAILED"); // 【確認内容】: 書込失敗が専用エラーコードへマッピングされることを確認 🟡
     }
 
-    /// `STORAGE_ROOT` と全 `STORAGE_SUBDIR_*` を未設定に戻すヘルパー。
+    /// `STORAGE_ROOT` と `STORAGE_SUBDIR_*`（現行・旧レイアウトとも）を未設定に戻すヘルパー。
     /// 各テストは `ENV_MUTEX` を保持した状態でこれを呼び、他テストの設定残りの影響を排除する。
     fn clear_storage_env() {
         unsafe {
             std::env::remove_var(STORAGE_ROOT_ENV);
+            std::env::remove_var(STORAGE_SUBDIR_FILES_ENV);
             for ft in ALL_FILE_TYPES {
-                std::env::remove_var(subdir_spec(ft).0);
+                std::env::remove_var(legacy_subdir_spec(ft).0);
             }
         }
     }
@@ -412,13 +481,11 @@ mod tests {
         FileType::Other,
     ];
 
-    /// TC-019-01/02: FileType 6種すべてがSTORAGE_ROOT配下の「互いに異なる」既定サブディレクトリへ解決される
-    /// 🔵 信頼性レベル: 要件定義書 第1章「file_typeに応じたディレクトリ分岐」に直接対応
+    /// アップロード領域のベースディレクトリはfile_typeに依存せず1本に解決される
+    /// 🔵 信頼性レベル: 「アイテムIDごとにフォルダを切る（種別分割は廃止）」要件に直接対応
     #[test]
-    fn resolve_base_dir_maps_every_file_type_to_a_distinct_subdir_under_root() {
-        // 【テスト目的】: 種別ごとに保存先が分かれること（＝どの2種も同じディレクトリに混ざらないこと）を確認する
-        // 【テスト内容】: STORAGE_ROOTのみ設定し、6種すべてのresolve_base_dirの戻り値を集める
-        // 【期待される動作】: すべてSTORAGE_ROOT配下であり、6種の解決結果に重複がない
+    fn resolve_base_dir_is_a_single_directory_under_root() {
+        // 【テスト目的】: 保存先がSTORAGE_ROOT配下の単一ディレクトリ（既定 files/）であることを確認する
         let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         clear_storage_env();
         let root = temp_storage_root();
@@ -426,61 +493,37 @@ mod tests {
             std::env::set_var(STORAGE_ROOT_ENV, root.path());
         }
 
-        let resolved: Vec<PathBuf> = ALL_FILE_TYPES
-            .iter()
-            .map(|ft| resolve_base_dir(*ft))
-            .collect();
+        let base = resolve_base_dir();
 
-        for (ft, base) in ALL_FILE_TYPES.iter().zip(&resolved) {
-            // 【確認内容】: 各種別の保存先がSTORAGE_ROOT配下に収まることを確認 🔵
-            assert!(
-                base.starts_with(root.path()),
-                "{ft:?} の保存先がルート外: {base:?}"
-            );
-            // 【確認内容】: ルート直下ではなく種別サブディレクトリが付与されることを確認 🔵
-            assert_ne!(
-                base.as_path(),
-                root.path(),
-                "{ft:?} にサブディレクトリが付与されていない"
-            );
-        }
-
-        let mut unique = resolved.clone();
-        unique.sort();
-        unique.dedup();
-        // 【確認内容】: 6種の保存先がすべて異なる＝種別ごとに保存先が分離されていることを確認 🔵
-        assert_eq!(
-            unique.len(),
-            ALL_FILE_TYPES.len(),
-            "種別間で保存先が重複している: {resolved:?}"
-        );
+        // 【確認内容】: ルート直下ではなく既定サブディレクトリ files/ が付与されることを確認 🔵
+        assert_eq!(base, root.path().join(DEFAULT_FILES_SUBDIR));
 
         clear_storage_env();
     }
 
-    /// 種別ごとのサブディレクトリを環境変数で上書きできる（ネストした相対パスも許容する）
+    /// アップロード領域のサブディレクトリを環境変数で上書きできる（ネストした相対パスも許容する）
     /// 🔵 信頼性レベル: 「保存先を環境変数で設定できるようにする」要件に直接対応
     #[test]
     fn resolve_base_dir_honors_subdir_override_env_var() {
-        // 【テスト目的】: STORAGE_SUBDIR_* による保存先の上書きが効くことを確認する
+        // 【テスト目的】: STORAGE_SUBDIR_FILES による保存先の上書きが効くことを確認する
         // 【期待される動作】: 指定したネスト付き相対パスがSTORAGE_ROOTへ結合される
         let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         clear_storage_env();
         unsafe {
             std::env::set_var(STORAGE_ROOT_ENV, "/tmp/mediavault-test-vault");
-            std::env::set_var("STORAGE_SUBDIR_VIDEO", "video/2026");
+            std::env::set_var(STORAGE_SUBDIR_FILES_ENV, "vault/2026");
         }
 
-        let base = resolve_base_dir(FileType::Video);
+        let base = resolve_base_dir();
 
         // 【確認内容】: 上書き値がそのままルート配下へ結合されることを確認 🔵
-        assert_eq!(base, PathBuf::from("/tmp/mediavault-test-vault/video/2026"));
+        assert_eq!(base, PathBuf::from("/tmp/mediavault-test-vault/vault/2026"));
 
         clear_storage_env();
     }
 
-    /// STORAGE_SUBDIR_* にルート外を指す値（絶対パス・`..`）が渡されても既定値へフォールバックする
-    /// 🟡 信頼性レベル: generate_object_nameのパストラバーサル防止と対になる新規のセキュリティ要件
+    /// STORAGE_SUBDIR_FILES にルート外を指す値（絶対パス・`..`）が渡されても既定値へフォールバックする
+    /// 🟡 信頼性レベル: generate_object_nameのパストラバーサル防止と対になるセキュリティ要件
     #[test]
     fn resolve_base_dir_rejects_subdir_escaping_the_storage_root() {
         // 【テスト目的】: 設定ミス・悪意ある設定値でルート外へ書き込まれないことを確認する
@@ -492,18 +535,55 @@ mod tests {
             std::env::set_var(STORAGE_ROOT_ENV, "/tmp/mediavault-test-vault");
         }
 
-        for malicious in ["/etc", "../../etc", "video/../../etc"] {
+        for malicious in ["/etc", "../../etc", "files/../../etc"] {
             unsafe {
-                std::env::set_var("STORAGE_SUBDIR_VIDEO", malicious);
+                std::env::set_var(STORAGE_SUBDIR_FILES_ENV, malicious);
             }
-            let base = resolve_base_dir(FileType::Video);
+            let base = resolve_base_dir();
             // 【確認内容】: ルート外への脱出が拒否され、既定サブディレクトリへ戻ることを確認 🟡
             assert_eq!(
                 base,
-                PathBuf::from("/tmp/mediavault-test-vault/video"),
+                PathBuf::from("/tmp/mediavault-test-vault/files"),
                 "{malicious:?} がルート外への脱出を許している"
             );
         }
+
+        clear_storage_env();
+    }
+
+    /// 旧レイアウト（種別サブディレクトリ）の解決は後方互換のため引き続き機能する
+    /// 🟡 信頼性レベル: 「既存ファイルは移行せず削除時のみ後方互換で解決する」方針より
+    #[test]
+    fn resolve_legacy_base_dir_still_maps_each_file_type_to_a_distinct_subdir() {
+        // 【テスト目的】: 移行していない既存ファイルを見つけられるよう、旧レイアウトの
+        // 種別ごとの解決が維持されていることを確認する
+        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        clear_storage_env();
+        let root = temp_storage_root();
+        unsafe {
+            std::env::set_var(STORAGE_ROOT_ENV, root.path());
+        }
+
+        let resolved: Vec<PathBuf> = ALL_FILE_TYPES
+            .iter()
+            .map(|ft| resolve_legacy_base_dir(*ft))
+            .collect();
+
+        for (ft, base) in ALL_FILE_TYPES.iter().zip(&resolved) {
+            // 【確認内容】: 旧レイアウトの解決先もSTORAGE_ROOT配下に収まることを確認 🟡
+            assert!(
+                base.starts_with(root.path()),
+                "{ft:?} の旧保存先がルート外: {base:?}"
+            );
+            // 【確認内容】: 現行のアップロード領域とは別ディレクトリであることを確認 🟡
+            assert_ne!(base.as_path(), resolve_base_dir().as_path());
+        }
+
+        let mut unique = resolved.clone();
+        unique.sort();
+        unique.dedup();
+        // 【確認内容】: 旧レイアウトでは6種の保存先がすべて異なっていたことを確認 🟡
+        assert_eq!(unique.len(), ALL_FILE_TYPES.len());
 
         clear_storage_env();
     }
@@ -520,18 +600,16 @@ mod tests {
         let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         clear_storage_env();
 
-        for ft in ALL_FILE_TYPES {
-            let base = resolve_base_dir(ft);
-            // 【確認内容】: デフォルトパスがコンテナ内カレントでなく専用領域配下であることを確認 🟡
-            assert!(
-                base.starts_with(DEFAULT_STORAGE_ROOT),
-                "{ft:?} のデフォルトパスが専用領域外: {base:?}"
-            );
-            assert!(
-                !base.starts_with("."),
-                "{ft:?} のデフォルトパスがカレントディレクトリ相対: {base:?}"
-            );
-        }
+        let base = resolve_base_dir();
+        // 【確認内容】: デフォルトパスがコンテナ内カレントでなく専用領域配下であることを確認 🟡
+        assert!(
+            base.starts_with(DEFAULT_STORAGE_ROOT),
+            "デフォルトパスが専用領域外: {base:?}"
+        );
+        assert!(
+            !base.starts_with("."),
+            "デフォルトパスがカレントディレクトリ相対: {base:?}"
+        );
     }
 
     /// IT-019-02: DB登録失敗を模してcleanup_file()で書込済みファイルが削除される
@@ -553,7 +631,7 @@ mod tests {
             std::env::set_var(STORAGE_ROOT_ENV, root.path());
         }
         let writer = TokioFileWriter;
-        let stored = store_file(&writer, FileType::Pdf, "example.pdf", b"dummy")
+        let stored = store_file(&writer, Uuid::new_v4(), "example.pdf", b"dummy")
             .expect("前提となる書込が成功するはず");
 
         // 【実際の処理実行】: cleanup_file()でロールバック削除を実行する
