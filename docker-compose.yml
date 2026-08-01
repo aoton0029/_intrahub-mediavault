@@ -18,9 +18,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
-      TZ: ${TZ:-Asia/Tokyo}
+      TZ: ${TZ:?TZ is required}
     volumes:
-      - ${MEDIAVAULT_ROOT:-/srv/mediavault}/db:/var/lib/postgresql/data
+      - ${MEDIAVAULT_ROOT:?MEDIAVAULT_ROOT is required}/db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?} -d ${POSTGRES_DB:?}"]
       interval: 10s
@@ -37,13 +37,12 @@ services:
     container_name: mediavault-api
     restart: unless-stopped
     environment:
-      TZ: ${TZ:-Asia/Tokyo}
       DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
       STORAGE_ROOT: /srv/mediavault
       # /internal/* のBearer認証キー。未設定だと空文字となり内部APIが無認証になるため必須扱い
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
       # 単一オリジンのみ指定可。不正値は起動時panic（main.rs）
-      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-https://mediavault.aoton.win}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:?CORS_ALLOWED_ORIGIN is required}
       # 外部メタデータAPIの認証情報（未設定のプロバイダは起動時seedをスキップする）
       TMDB_API_KEY: ${TMDB_API_KEY:-}
       STEAM_API_KEY: ${STEAM_API_KEY:-}
@@ -54,7 +53,7 @@ services:
       RAKUTEN_APPLICATION_ID: ${RAKUTEN_APPLICATION_ID:-}
       RAKUTEN_ACCESS_KEY: ${RAKUTEN_ACCESS_KEY:-}
     volumes:
-      - ${MEDIAVAULT_ROOT:-/srv/mediavault}:/srv/mediavault
+      - ${MEDIAVAULT_ROOT:?MEDIAVAULT_ROOT is required}:/srv/mediavault
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
       interval: 10s
@@ -80,7 +79,7 @@ services:
     container_name: mediavault-web
     restart: unless-stopped
     environment:
-      TZ: ${TZ:-Asia/Tokyo}
+      TZ: ${TZ:?TZ is required}
     depends_on:
       mediavault-api:
         condition: service_healthy
@@ -88,7 +87,6 @@ services:
       - proxy-net
 
   # mediavault-worker:
-  #   # 【未実装】backend/Dockerfile.worker は未作成のため、現時点では build が失敗する。
   #   build:
   #     context: ./backend
   #     dockerfile: Dockerfile.worker
@@ -96,7 +94,6 @@ services:
   #   container_name: mediavault-worker
   #   restart: unless-stopped
   #   environment:
-  #     TZ: ${TZ:-Asia/Tokyo}
   #     DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
   #     LLM_BASE_URL: ${LLM_BASE_URL:-}
   #     LLM_API_KEY: ${LLM_API_KEY:-}
@@ -116,7 +113,6 @@ services:
   #   container_name: mediavault-mcp
   #   restart: unless-stopped
   #   environment:
-  #     TZ: ${TZ:-Asia/Tokyo}
   #     MEDIAVAULT_API_BASE_URL: http://mediavault-api:8080
   #   depends_on:
   #     mediavault-api:
@@ -129,4 +125,4 @@ networks:
     driver: bridge
   proxy-net:
     external: true
-    name: ${PROXY_NET_NAME:-proxy-net}
+    name: ${PROXY_NET_NAME:?PROXY_NET_NAME is required}

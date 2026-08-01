@@ -74,3 +74,5 @@ flowchart LR
 
 - `インフラ設計/デバイス/ミニPC/サービス/MediaVault/README.md`
 - `インフラ設計/デバイス/ミニPC/サービス/MediaVault/設計.md`
+
+デプロイモード別のオリジン統合(CORS回避)の仕組みは [06_deployment-routing.md](06_deployment-routing.md) を参照。
