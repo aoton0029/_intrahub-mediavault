@@ -146,6 +146,9 @@
 | PUT | /settings/api-keys/{provider} | 外部APIキー登録・更新 | [settings.md](./settings.md) |
 | POST | /import/booklog | Booklog CSVインポート | [import.md](./import.md) |
 | POST | /import/steam | Steamライブラリインポート | [import.md](./import.md) |
+| GET | /jobs | ジョブ一覧取得（**未実装**） | [jobs.md](./jobs.md) |
+| GET | /jobs/{id} | ジョブ状態・進捗取得（**未実装**） | [jobs.md](./jobs.md) |
+| POST | /jobs/{id}/cancel | ジョブキャンセル（**未実装**） | [jobs.md](./jobs.md) |
 
 内部API（`/internal/*`）の一覧・詳細は [internal-api.md](./internal-api.md) を参照。
 
@@ -169,6 +172,7 @@
 - [item-trailers.md](./item-trailers.md) — Item Trailers
 - [settings.md](./settings.md) — Settings
 - [import.md](./import.md) — Import
+- [jobs.md](./jobs.md) — Jobs（worker連携の非同期ジョブ。**未実装**）
 - [internal-api.md](./internal-api.md) — 内部API（`/internal/*`）
 
-DBスキーマ・ER図・リクエストDTO・バリデーション・トリガー等の内部実装詳細は [mediavault-model/index.md](../mediavault-model/index.md) を参照。
+DBスキーマとデータモデルの概要は[基本設計](../../basic-design/02_data-model.md)を参照。

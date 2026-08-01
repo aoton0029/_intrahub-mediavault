@@ -2,7 +2,7 @@
 
 ## 概要
 MediaVaultのバックエンド部分のPRD。映画・アニメ・漫画・小説・ドラマ・ゲーム・論文/文献・書籍などのメタデータを一元管理するセルフホスト型アプリケーションのうち、API提供・外部API連携・データベース管理を担う。
-全体構想は[ルートPRD](../../docs/PRD.md)を参照。フロントエンド側は[frontend/docs/PRD.md](../../frontend/docs/PRD.md)を参照。
+全体構想は[ルートPRD](../PRD.md)を参照。フロントエンド側は[docs/frontend/PRD.md](../frontend/PRD.md)を参照。
 
 ## 技術スタック
 | 要素 | 技術 |
@@ -127,7 +127,7 @@ APIクライアント・データモデル・ユーティリティ関数など�
 | `mylists` / `mylist_items` | 任意名称のマイリスト |
 | `item_relations` | 他メディアアイテムへの引用・関連付け（item_id ⇔ related_item_id, relation_type）。relation_typeで関係の種類を区別する（例：reference=単純な引用・関連、dlc=本体作品へのDLC/拡張パック紐付け） |
 | `item_links` | 配信サイト等へのURLリンクリスト（item_id, url, label）。labelは配信サイト名（例：Amazon, Netflix, Disney+, Youtube, DMM TV等）を想定 |
-| `item_files` | アップロードファイルリスト（item_id, path, label, file_type）。ファイル本体はコンテナ内ではなくファイルサーバー用HDDにバインドマウントされたパス（PDF: `/srv/files/pdf`、画像: `/srv/media/photos`）に保存し、`path`はそのファイルサーバー上の相対パスを保持する。file_type=pdfの場合はCalibre-Web側で自動認識されたライブラリエントリへのリンク用に`calibre_book_id`を別途保持し、作品詳細からCalibre-Webの閲覧URLへ直接遷移できるようにする |
+| `item_files` | ファイルリスト（item_id, path, label, file_type）。アップロードは`/srv/mediavault`配下へ保存し、アニメ・実写・マンガの既存ファイルは絶対パスでリンクする。 |
 | `item_trailers` | トレーラーURLリスト（item_id, url, label） |
 | `item_groups` | 作品内の入れ子構造を持つグループ単位管理（シーズン/巻/章の汎用モデル。DLC等の作品間関係は`item_relations`で表現するため対象外）：group_name, group_type(season/volume/chapter), order（表示順）, number（巻数・章数など対外的な番号）, parent_item_id |
 | `item_episodes` | エピソード（話数）単位の情報。season/chapter配下のみで使用し、volume（巻）には使用しない：group_id(item_groupsへの外部キー), episode_number, title, original_title?, air_date?, description? |

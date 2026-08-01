@@ -55,7 +55,7 @@ docker compose -f docker-compose.test.yml down
 
 ## 本番環境（docker-compose.yml）の起動
 
-ミニPC実機を想定した本番用構成。`mediavault-api`/`mediavault-web`/`mediavault-worker`/`mediavault-mcp`は本リポジトリのソースからローカルビルドし、Jellyfin・Calibre-Webをバンドルする。個々のコンテナはホストへポートを公開せず、外部リバースプロキシ用の`proxy-net`（本グループ外で作成・注入される）経由でのみ公開される。詳細な構成意図は[インフラ設計側のMediaVault/README.md](../インフラ設計/デバイス/ミニPC/サービス/MediaVault/README.md)を参照。
+ミニPC実機を想定した本番用構成。`mediavault-api`/`mediavault-web`/`mediavault-worker`/`mediavault-mcp`は本リポジトリのソースからローカルビルドし、Jellyfin・Calibre-Webをバンドルする。個々のコンテナはホストへポートを公開せず、外部リバースプロキシ用の`proxy-net`（本グループ外で作成・注入される）経由でのみ公開される。詳細な構成意図は[インフラ設計側のMediaVault/README.md](../homelab/デバイス/ミニPC/サービス/MediaVault/README.md)を参照。
 
 DBマイグレーションは`mediavault-api`が起動時に自ら適用する（[main.rs](backend/mediavault-api/src/main.rs)の`db::run_migrations`）。専用の`migrate`サービスは持たない。
 
@@ -74,7 +74,7 @@ docker compose -p mediavault --env-file .env.production ps
 
 `mediavault-worker`/`mediavault-mcp`は`build:`（`backend/Dockerfile.worker`・`backend/Dockerfile.mcp`）を指定してあるが、**Dockerfileとソースがまだ無いためビルドできない**。実装が入るまではサービス名を明示して上記のように除外する。設計は[docs/backend/mediavault-worker/PRD.md](docs/backend/mediavault-worker/PRD.md)・[docs/backend/mediavault-mcp/PRD.md](docs/backend/mediavault-mcp/PRD.md)を参照。
 
-環境依存値（`DATA_ROOT`/`MEDIA_ROOT`/`DOCUMENTS_ROOT`/`TZ`/`PUID`/`PGID`/Postgres認証情報/`INTERNAL_API_KEY`/`CORS_ALLOWED_ORIGIN`/外部メタデータAPIキー/検索バックエンド/LLMエンドポイント/GHCRイメージ参照等）はすべて`.env.production`に外だししてある。`.env.production`はコミットしない（`.gitignore`で除外済み）。
+環境依存値（`DATA_ROOT`/`ANIME_ROOT`/`LIVE_ACTION_ROOT`/`MANGA_ROOT`/`MEDIAVAULT_ROOT`/`TZ`/`PUID`/`PGID`/Postgres認証情報/`INTERNAL_API_KEY`/`CORS_ALLOWED_ORIGIN`/外部メタデータAPIキー/検索バックエンド/LLMエンドポイント等）はすべて`.env.production`に外だししてある。`.env.production`はコミットしない（`.gitignore`で除外済み）。
 
 `INTERNAL_API_KEY` と各GHCRイメージタグ・Postgres認証情報は `${VAR:?}` で必須指定してあるため、未設定なら起動前にエラーになる。起動前に次のコマンドで全変数が解決することを確認できる。
 
@@ -140,31 +140,12 @@ npx shadcn@latest add <component-name>
 `package.json`が`"type": "module"`のESM環境のため、`vite.config.ts`・`vitest.config.ts`で`__dirname`を直接使うとshadcn CLIのワークスペース設定読み込みに失敗する。`path.dirname(fileURLToPath(import.meta.url))`で算出すること。また`tsconfig.json`（ルート）にも`compilerOptions.paths`（`@/*` → `./src/*`）を設定する必要がある（`tsconfig.app.json`のみでは`tsconfig-paths`が解決できない）。
 
 ## 詳細
-- バックエンドの詳細草案（機能要件・内部REST API・データベース・api-client-lib）は[backend/docs/PRD.md](../backend/docs/PRD.md)を参照。
-- フロントエンドの詳細草案（UI機能要件・画面構成）は[frontend/docs/PRD.md](../frontend/docs/PRD.md)を参照。
+- バックエンドの詳細草案は[docs/backend/PRD.md](docs/backend/PRD.md)を参照。
+- フロントエンドの詳細草案は[docs/frontend/PRD.md](docs/frontend/PRD.md)を参照。
 
 - 映画・アニメ・漫画・小説・ドラマ・ゲーム・論文/文献・書籍等のメタデータを一元管理するセルフホスト型アプリケーション。
-- コンテナは`selfhosted-net`・`db-net`([PostgreSQL](../PostgreSQL/README.md)利用)・`ai-net`([RAG-Service](../RAG-Service/README.md)の`POST /ingest`呼び出し用)に参加する。Caddy経由(`app.home.lan`)で公開するため`proxy-net`にも参加し、ホスト直接ポート公開は行わない。
-- アップロードファイルはコンテナ内ではなくファイルサーバー用HDDへ直接保存する（バインドマウント）。保存先はファイル種別ごとに分かれる。
-  - 保存先ルートは `STORAGE_ROOT`（ホスト側 `VAULT_ROOT`＝`/srv/mediavault`）で、その配下に種別サブディレクトリ `video/` `image/` `audio/` `pdf/` `archive/` `other/` が作られる。サブディレクトリ名は `STORAGE_SUBDIR_*` で上書きできる。
-  - 録画データ等の実データ領域（`/srv/media`・`/srv/documents`）はこれとは別領域であり、MediaVault は読み取り専用で参照する。既存ファイルを Item に紐付ける場合は `POST /items/:id/files` で絶対パスを登録して**リンク**する（コピー・移動はしない）。
+- API/Webは`proxy-net`、API/PostgreSQLは`db-net`で接続し、ホストへ直接ポートを公開しない。
+- アップロードファイルはMediaVault専用領域へ保存する。
+  - 保存先ルートは`STORAGE_ROOT`（ホスト側`MEDIAVAULT_ROOT`と同じ`/srv/mediavault`）で、その配下に種別サブディレクトリ`video/` `image/` `audio/` `pdf/` `archive/` `other/`が作られる。サブディレクトリ名は`STORAGE_SUBDIR_*`で上書きできる。
+  - `/srv/anime`・`/srv/live-action`・`/srv/manga`は読み取り専用で参照する。既存ファイルは`POST /items/:id/files`で絶対パスを登録してリンクし、コピー・移動しない。
   - 詳細は [docs/backend/mediavault-api/item-files.md](./docs/backend/mediavault-api/item-files.md) を参照。
-
-> **注記**: 以下のセクション（`selfhosted-net` / `app.home.lan` / RAG-Service 前提の compose 例）は旧構成時点の草案であり、現行の `docker-compose.yml`（`proxy-net` / `mediavault-api` 構成）とは一致しない。**要見直し**。
-
-```yaml
-# selfhosted/docker-compose.yml (例)
-services:
-  mediavault:
-    image: <未定>
-    networks:
-      - selfhosted-net
-      - db-net      # PostgreSQL利用
-      - ai-net      # RAG-Service呼び出し(PDF全文ベクトル化トリガー)
-      - proxy-net   # Caddy経由で公開
-    volumes:
-      - /srv/files/pdf:/data/pdf      # PDFアップロード保存先（Calibre-Webと共用）
-      - /srv/media/photos:/data/photos  # 画像アップロード保存先（Samba/Jellyfin photosと共用）
-      - /srv/files/ocr:/data/ocr:ro     # OCRテキスト参照用（RAG-Serviceが書き込み、本サービスは読み取り専用）
-    # ports: ホスト直接公開はしない方針。Caddy経由(app.home.lan)とする
-```

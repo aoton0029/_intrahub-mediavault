@@ -9,7 +9,7 @@
 //! 2. 保存先は `STORAGE_ROOT` 配下に `FileType` ごとのサブディレクトリを持つ構成とし、
 //!    6種すべてを別ディレクトリへ分ける（`resolve_base_dir` / `subdir_spec` 参照）。
 //!    この領域は MediaVault-api だけが書き込む「MediaVault専用領域」であり、
-//!    録画データ等の実データ領域（/data/media・/data/documents）とは分離する。
+//!    読み取り専用のアニメ・実写・マンガ領域とは分離する。
 //! 3. 書込失敗時は `ApiErrorCode::FileStorageWriteFailed`（500）を返す（models/response.rsに追加済み）。
 //! 4. 書込失敗注入は `FileWriter` トレイトで行う。本番は `TokioFileWriter`、テストでは
 //!    常に失敗する `FailingFileWriter` を注入する（DIフレームワーク不使用、trait objectで十分）。
@@ -27,10 +27,10 @@ use crate::models::response::{ApiError, ApiErrorCode};
 /// アップロード保存先ルートの環境変数名。MediaVault専用領域を指す。
 const STORAGE_ROOT_ENV: &str = "STORAGE_ROOT";
 
-/// `STORAGE_ROOT` 未設定時の既定値。コンテナ内で `/data/vault` にマウントされる
+/// `STORAGE_ROOT` 未設定時の既定値。ホストとコンテナで同じパスを使う
 /// MediaVault専用領域（ホスト側 `/srv/mediavault`）を指す。カレントディレクトリを
 /// 指さないことでコンテナ内非保存（REQ-402）を担保する。
-const DEFAULT_STORAGE_ROOT: &str = "/data/vault";
+const DEFAULT_STORAGE_ROOT: &str = "/srv/mediavault";
 
 /// `FileType` ごとの、サブディレクトリ上書き用環境変数名と既定サブディレクトリ名を返す。
 ///
@@ -80,7 +80,7 @@ fn validate_subdir(env_name: &str, value: &str) -> Option<String> {
 /// `video/2026` のようなネストした相対パスも許容する。
 ///
 /// 【重要】ここが返すのはアップロードファイルの書込先（MediaVault専用領域）だけである。
-/// 録画データ等の実データ領域（`/data/media`・`/data/documents`）へは MediaVault は書き込まず、
+/// 読み取り専用のアニメ・実写・マンガ領域へは MediaVault は書き込まず、
 /// `POST /items/:id/files` による絶対パス登録（リンク）で参照するのみ。
 /// 🟡 信頼性レベル: 要件定義書 第3章「API制約 / 環境変数」より
 pub fn resolve_base_dir(file_type: FileType) -> PathBuf {
@@ -516,7 +516,7 @@ mod tests {
         // マウント済みのMediaVault専用領域を指すことを確認する（REQ-402: コンテナ内非保存）
         // 【期待される動作】: 戻り値がDEFAULT_STORAGE_ROOT配下になる
         // 【注記】: デプロイ先はLinuxコンテナだが本テストはWindows上でも走るため、`is_absolute()`
-        // （Windowsでは`/data/vault`をfalseと判定する）ではなくプレフィックス一致で検証する。
+        // （WindowsではUnix絶対パスをfalseと判定する）ではなくプレフィックス一致で検証する。
         let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         clear_storage_env();
 

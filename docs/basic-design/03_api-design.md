@@ -18,7 +18,7 @@
 | 視聴リンク | `GET /api/items/{id}/links` | `item_links` の取得（Jellyfin/Calibre-Webへの導線） |
 | ファイル | `GET/PUT/DELETE /api/files/*`（WebDAV含む） | `/data` の閲覧/アップロード/配信 |
 | ナレッジ | `GET/POST /api/knowledge/*` | `knowledge` の取得/更新（生成ロジックは持たず、格納とジョブ登録のみ） |
-| ジョブ | `POST /api/jobs`, `GET /api/jobs/{id}` | ジョブ登録/進捗確認 |
+| ジョブ | `POST /internal/jobs`, `GET /api/v1/jobs/{id}` | ジョブ登録（内部API）/進捗確認（[05_job-queue.md](05_job-queue.md)、[jobs.md](../backend/mediavault-api/jobs.md)） |
 | 監視 | `GET /api/health`, `/metrics` | ヘルスチェック/Prometheusメトリクス |
 
 詳細は各リソースドキュメント（[items.md](../backend/mediavault-api/items.md)、[item-links.md](../backend/mediavault-api/item-links.md) 等、[index.md](../backend/mediavault-api/index.md) の一覧を参照）。
@@ -29,7 +29,7 @@
 |---|---|---|
 | MediaVault-web | 一覧/検索/詳細/登録/編集UI | メタデータ、検索、視聴リンク、ファイル |
 | MediaVault-mcp | AIエージェントへのツール提供 | メタデータ（取得系）、検索、ナレッジ（書き込み）、ジョブ登録 |
-| MediaVault-worker | ジョブ実行結果の反映 | メタデータ（更新）、ナレッジ（書き込み）、ジョブ状態更新（DB直接、または内部API経由） |
+| MediaVault-worker | ジョブ実行結果の反映 | **DB直接**（ジョブ状態更新と副作用を同一トランザクションに収める必要があるため、`/api` 一本化の明示的な例外。[05_job-queue.md](05_job-queue.md) 3-6） |
 | Jellyfin | メタデータ参照（プラグイン経由、任意） | メタデータ（読み取り専用） |
 
 ## 関連ドキュメント
@@ -37,4 +37,4 @@
 - [../backend/mediavault-api/index.md](../backend/mediavault-api/index.md)（ベースURL/認証/共通レスポンス形式/エラーコード）
 - [02_data-model.md](02_data-model.md)
 - [04_jobs-and-agent-integration.md](04_jobs-and-agent-integration.md)
-- [../mcp/PRD.md](../mcp/PRD.md)
+- [../backend/mediavault-mcp/PRD.md](../backend/mediavault-mcp/PRD.md)

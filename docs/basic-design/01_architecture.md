@@ -16,7 +16,7 @@ flowchart LR
         Worker[MediaVault-worker]
         Mcp[MediaVault-mcp]
         DB[(PostgreSQL)]
-        Data[/data\nMEDIA_ROOT / DOCUMENTS_ROOT/]
+        Data[/srv/anime・live-action・manga\nread-only/]
         Jellyfin[Jellyfin]
         Calibre[Calibre-Web]
     end
@@ -56,8 +56,8 @@ flowchart LR
 
 - MediaVault-web → [../frontend/PRD.md](../frontend/PRD.md)
 - MediaVault-api → [../backend/PRD.md](../backend/PRD.md) / [../backend/mediavault-api/index.md](../backend/mediavault-api/index.md)
-- MediaVault-worker → [../worker/PRD.md](../worker/PRD.md)
-- MediaVault-mcp → [../mcp/PRD.md](../mcp/PRD.md)
+- MediaVault-worker → [../backend/mediavault-worker/PRD.md](../backend/mediavault-worker/PRD.md)
+- MediaVault-mcp → [../backend/mediavault-mcp/PRD.md](../backend/mediavault-mcp/PRD.md)
 
 ## OSS境界の設計判断
 
@@ -70,7 +70,7 @@ flowchart LR
 
 ## インフラ詳細への参照
 
-コンテナのネットワーク所属（`proxy-net`/`db-net`）、ポート非公開方針、環境変数（`DATA_ROOT`/`MEDIA_ROOT`/`DOCUMENTS_ROOT`/`TZ`/`PUID`/`PGID`/Postgres認証情報/`SEARCH_BACKEND`/`LLM_BASE_URL`等）、リバースプロキシ（Caddy）によるドメイン公開などは、インフラ設計側の以下を参照:
+コンテナのネットワーク所属（`proxy-net`/`db-net`）、ポート非公開方針、環境変数（`DATA_ROOT`/`ANIME_ROOT`/`LIVE_ACTION_ROOT`/`MANGA_ROOT`/`MEDIAVAULT_ROOT`/`TZ`/`PUID`/`PGID`等）、リバースプロキシによる公開は、インフラ設計側の以下を参照:
 
 - `インフラ設計/デバイス/ミニPC/サービス/MediaVault/README.md`
 - `インフラ設計/デバイス/ミニPC/サービス/MediaVault/設計.md`

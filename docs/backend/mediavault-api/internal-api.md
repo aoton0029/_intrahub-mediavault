@@ -12,6 +12,7 @@
 | POST | /internal/items/{id}/groups | グループの upsert（`item_id, group_type, number` で一意） |
 | POST | /internal/groups/{group_id}/episodes | エピソードの upsert（`group_id, episode_number` で一意） |
 | POST | /internal/items/{id}/files | ファイル情報登録（公開APIと同一ハンドラを再利用） |
+| POST | /internal/jobs | workerジョブの登録（**未実装**。[jobs.md](./jobs.md)） |
 
 ## POST /internal/items
 `POST /items` と同じリクエスト/レスポンス仕様。

@@ -2,11 +2,13 @@
 
 ← [00_overview.md](00_overview.md)
 
-本ページは `MediaVault-worker` のジョブモデルと `MediaVault-mcp` のツール境界、KnowledgeHubとの責務分界を整理する。各コンポーネントの詳細は [../worker/PRD.md](../worker/PRD.md)・[../mcp/PRD.md](../mcp/PRD.md) を参照。
+本ページは `MediaVault-worker` のジョブモデルと `MediaVault-mcp` のツール境界、KnowledgeHubとの責務分界を整理する。各コンポーネントの詳細は [../backend/mediavault-worker/PRD.md](../backend/mediavault-worker/PRD.md)・[../backend/mediavault-mcp/PRD.md](../backend/mediavault-mcp/PRD.md) を参照。
 
 ## ジョブモデル
 
 ジョブは `jobs` テーブルで管理され、`MediaVault-worker` がポーリングして実行する。2種類に大別される。
+
+テーブル定義・enqueue の契約・状態遷移・リトライ方針・結果のフロントエンドへの反映方法は [05_job-queue.md](05_job-queue.md) を参照。
 
 ### パイプラインジョブ（自動・エージェント非関与）
 
@@ -40,7 +42,7 @@
 | `get_item_text` | 抽出済み全文取得 | wiki生成の材料 |
 | `upsert_knowledge` | `POST /api/knowledge` | 生成結果の書き込み |
 | `create_link` | `POST /api/items/{id}/links` | 外部リンク登録 |
-| `enqueue_job` | `POST /api/jobs` | 大量処理をworkerへ委譲 |
+| `enqueue_job` | `POST /internal/jobs` | 大量処理をworkerへ委譲（内部APIキー認証。[05_job-queue.md](05_job-queue.md)） |
 
 典型フロー: エージェントが `search_items`/`get_item_text` で材料収集 → 自身のLLMで生成 → `upsert_knowledge` で書き戻し（大量処理は `enqueue_job` でworkerに委譲）。
 
@@ -62,10 +64,11 @@
 
 - MediaVault-worker/mcp が生成ロジック（要約/wiki/embeddingの中身）を自前実装すること（既定ではKnowledgeHub側エージェントに委譲）
 - MediaVault-mcp がDBに直接アクセスすること（必ず `/api` 経由）
-- Obsidian Vault連携や `mediavault_id` frontmatterリンクなど、旧MediaHub時代のKnowledgeHub側ワークフローとの整合（既知の移行債務。本文書のスコープ外、KnowledgeHub側で別途対応）
+- KnowledgeHubの生成物は`vault-mcp`経由で`/srv/knowledge/vault/10_Knowledge`へ保存し、MediaVaultのアイテムIDを出典として記録する。
 
 ## 関連ドキュメント
 
-- [../worker/PRD.md](../worker/PRD.md)
-- [../mcp/PRD.md](../mcp/PRD.md)
+- [05_job-queue.md](05_job-queue.md) — `jobs` テーブル/enqueue契約/結果反映の詳細設計
+- [../backend/mediavault-worker/PRD.md](../backend/mediavault-worker/PRD.md)
+- [../backend/mediavault-mcp/PRD.md](../backend/mediavault-mcp/PRD.md)
 - [03_api-design.md](03_api-design.md)

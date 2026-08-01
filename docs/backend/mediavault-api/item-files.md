@@ -12,7 +12,7 @@
 
 | 経路 | エンドポイント | `path` | 実体の場所 | 実体の所有者 |
 |---|---|---|---|---|
-| リンク | `POST /items/{id}/files` | 指定された**絶対パス**をそのまま保存 | 実データ領域（`MEDIA_ROOT`/`DOCUMENTS_ROOT`。録画・手動配置データ） | MediaVault ではない |
+| リンク | `POST /items/{id}/files` | 指定された**絶対パス**をそのまま保存 | `/srv/anime`・`/srv/live-action`・`/srv/manga` | MediaVault ではない |
 | アップロード | `POST /items/{id}/files/upload` | 保存先ベースディレクトリからの**相対パス** `{uuid}.{ext}` | MediaVault専用領域（`STORAGE_ROOT` 配下の種別サブディレクトリ） | MediaVault |
 
 MediaVault は実データ領域へは書き込まない。リンク経路は実体をコピー・移動せず、パスを記録するだけである。

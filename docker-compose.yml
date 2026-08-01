@@ -28,7 +28,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
       TZ: ${TZ:-Asia/Tokyo}
     volumes:
-      - ${DATA_ROOT:-/srv}/db/mediavault-postgres:/var/lib/postgresql/data
+      - ${MEDIAVAULT_ROOT:-/srv/mediavault}/db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?} -d ${POSTGRES_DB:?}"]
       interval: 10s
@@ -49,14 +49,12 @@ services:
       TZ: ${TZ:-Asia/Tokyo}
       DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
       # 実データ領域（録画・手動配置）のリンク先解決に使う。MediaVault はここへ書き込まない
-      MEDIA_ROOT: /data/media
-      DOCUMENTS_ROOT: /data/documents
       # アップロード書込先（MediaVault専用領域）。保存先は STORAGE_ROOT + ファイル種別サブディレクトリ
       # （backend/mediavault-api/src/services/file_storage.rs の resolve_base_dir）で決まり、
       # video/ image/ audio/ pdf/ archive/ other/ に自動で振り分けられる。
       # 種別サブディレクトリを変えたい場合のみ .env.production で STORAGE_SUBDIR_* を設定する
       # （ここで ${VAR:-} と書くと空文字が既定値を潰すため、compose には書かない）。
-      STORAGE_ROOT: /data/vault
+      STORAGE_ROOT: /srv/mediavault
       SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
       MEILI_URL: ${MEILI_URL:-}
       # /internal/* のBearer認証キー。未設定だと空文字となり内部APIが無認証になるため必須扱い
@@ -74,10 +72,11 @@ services:
       RAKUTEN_ACCESS_KEY: ${RAKUTEN_ACCESS_KEY:-}
     volumes:
       # 実データ領域。MediaVault は Item へのリンク参照のみで書き込まないため read-only
-      - ${MEDIA_ROOT:-/srv/media}:/data/media:ro
-      - ${DOCUMENTS_ROOT:-/srv/documents}:/data/documents:ro
+      - ${ANIME_ROOT:-/srv/anime}:/srv/anime:ro
+      - ${LIVE_ACTION_ROOT:-/srv/live-action}:/srv/live-action:ro
+      - ${MANGA_ROOT:-/srv/manga}:/srv/manga:ro
       # MediaVault専用領域（アップロード書込先）。mediavault-api だけが書き込む
-      - ${VAULT_ROOT:-/srv/mediavault}:/data/vault
+      - ${MEDIAVAULT_ROOT:-/srv/mediavault}:/srv/mediavault
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
       interval: 10s
@@ -112,60 +111,54 @@ services:
       - proxy-net
     # ホストへのポート公開はしない（proxy-net経由でのみ公開）
 
-  mediavault-worker:
-    # 【未実装】backend/Dockerfile.worker は未作成のため、現時点では build が失敗する。
-    # worker の実装が入るまでは `docker compose up` 時に本サービスを除外すること:
-    #   docker compose -p mediavault --env-file .env.production up -d --build \
-    #     postgres mediavault-api mediavault-web jellyfin calibre-web
-    # 設計は docs/backend/mediavault-worker/PRD.md を参照。
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.worker
-    image: mediavault-worker:local
-    container_name: mediavault-worker
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ:-Asia/Tokyo}
-      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
-      MEDIA_ROOT: /data/media
-      DOCUMENTS_ROOT: /data/documents
-      SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
-      MEILI_URL: ${MEILI_URL:-}
-      # wiki/embed を自ら実行する場合のみ使用（既定は KnowledgeHub 側エージェントに委譲）
-      LLM_BASE_URL: ${LLM_BASE_URL:-}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-    volumes:
-      - ${MEDIA_ROOT:-/srv/media}:/data/media
-      - ${DOCUMENTS_ROOT:-/srv/documents}:/data/documents
-    depends_on:
-      postgres:
-        condition: service_healthy
-      # マイグレーション適用は mediavault-api が担うため、その起動完了を待つ
-      mediavault-api:
-        condition: service_healthy
-    networks:
-      - db-net
-    # proxy-net には参加しない（ホスト非公開、db-net経由でのみ postgres/data にアクセス）
+  # mediavault-worker:
+  #   # 【未実装】backend/Dockerfile.worker は未作成のため、現時点では build が失敗する。
+  #   # worker の実装が入るまでは `docker compose up` 時に本サービスを除外すること:
+  #   #   docker compose -p mediavault --env-file .env.production up -d --build \
+  #   #     postgres mediavault-api mediavault-web jellyfin calibre-web
+  #   # 設計は docs/backend/mediavault-worker/PRD.md を参照。
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile.worker
+  #   image: mediavault-worker:local
+  #   container_name: mediavault-worker
+  #   restart: unless-stopped
+  #   environment:
+  #     TZ: ${TZ:-Asia/Tokyo}
+  #     DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+  #     # wiki/embed を自ら実行する場合のみ使用（既定は KnowledgeHub 側エージェントに委譲）
+  #     LLM_BASE_URL: ${LLM_BASE_URL:-}
+  #     LLM_API_KEY: ${LLM_API_KEY:-}
+  #   volumes:
+  #     - ${ANIME_ROOT:-/srv/anime}:/srv/anime:ro
+  #     - ${LIVE_ACTION_ROOT:-/srv/live-action}:/srv/live-action:ro
+  #     - ${MANGA_ROOT:-/srv/manga}:/srv/manga:ro
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     mediavault-api:
+  #       condition: service_healthy
+  #   networks:
+  #     - db-net
+  #   # proxy-net には参加しない（ホスト非公開、db-net経由でのみ postgres/data にアクセス）
 
-  mediavault-mcp:
-    # 【未実装】backend/Dockerfile.mcp は未作成のため、現時点では build が失敗する。
-    # 設計は docs/backend/mediavault-mcp/PRD.md を参照。
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.mcp
-    image: mediavault-mcp:local
-    container_name: mediavault-mcp
-    restart: unless-stopped
-    environment:
-      TZ: ${TZ:-Asia/Tokyo}
-      MEDIAVAULT_API_BASE_URL: http://mediavault-api:8080
-    depends_on:
-      mediavault-api:
-        condition: service_healthy
-    networks:
-      - proxy-net
-    # ホストへのポート公開はしない（proxy-net経由でのみ公開。外部MCPクライアントは`mcp.`FQDN、
-    # KnowledgeHub側常駐エージェントは内部網から直接到達する想定）
+  # mediavault-mcp:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile.mcp
+  #   image: mediavault-mcp:local
+  #   container_name: mediavault-mcp
+  #   restart: unless-stopped
+  #   environment:
+  #     TZ: ${TZ:-Asia/Tokyo}
+  #     MEDIAVAULT_API_BASE_URL: http://mediavault-api:8080
+  #   depends_on:
+  #     mediavault-api:
+  #       condition: service_healthy
+  #   networks:
+  #     - proxy-net
+  #   # ホストへのポート公開はしない（proxy-net経由でのみ公開。外部MCPクライアントは`mcp.`FQDN、
+  #   # KnowledgeHub側常駐エージェントは内部網から直接到達する想定）
 
   jellyfin:
     # バンドルOSSはメジャーバージョン固定で直接埋め込む（:latest は使用しない）
@@ -178,8 +171,8 @@ services:
       PGID: ${PGID:-1000}
     volumes:
       - ${DATA_ROOT:-/srv}/db/jellyfin/config:/config
-      - ${MEDIA_ROOT:-/srv/media}/video:/data/media/video
-      - ${MEDIA_ROOT:-/srv/media}/photo:/data/media/photo
+      - ${ANIME_ROOT:-/srv/anime}:/srv/anime:ro
+      - ${LIVE_ACTION_ROOT:-/srv/live-action}:/srv/live-action:ro
     networks:
       - proxy-net
     # ホストへのポート公開はしない（proxy-net経由、jellyfin.aoton.win でCaddy公開）
@@ -197,8 +190,7 @@ services:
     volumes:
       - ${DATA_ROOT:-/srv}/db/calibre-web:/config
       - ${DATA_ROOT:-/srv}/db/calibre-web/library:/books
-      - ${DOCUMENTS_ROOT:-/srv/documents}/pdf:/imports/pdf:ro
-      - ${DOCUMENTS_ROOT:-/srv/documents}/manga:/imports/manga:ro
+      - ${MANGA_ROOT:-/srv/manga}:/srv/manga:ro
     networks:
       - proxy-net
     # ホストへのポート公開はしない（proxy-net経由、calibre.aoton.win でCaddy公開）
