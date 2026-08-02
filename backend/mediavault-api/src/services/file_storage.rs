@@ -8,23 +8,19 @@
 //! 1. file_type="photo" は既存 FileType::Image の表記ゆれとして扱う（enum拡張なし）。
 //! 2. 保存先は `STORAGE_ROOT/<files>/{item_id}/{uuid}.{ext}` とし、**アイテムIDごとにフォルダを切る**。
 //!    1アイテムのファイルが1ディレクトリにまとまるため、Samba経由の閲覧・バックアップ・手動整理が
-//!    アイテム単位で行える。`FileType` ごとのサブディレクトリ分割（旧レイアウト）は廃止した。
-//!    この領域は MediaVault-api だけが書き込む「MediaVault専用領域」であり、
+//!    アイテム単位で行える。この領域は MediaVault-api だけが書き込む「MediaVault専用領域」であり、
 //!    読み取り専用のアニメ・実写・マンガ領域とは分離する。
 //! 3. 書込失敗時は `ApiErrorCode::FileStorageWriteFailed`（500）を返す（models/response.rsに追加済み）。
 //! 4. 書込失敗注入は `FileWriter` トレイトで行う。本番は `TokioFileWriter`、テストでは
 //!    常に失敗する `FailingFileWriter` を注入する（DIフレームワーク不使用、trait objectで十分）。
 //! 5. ボディサイズ上限はルーター層の `DefaultBodyLimit` で対応する前提とし、本サービスでは未テスト。
 //! 6. 空（0バイト）ファイルのアップロードは許容する（特別な拒否を行わない）。
-//! 7. 旧レイアウトで保存済みのファイルは移行しない。削除時のみ `resolve_legacy_base_dir` で
-//!    後方互換に解決する（`handlers::item_files::delete_item_file_handler` 参照）。
 
 use std::io;
 use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
-use crate::models::item_file::FileType;
 use crate::models::response::{ApiError, ApiErrorCode};
 
 /// アップロード保存先ルートの環境変数名。MediaVault専用領域を指す。
@@ -39,21 +35,6 @@ const DEFAULT_STORAGE_ROOT: &str = "/srv/mediavault";
 /// 保存先は「ルート1本 + このサブディレクトリ + アイテムIDフォルダ」で構成する。
 const STORAGE_SUBDIR_FILES_ENV: &str = "STORAGE_SUBDIR_FILES";
 const DEFAULT_FILES_SUBDIR: &str = "files";
-
-/// 【旧レイアウト】`FileType` ごとの、サブディレクトリ上書き用環境変数名と既定サブディレクトリ名を返す。
-///
-/// 種別を第1階層に置く構成は廃止した（アイテム単位で扱えないため）。この対応表は、
-/// 移行せずに残っている既存ファイルを削除時に解決するためだけに保持している。
-fn legacy_subdir_spec(file_type: FileType) -> (&'static str, &'static str) {
-    match file_type {
-        FileType::Pdf => ("STORAGE_SUBDIR_PDF", "pdf"),
-        FileType::Image => ("STORAGE_SUBDIR_IMAGE", "image"),
-        FileType::Video => ("STORAGE_SUBDIR_VIDEO", "video"),
-        FileType::Audio => ("STORAGE_SUBDIR_AUDIO", "audio"),
-        FileType::Archive => ("STORAGE_SUBDIR_ARCHIVE", "archive"),
-        FileType::Other => ("STORAGE_SUBDIR_OTHER", "other"),
-    }
-}
 
 /// サブディレクトリ環境変数の値を検証する。ルート配下に収まらない値（絶対パス・`..` を含む）は
 /// ルート外への脱出になるため拒否し、`None` を返して既定値へフォールバックさせる。
@@ -104,21 +85,6 @@ pub fn resolve_base_dir() -> PathBuf {
         .ok()
         .and_then(|v| validate_subdir(STORAGE_SUBDIR_FILES_ENV, &v))
         .unwrap_or_else(|| DEFAULT_FILES_SUBDIR.to_string());
-
-    resolve_storage_root().join(subdir)
-}
-
-/// 【旧レイアウト】種別サブディレクトリ方式のベースディレクトリを解決する。
-///
-/// アイテムIDフォルダ導入前に保存されたファイルは移行していないため、`item_files.path` が
-/// アイテムIDフォルダを含まない（＝`{uuid}.{ext}` 単体の）レコードの実体はここに残っている。
-/// 削除時のフォールバック解決にのみ使う。新規書込では使用しない。
-pub fn resolve_legacy_base_dir(file_type: FileType) -> PathBuf {
-    let (env_name, default_subdir) = legacy_subdir_spec(file_type);
-    let subdir = std::env::var(env_name)
-        .ok()
-        .and_then(|v| validate_subdir(env_name, &v))
-        .unwrap_or_else(|| default_subdir.to_string());
 
     resolve_storage_root().join(subdir)
 }
@@ -459,27 +425,14 @@ mod tests {
         assert_eq!(err.error.code, "FILE_STORAGE_WRITE_FAILED"); // 【確認内容】: 書込失敗が専用エラーコードへマッピングされることを確認 🟡
     }
 
-    /// `STORAGE_ROOT` と `STORAGE_SUBDIR_*`（現行・旧レイアウトとも）を未設定に戻すヘルパー。
+    /// `STORAGE_ROOT` と `STORAGE_SUBDIR_FILES` を未設定に戻すヘルパー。
     /// 各テストは `ENV_MUTEX` を保持した状態でこれを呼び、他テストの設定残りの影響を排除する。
     fn clear_storage_env() {
         unsafe {
             std::env::remove_var(STORAGE_ROOT_ENV);
             std::env::remove_var(STORAGE_SUBDIR_FILES_ENV);
-            for ft in ALL_FILE_TYPES {
-                std::env::remove_var(legacy_subdir_spec(ft).0);
-            }
         }
     }
-
-    /// テストで全種別を走査するための一覧（`FileType` に追加があればここも更新する）
-    const ALL_FILE_TYPES: [FileType; 6] = [
-        FileType::Pdf,
-        FileType::Image,
-        FileType::Video,
-        FileType::Audio,
-        FileType::Archive,
-        FileType::Other,
-    ];
 
     /// アップロード領域のベースディレクトリはfile_typeに依存せず1本に解決される
     /// 🔵 信頼性レベル: 「アイテムIDごとにフォルダを切る（種別分割は廃止）」要件に直接対応
@@ -547,43 +500,6 @@ mod tests {
                 "{malicious:?} がルート外への脱出を許している"
             );
         }
-
-        clear_storage_env();
-    }
-
-    /// 旧レイアウト（種別サブディレクトリ）の解決は後方互換のため引き続き機能する
-    /// 🟡 信頼性レベル: 「既存ファイルは移行せず削除時のみ後方互換で解決する」方針より
-    #[test]
-    fn resolve_legacy_base_dir_still_maps_each_file_type_to_a_distinct_subdir() {
-        // 【テスト目的】: 移行していない既存ファイルを見つけられるよう、旧レイアウトの
-        // 種別ごとの解決が維持されていることを確認する
-        let _guard = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
-        clear_storage_env();
-        let root = temp_storage_root();
-        unsafe {
-            std::env::set_var(STORAGE_ROOT_ENV, root.path());
-        }
-
-        let resolved: Vec<PathBuf> = ALL_FILE_TYPES
-            .iter()
-            .map(|ft| resolve_legacy_base_dir(*ft))
-            .collect();
-
-        for (ft, base) in ALL_FILE_TYPES.iter().zip(&resolved) {
-            // 【確認内容】: 旧レイアウトの解決先もSTORAGE_ROOT配下に収まることを確認 🟡
-            assert!(
-                base.starts_with(root.path()),
-                "{ft:?} の旧保存先がルート外: {base:?}"
-            );
-            // 【確認内容】: 現行のアップロード領域とは別ディレクトリであることを確認 🟡
-            assert_ne!(base.as_path(), resolve_base_dir().as_path());
-        }
-
-        let mut unique = resolved.clone();
-        unique.sort();
-        unique.dedup();
-        // 【確認内容】: 旧レイアウトでは6種の保存先がすべて異なっていたことを確認 🟡
-        assert_eq!(unique.len(), ALL_FILE_TYPES.len());
 
         clear_storage_env();
     }

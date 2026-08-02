@@ -62,9 +62,7 @@ pub async fn list_item_files_handler(
 ///
 /// 【path の規約】: `item_files.path` は登録経路によって意味が異なる。
 /// - **相対パス** = アップロード（`POST /files/upload`）。実体は MediaVault 専用領域
-///   （`file_storage::resolve_base_dir` が返すディレクトリ）配下の `{item_id}/{uuid}.{ext}` にあり、
-///   MediaVault が所有する。アイテムIDフォルダ導入前のレコードは `{uuid}.{ext}` 単体で、
-///   実体は旧レイアウト（種別サブディレクトリ）配下に残っているため、そちらもフォールバックで探す。
+///   （`file_storage::resolve_base_dir` が返すディレクトリ）配下の `{item_id}/{uuid}.{ext}` にある。
 /// - **絶対パス** = パス登録によるリンク（`POST /files`）。実体は録画データ等の実データ領域にあり、
 ///   MediaVault は参照しているだけで所有していない。
 ///
@@ -97,30 +95,11 @@ pub async fn delete_item_file_handler(
         return Ok(StatusCode::NO_CONTENT.into_response());
     }
 
-    // 【実体の解決】: 現行レイアウト（アイテムIDフォルダ）を第一候補とし、そこに実体が無い場合だけ
-    // 旧レイアウト（種別サブディレクトリ）を試す。既存ファイルは移行しない方針のため、
-    // どちらのレイアウトのレコードも削除できるようにする。
     let base_dir = file_storage::resolve_base_dir();
-    let current_path = base_dir.join(&file.path);
-    let (base_dir, absolute_path, is_current_layout) = if current_path.exists() {
-        (base_dir, current_path, true)
-    } else {
-        let legacy_base = file_storage::resolve_legacy_base_dir(file.file_type);
-        let legacy_path = legacy_base.join(&file.path);
-        if legacy_path.exists() {
-            (legacy_base, legacy_path, false)
-        } else {
-            // どちらにも実体が無い場合は現行レイアウトとして削除を試み、失敗はログに留める
-            (base_dir, current_path, true)
-        }
-    };
+    let absolute_path = base_dir.join(&file.path);
 
     let writer = TokioFileWriter;
-    let item_dir = if is_current_layout {
-        absolute_path.parent().map(|p| p.to_path_buf())
-    } else {
-        None
-    };
+    let item_dir = absolute_path.parent().map(|p| p.to_path_buf());
     if let Err(err) = file_storage::cleanup_file(
         &writer,
         &StoredFile {
@@ -924,47 +903,6 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NO_CONTENT); // 【確認内容】: 削除が204で成功することを確認 🔵
         assert!(!uploaded_file.exists()); // 【確認内容】: MediaVault所有のファイルは物理削除されることを確認 🔵
         assert!(!item_dir.exists()); // 【確認内容】: 空になったアイテムIDフォルダも畳まれることを確認 🟡
-    }
-
-    /// DELETE: 旧レイアウト（種別サブディレクトリ直下）で保存された既存ファイルも削除できる
-    /// 【テスト目的】: 既存ファイルを移行しない方針のもと、後方互換の解決が効くことを確認する
-    /// 🟡 信頼性レベル: 「移行なし・削除時のみ後方互換で解決する」方針より
-    #[tokio::test]
-    #[ignore]
-    async fn delete_item_file_falls_back_to_legacy_layout() {
-        // 【テストデータ準備】: 旧レイアウト（STORAGE_ROOT/pdf/{uuid}.pdf）へ実ファイルを置き、
-        // アイテムIDフォルダを含まない相対パスを登録する
-        let temp_root = tempfile::tempdir().expect("一時ディレクトリ作成に失敗しました");
-        unsafe {
-            std::env::set_var("STORAGE_ROOT", temp_root.path());
-        }
-        let legacy_dir = temp_root.path().join("pdf");
-        std::fs::create_dir_all(&legacy_dir).expect("旧ベースディレクトリ作成に失敗しました");
-        let object_name = format!("{}.pdf", Uuid::new_v4());
-        let legacy_file = legacy_dir.join(&object_name);
-        std::fs::write(&legacy_file, b"%PDF-1.4 legacy object")
-            .expect("旧レイアウト実体の作成に失敗しました");
-
-        let state = test_app_state().await;
-        let app = crate::routes::build_router(state.clone());
-        let item_id = insert_test_item(&state.db).await;
-        let file_id =
-            insert_test_item_file_with_path(&state.db, item_id, &object_name, "pdf").await;
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("DELETE")
-                    .uri(format!("/items/{item_id}/files/{file_id}"))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::NO_CONTENT); // 【確認内容】: 旧レコードの削除も204で成功することを確認 🟡
-        assert!(!legacy_file.exists()); // 【確認内容】: 旧レイアウトの実体も物理削除されることを確認 🟡
-        assert!(legacy_dir.exists()); // 【確認内容】: 旧ベースディレクトリ自体は削除されないことを確認 🟡
     }
 
     /// 【テスト用ヘルパー】: 指定file_typeのpdf/image item_file行を作成しfile_idを返す
