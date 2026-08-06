@@ -1,49 +1,37 @@
-# MediaVault 本番用 docker-compose.yml（ローカル結合確認用の docker-compose.test.yml とは別ファイル）
-#
-# 自作サービスは本リポジトリのソースからローカル build する（GHCRは参照しない）。
-# 環境依存値・秘密のみ .env に外だしする（.env.example を参照）。
+# IntraHub の services/mediavault/compose.yaml を単体起動用に変換した構成。
 #
 # 起動例:
 #   cp .env.example .env
 #   docker compose up -d --build
-#
-# マイグレーションは mediavault-api が起動時に自ら適用する。専用の migrate サービスは持たない。
 
 services:
-  postgres:
-    image: postgres:16
-    container_name: mediavault-postgres
+  mediavault-postgres:
+    image: postgres:16.9-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
-      TZ: ${TZ:?TZ is required}
+      TZ: ${TZ:-UTC}
+      POSTGRES_USER: mediavault
+      POSTGRES_DB: mediavault
+      POSTGRES_PASSWORD: ${MEDIAVAULT_DB_PASSWORD:?MEDIAVAULT_DB_PASSWORD is required}
     volumes:
-      - ${MEDIAVAULT_ROOT:?MEDIAVAULT_ROOT is required}/db:/var/lib/postgresql/data
+      - ${MEDIAVAULT_DB_SOURCE:-mediavault-db}:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?} -d ${POSTGRES_DB:?}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-mediavault} -d $${POSTGRES_DB:-mediavault}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - db-net
+      - media-db
 
   mediavault-api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: mediavault-api:local
-    container_name: mediavault-api
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
-      STORAGE_ROOT: /srv/mediavault
-      # /internal/* のBearer認証キー。未設定だと空文字となり内部APIが無認証になるため必須扱い
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
-      # 単一オリジンのみ指定可。不正値は起動時panic（main.rs）
-      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:?CORS_ALLOWED_ORIGIN is required}
-      # 外部メタデータAPIの認証情報（未設定のプロバイダは起動時seedをスキップする）
+      DATABASE_URL: postgresql://mediavault:${MEDIAVAULT_DB_PASSWORD:?MEDIAVAULT_DB_PASSWORD is required}@mediavault-postgres:5432/mediavault
       TMDB_API_KEY: ${TMDB_API_KEY:-}
       STEAM_API_KEY: ${STEAM_API_KEY:-}
       STEAM_USER_ID: ${STEAM_USER_ID:-}
@@ -52,77 +40,56 @@ services:
       ANNICT_ACCESS_TOKEN: ${ANNICT_ACCESS_TOKEN:-}
       RAKUTEN_APPLICATION_ID: ${RAKUTEN_APPLICATION_ID:-}
       RAKUTEN_ACCESS_KEY: ${RAKUTEN_ACCESS_KEY:-}
+      STORAGE_ROOT: /srv/mediavault
+      LIBRARY_ROOT: /library
+      CORS_ALLOWED_ORIGIN: ${MEDIAVAULT_ALLOWED_ORIGIN:-http://127.0.0.1:8080}
     volumes:
-      - ${MEDIAVAULT_ROOT:?MEDIAVAULT_ROOT is required}:/srv/mediavault
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ${MEDIAVAULT_STORAGE_SOURCE:-mediavault-storage}:/srv/mediavault
+      - ${LIBRARY_SOURCE:-shares}:/library
     depends_on:
-      postgres:
+      mediavault-postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8080/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
     networks:
-      db-net:
-      proxy-net:
-        # mediavault-web の nginx.conf は upstream を `backend` というホスト名で参照する
-        # （docker-compose.test.yml のサービス名に合わせてある）。本番のサービス名は
-        # mediavault-api なので、nginx.conf を環境ごとに分けずに済むようエイリアスを与える。
+      mediavault-api:
         aliases:
           - backend
+      media-db:
 
   mediavault-web:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: mediavault-web:local
-    container_name: mediavault-web
     restart: unless-stopped
     environment:
-      TZ: ${TZ:?TZ is required}
+      TZ: ${TZ:-UTC}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:8080:80"
     depends_on:
       mediavault-api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - proxy-net
-
-  # mediavault-worker:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile.worker
-  #   image: mediavault-worker:local
-  #   container_name: mediavault-worker
-  #   restart: unless-stopped
-  #   environment:
-  #     DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
-  #     LLM_BASE_URL: ${LLM_BASE_URL:-}
-  #     LLM_API_KEY: ${LLM_API_KEY:-}
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     mediavault-api:
-  #       condition: service_healthy
-  #   networks:
-  #     - db-net
-
-  # mediavault-mcp:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile.mcp
-  #   image: mediavault-mcp:local
-  #   container_name: mediavault-mcp
-  #   restart: unless-stopped
-  #   environment:
-  #     MEDIAVAULT_API_BASE_URL: http://mediavault-api:8080
-  #   depends_on:
-  #     mediavault-api:
-  #       condition: service_healthy
-  #   networks:
-  #     - proxy-net
+      - mediavault-api
 
 networks:
-  db-net:
-    driver: bridge
-  proxy-net:
-    external: true
-    name: ${PROXY_NET_NAME:?PROXY_NET_NAME is required}
+  mediavault-api:
+  media-db:
+    internal: true
+
+volumes:
+  mediavault-db:
+  mediavault-storage:
+  shares:
