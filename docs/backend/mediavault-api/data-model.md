@@ -130,6 +130,23 @@
 | Cast | id: UUID, external_id: string \| null, name: string, image_url: string \| null, created_at: datetime |
 | ItemCast | id: UUID, item_id: UUID, cast_id: UUID, character_name: string \| null |
 
+## Citation
+
+`GET/POST /items/{id}/citations`, `PATCH /citations/{id}`のレスポンス。詳細: [mediavault-model/citations.md](../mediavault-model/citations.md)
+
+| フィールド | 型 |
+|---|---|
+| id | UUID |
+| item_id | UUID |
+| quote_text | string |
+| note | string \| null |
+| locator_type | LocatorType（page/timestamp/location/chapter/none） |
+| page_number | number \| null（`locator_type=page`。書籍・論文のページ番号） |
+| timestamp_seconds | number \| null（`locator_type=timestamp`。映像作品の再生秒数） |
+| location_number | number \| null（`locator_type=location`。電子書籍の位置No.） |
+| chapter | string \| null（`locator_type=chapter`。章・話数など） |
+| created_at / updated_at | datetime |
+
 ## ApiCredential
 
 `PUT /settings/api-keys/:provider`のレスポンス。詳細: [mediavault-model/api-credentials.md](../mediavault-model/api-credentials.md)

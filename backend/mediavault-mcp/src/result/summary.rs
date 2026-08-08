@@ -6,7 +6,7 @@ use chrono::Datelike;
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::api::models::{Item, ItemStatus, ItemWithRefs, MediaType};
+use crate::api::models::{Item, ItemDetail, ItemStatus, ItemWithRefs, MediaType};
 
 /// 一覧系ツールが返す Item の要約表現。
 ///
@@ -73,6 +73,24 @@ impl From<&Item> for ItemSummary {
             rating: item.rating,
             is_favorite: item.is_favorite,
             tags: Vec::new(),
+        }
+    }
+}
+
+impl From<&ItemDetail> for ItemSummary {
+    /// 🔵 Intent: `relate_items`（TASK-0021）が `GET /items/{id}` の `ItemDetail` から
+    ///    `ItemSummary` を組み立てるために使う。`ItemWithRefs` と同じくタグ名のみ残す。
+    fn from(item: &ItemDetail) -> Self {
+        ItemSummary {
+            item_id: item.id,
+            title: item.title.clone(),
+            original_title: item.original_title.clone(),
+            media_type: item.media_type,
+            release_year: release_year(item.release_date),
+            status: item.status,
+            rating: item.rating,
+            is_favorite: item.is_favorite,
+            tags: item.tags.iter().map(|tag| tag.name.clone()).collect(),
         }
     }
 }
@@ -148,5 +166,44 @@ mod tests {
         let summary = ItemSummary::from(&item);
 
         assert!(summary.tags.is_empty());
+    }
+
+    /// ItemDetail から ItemSummary への変換はタグ名を残す
+    #[test]
+    fn converts_item_detail_to_summary_with_tag_names() {
+        let item = ItemDetail {
+            id: Uuid::nil(),
+            media_type: MediaType::Novel,
+            title: "小説A".to_string(),
+            original_title: None,
+            description: None,
+            release_date: Some(chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap()),
+            homepage_url: None,
+            status: ItemStatus::Completed,
+            consumed_date: None,
+            rating: None,
+            is_favorite: false,
+            external_id: None,
+            created_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+            updated_at: chrono::NaiveDate::from_ymd_opt(2020, 1, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+            detail: None,
+            tags: vec![ApiNamedRef {
+                id: Uuid::nil(),
+                name: "原作".to_string(),
+            }],
+            categories: vec![],
+            streaming_links: vec![],
+        };
+        let summary = ItemSummary::from(&item);
+
+        assert_eq!(summary.title, "小説A");
+        assert_eq!(summary.release_year, Some(2020));
+        assert_eq!(summary.tags, vec!["原作".to_string()]);
     }
 }

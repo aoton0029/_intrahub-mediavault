@@ -68,6 +68,7 @@
 | FILE_STORAGE_WRITE_FAILED | 500 | アップロードファイルの保存に失敗 |
 | FILE_NOT_FOUND | 404 | 指定した item file が存在しない |
 | STEAM_API_KEY_INVALID | 401 | Steam Web API キーが無効 |
+| CITATION_NOT_FOUND | 404 | 指定した citation が存在しない |
 
 ### ページネーション正規化
 `limit` クエリパラメータは以下のルールで補正される（`normalize_limit`）:
@@ -90,6 +91,7 @@
 | `relation_type` | adaptation, sequel, prequel, spinoff, dlc, reference |
 | `file_type` | pdf, image, other |
 | `api_provider` | tmdb, igdb, ndl, steam, open_library, ani_list（jikanは認証不要のため対象外） |
+| `locator_type` | page, timestamp, location, chapter, none（citation の付加情報の種類） |
 
 ---
 
@@ -144,6 +146,10 @@
 | DELETE | /items/{id}/images/{image_id} | 画像URL削除 | [item-images.md](./item-images.md) |
 | POST | /items/{id}/trailers | 予告編リンク追加 | [item-trailers.md](./item-trailers.md) |
 | DELETE | /items/{id}/trailers/{trailer_id} | 予告編リンク削除 | [item-trailers.md](./item-trailers.md) |
+| GET | /items/{id}/citations | 引用一覧取得 | [citations.md](./citations.md) |
+| POST | /items/{id}/citations | 引用作成 | [citations.md](./citations.md) |
+| PATCH | /citations/{id} | 引用更新 | [citations.md](./citations.md) |
+| DELETE | /citations/{id} | 引用削除 | [citations.md](./citations.md) |
 | PUT | /settings/api-keys/{provider} | 外部APIキー登録・更新 | [settings.md](./settings.md) |
 | POST | /import/booklog | Booklog CSVインポート | [import.md](./import.md) |
 | POST | /import/steam | Steamライブラリインポート | [import.md](./import.md) |
@@ -172,6 +178,7 @@
 - [item-streaming-links.md](./item-streaming-links.md) — Item Streaming Links
 - [item-images.md](./item-images.md) — Item Images
 - [item-trailers.md](./item-trailers.md) — Item Trailers
+- [citations.md](./citations.md) — Citations（作品・論文からの引用）
 - [settings.md](./settings.md) — Settings
 - [import.md](./import.md) — Import
 - [jobs.md](./jobs.md) — Jobs（worker連携の非同期ジョブ。**未実装**）

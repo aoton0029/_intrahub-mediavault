@@ -14,21 +14,25 @@ use rmcp::tool_router;
 
 use crate::api::client::ApiClient;
 use crate::result::outcome::Outcome;
+use crate::services::add_access_link;
 use crate::services::collection_overview;
 use crate::services::context;
 use crate::services::create_item;
 use crate::services::health::check_api_health;
 use crate::services::import_external_item;
 use crate::services::organize;
+use crate::services::relate_items;
 use crate::services::search_external_catalog;
 use crate::services::search_library;
 use crate::services::update_consumption;
+use crate::tools::add_access_link::{AddAccessLinkParams, AddAccessLinkResult};
 use crate::tools::collection_overview::{CollectionOverviewParams, CollectionOverviewResult};
 use crate::tools::create_item::{CreateItemParams, CreateItemResult};
 use crate::tools::get_item_context::{GetItemContextParams, ItemContextResult};
 use crate::tools::health::HealthResult;
 use crate::tools::import_external_item::{ImportExternalItemParams, ImportExternalItemResult};
 use crate::tools::organize_item::{OrganizeItemParams, OrganizeItemResult};
+use crate::tools::relate_items::{RelateItemsParams, RelateItemsResult};
 use crate::tools::search_external_catalog::{
     SearchExternalCatalogParams, SearchExternalCatalogResult,
 };
@@ -184,6 +188,36 @@ impl MediaVaultServer {
         Parameters(params): Parameters<OrganizeItemParams>,
     ) -> rmcp::Json<OrganizeItemResult> {
         rmcp::Json(organize::organize(&self.api, params).await)
+    }
+
+    /// 🔵 Intent: TASK-0021・mcp-tools.md 8. relate_items より。
+    ///    **向きの取り違えが最も事故が起きやすい**（REQ-072）。パラメータ説明文に
+    ///    起点・終点の意味を種別ごとに埋め込み、結果の `description` で自然文にして返す。
+    ///    409 は冪等化する（REQ-113）。誤登録は MVP では取り消せない（REQ-141）。
+    #[tool(
+        description = "2つの作品を関係づける。両方の item_id を search_library で先に特定しておくこと。関係には向きがあり、item_id が起点、related_item_id が終点になる。種別ごとの起点・終点の意味: adaptation(原作→映像化・翻案作品), sequel(前作→続編), prequel(後の作品→前日譚), spinoff(本編→スピンオフ), dlc(本編→DLC・追加コンテンツ), reference(引用元→引用先)。誤って逆に登録しても MCP からは解除できない。",
+        annotations(read_only_hint = false, destructive_hint = false)
+    )]
+    async fn relate_items(
+        &self,
+        Parameters(params): Parameters<RelateItemsParams>,
+    ) -> rmcp::Json<RelateItemsResult> {
+        rmcp::Json(relate_items::relate(&self.api, params).await)
+    }
+
+    /// 🔵 Intent: TASK-0022・mcp-tools.md 9. add_access_link より。
+    ///    api の配信プラットフォームは5種固定で、Jellyfin・Calibre-Web・U-NEXT などは
+    ///    表現できない。非対応時は通常リンクへフォールバックし `fallback_from` で通知する
+    ///    （REQ-081）。黙ってフォールバックすると利用者が誤解する（タスクファイルより）。
+    #[tool(
+        description = "作品に URL を追加する。配信サービスは kind: \"streaming\"、予告編は kind: \"trailer\"、公式サイト・Jellyfin・Calibre-Web などは kind: \"link\" を使う。streaming で対応プラットフォーム(netflix/amazon_prime/disney_plus/dmm_tv/apple_tv)以外を指定した場合は通常リンクへ自動的に切り替わり、fallback_from に \"streaming\" が入る。",
+        annotations(read_only_hint = false, destructive_hint = false)
+    )]
+    async fn add_access_link(
+        &self,
+        Parameters(params): Parameters<AddAccessLinkParams>,
+    ) -> rmcp::Json<AddAccessLinkResult> {
+        rmcp::Json(add_access_link::add_access_link(&self.api, params).await)
     }
 }
 
