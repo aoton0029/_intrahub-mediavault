@@ -15,14 +15,14 @@
 
 ## 目的・全体像
 
-MediaVault は、メディア・書誌・ファイル・ナレッジを1つのアプリで一元管理する自己完結型セルフホストアプリである。データ・ファイルの登録・管理・閲覧を担い、動画/写真の視聴は Jellyfin、書籍/PDF/漫画の閲覧は Calibre-Web に委譲する。
+MediaVault は、メディア・書誌・ファイルを1つのアプリで一元管理する自己完結型セルフホストアプリである。データ・ファイルの登録・管理・閲覧を担い、動画/写真の視聴は Jellyfin、書籍/PDF/漫画の閲覧は Calibre-Web に委譲する。ナレッジ（要約/wiki/embedding）は生成も格納も KnowledgeHub 側の責務であり、MediaVault は材料提供に限定する。
 
 コンポーネント構成:
 
 | コンポーネント | 対応docs | 役割 |
 |---|---|---|
 | MediaVault-web | [../frontend/](../frontend/PRD.md) | 一覧/検索/詳細/登録/編集を担うSPA。ビューア機能は持たず、Jellyfin/Calibre-Webへリンクアウトする |
-| MediaVault-api | [../backend/](../backend/PRD.md) | メタデータ・検索・ファイル・ジョブ登録・ナレッジを扱う単一 `/api`。全データ変更の唯一の経路 |
+| MediaVault-api | [../backend/](../backend/PRD.md) | メタデータ・検索・ファイル・ジョブ登録を扱う単一 `/api`。全データ変更の唯一の経路 |
 | MediaVault-worker | [../backend/mediavault-worker/PRD.md](../backend/mediavault-worker/PRD.md) | `jobs` テーブルをポーリングし、パイプラインジョブ/エージェント駆動ジョブを実行 |
 | MediaVault-mcp | [../backend/mediavault-mcp/PRD.md](../backend/mediavault-mcp/PRD.md) | AIエージェント向けの薄いMCPアダプタ。`MediaVault-api` の `/api` のみを呼び出す |
 | Jellyfin / Calibre-Web | （インフラ設計側docsを参照） | バンドルされたOSSビューア。読み取り専用で `/data` を参照 |
@@ -34,11 +34,11 @@ MediaVault は、メディア・書誌・ファイル・ナレッジを1つの�
 インフラ設計側 `設計.md` に記載の7原則を、アプリケーション設計の観点で再整理する。
 
 1. **単一の真実source**: PostgreSQL を `MediaVault-api` 経由でのみ更新する。Jellyfin/Calibre-Webはメタデータを所有しない読み取り専用の下流表示に過ぎない。
-2. **`item` を正準キーとする**: 1つの `item` がファイル・外部リンク・関連ナレッジを束ねる（[02_data-model.md](02_data-model.md)）。
+2. **`item` を正準キーとする**: 1つの `item` がファイル・外部リンクを束ねる。KnowledgeHub側のナレッジも `items.id` を出典として参照する（[02_data-model.md](02_data-model.md)）。
 3. **視聴機能を作り直さない**: 動画はJellyfin、書籍/PDFはCalibre-Webへブラウザ遷移で委譲する。`MediaVault-web` はビューアを持たない。
 4. **共有面を限定**: DBと読み取り専用の`/srv/anime`・`/srv/live-action`・`/srv/manga`だけを共有する。
 5. **部分的縮退運転**: workerが停止してもメタデータ層（一覧/検索/詳細）は動作し続ける。
-6. **書き込み経路の一本化・生成ロジックはエージェントの責務**: webもmcpも書き込みは必ず `MediaVault-api` を経由する。要約/wiki/embeddingの「どう生成するか」はアプリ内実装ではなく、KnowledgeHub側エージェントにmcp経由で委譲する（[04_jobs-and-agent-integration.md](04_jobs-and-agent-integration.md)）。
+6. **書き込み経路の一本化・ナレッジはKnowledgeHubの責務**: webもmcpも書き込みは必ず `MediaVault-api` を経由する。要約/wiki/embeddingは生成も格納もアプリ内で行わず、正本をKnowledgeHub Vaultに置く。MediaVaultはmcp経由で材料（itemメタデータ・抽出済み全文）を提供するだけで、ナレッジ本文を所有しない（[04_jobs-and-agent-integration.md](04_jobs-and-agent-integration.md#knowledgehubとの責務分界)）。
 7. **公開面の一本化**: 個々のコンテナはポートを公開しない。外部公開はインフラ設計側のリバースプロキシ（Caddy）が担う — 詳細はインフラ設計側ドキュメントを参照。
 
 ## 関連ドキュメント

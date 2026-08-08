@@ -22,29 +22,23 @@
 
 ### エージェント駆動ジョブ（判断はエージェント、実行のみworker）
 
-`MediaVault-mcp` 経由でKnowledgeHub側エージェントがenqueueする。
+現時点で該当するジョブ種別はない。ナレッジの生成も格納もKnowledgeHub側で完結するため（後述「KnowledgeHubとの責務分界」）、`MediaVault-worker` が実行するのはパイプラインジョブのみである。
 
-| ジョブ種別 | 内容 |
-|---|---|
-| `wiki` | 要約/wikiページ生成 → `knowledge` へ格納 |
-| `embed` | embedding生成 → `knowledge` へ格納 |
-
-`MediaVault-worker` はデフォルトではこれら生成ロジックの「どう作るか」を自前実装しない。自前実行する場合のみ `LLM_BASE_URL`/`LLM_API_KEY` に依存する（インフラ設計側 `設計.md` 参照）。
+KnowledgeHub側エージェントは `MediaVault-mcp` の `enqueue_job` を通じて、上記パイプラインジョブ（`extract_text` / `index` / `resolve_links`）の再実行を依頼できる。`MediaVault-worker` は要約/wiki/embeddingの生成ロジックを持たず、LLMエンドポイントにも依存しない。
 
 ## MediaVault-mcp のツール境界
 
-`MediaVault-mcp` はAIエージェント向けの薄いアダプタであり、`MediaVault-api` の `/api` のみを呼び出す（DB直接アクセスはしない）。提供ツール（案）:
+`MediaVault-mcp` はAIエージェント向けの薄いアダプタであり、`MediaVault-api` の `/api` のみを呼び出す（DB直接アクセスはしない）。ツールの全体像・MVP範囲は [../backend/mediavault-mcp/PRD.md](../backend/mediavault-mcp/PRD.md) §7 を正とする。ナレッジ生成に関わる部分だけを抜き出すと次のとおり:
 
 | ツール | 対応API | 用途 |
 |---|---|---|
-| `search_items` | `GET /api/search` | 検索材料の収集 |
-| `get_item` | `GET /api/items/{id}` | item詳細取得 |
-| `get_item_text` | 抽出済み全文取得 | wiki生成の材料 |
-| `upsert_knowledge` | `POST /api/knowledge` | 生成結果の書き込み |
-| `create_link` | `POST /api/items/{id}/links` | 外部リンク登録 |
+| `search_library` | `GET /api/v1/items` | 検索材料の収集 |
+| `get_item_context` | `GET /api/v1/items/{id}` ほか | item詳細と関連情報の取得 |
+| `get_item_text` | 抽出済み全文取得（新設が必要） | wiki生成の材料 |
+| `add_access_link` | `POST /api/v1/items/{id}/links` | 外部リンク登録 |
 | `enqueue_job` | `POST /internal/jobs` | 大量処理をworkerへ委譲（内部APIキー認証。[05_job-queue.md](05_job-queue.md)） |
 
-典型フロー: エージェントが `search_items`/`get_item_text` で材料収集 → 自身のLLMで生成 → `upsert_knowledge` で書き戻し（大量処理は `enqueue_job` でworkerに委譲）。
+典型フロー: エージェントが `search_library`/`get_item_context`/`get_item_text` で材料収集 → 自身のLLMで生成 → KnowledgeHub側の `vault-mcp` でVaultへ書き込み（大量の抽出・索引処理は `enqueue_job` でworkerに委譲）。生成結果を `MediaVault-api` へ書き戻すツールは提供しない。
 
 ## 利用経路
 
@@ -57,14 +51,16 @@
 
 ## KnowledgeHubとの責務分界
 
-- ナレッジ「生成」（要約/wiki/embeddingを実際にどう作るか）はMediaVault内に実装しない。KnowledgeHub側エージェントの責務とし、MediaVaultはmcp経由のツール（材料提供・結果格納・ジョブenqueue）のみを提供する（[00_overview.md](00_overview.md) 設計原則6）。
-- 横断的な全文検索（`items` + `knowledge` をまたぐ検索）はKnowledgeHub側の責務。MediaVaultの `/api/search` は自身の `items` のみを対象とする（[03_api-design.md](03_api-design.md)）。
+- **ナレッジの正本はKnowledgeHub Vault**（`/srv/knowledge/vault/10_Knowledge`）。MediaVaultはナレッジ本文（要約/wiki/embedding）を所有せず、材料（itemメタデータ・抽出済み全文）の提供に限定する。
+- したがってナレッジは「生成」（どう作るか）だけでなく「格納」もKnowledgeHub側の責務である。MediaVaultはmcp経由で材料提供とジョブenqueueのみを提供する（[00_overview.md](00_overview.md) 設計原則6）。
+- KnowledgeHubの生成物は `vault-mcp` 経由で `/srv/knowledge/vault/10_Knowledge` へ保存し、MediaVaultのアイテムIDを出典として記録する。MediaVault側からVaultノートへの逆引き参照はMVPでは持たない。
+- 横断的な全文検索（MediaVaultの `items` とVaultのナレッジをまたぐ検索）はKnowledgeHub側の責務。MediaVaultの検索は自身の `items` のみを対象とする（[03_api-design.md](03_api-design.md)）。
 
 ## やらなくていいこと
 
-- MediaVault-worker/mcp が生成ロジック（要約/wiki/embeddingの中身）を自前実装すること（既定ではKnowledgeHub側エージェントに委譲）
+- MediaVault-worker/mcp が生成ロジック（要約/wiki/embeddingの中身）を自前実装すること
+- MediaVault が生成結果を格納するテーブル・APIを持つこと（正本はKnowledgeHub Vault）
 - MediaVault-mcp がDBに直接アクセスすること（必ず `/api` 経由）
-- KnowledgeHubの生成物は`vault-mcp`経由で`/srv/knowledge/vault/10_Knowledge`へ保存し、MediaVaultのアイテムIDを出典として記録する。
 
 ## 関連ドキュメント
 

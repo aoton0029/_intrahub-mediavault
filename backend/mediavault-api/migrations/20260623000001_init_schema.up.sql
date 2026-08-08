@@ -18,7 +18,7 @@ CREATE TYPE item_source AS ENUM ('api', 'manual');
 
 CREATE TYPE group_type AS ENUM ('season', 'volume', 'chapter');
 
-CREATE TYPE relation_type AS ENUM ('reference', 'dlc');
+CREATE TYPE relation_type AS ENUM ('adaptation', 'sequel', 'prequel', 'spinoff', 'dlc', 'reference');
 
 CREATE TYPE file_type AS ENUM ('pdf', 'image', 'video', 'audio', 'archive', 'other');
 

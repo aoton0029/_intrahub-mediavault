@@ -10,7 +10,6 @@
 erDiagram
     ITEMS ||--o{ ITEM_FILES : has
     ITEMS ||--o{ ITEM_LINKS : has
-    ITEMS ||--o{ KNOWLEDGE : derives
     ITEMS ||--o{ JOBS : targets
     ITEMS }o--o{ TAGS : tagged_with
     ITEMS }o--o{ CATEGORIES : classified_as
@@ -27,10 +26,11 @@ erDiagram
 | `tags` / `categories` / `staff` / `mylists` | コア | 分類・関連エンティティ・お気に入り |
 | `item_files` | コア | `/data` 内の相対パスとファイル実体を紐付ける |
 | `item_links` | 拡張 | 外部リンクの統一表現。`kind` = `jellyfin` / `calibre` / `url` |
-| `knowledge` | 拡張 | itemから派生するwikiページ/抽出トピック・エンティティ/embedding参照（KnowledgeHub側エージェントが書き込む） |
 | `jobs` | 拡張 | workerのジョブキュー（種別/状態/対象item/リトライ）。テーブル定義は [05_job-queue.md](05_job-queue.md) |
 
-正準キーは `items.id`。1つの `item` がファイル・外部リンク・関連ナレッジを束ねる（[00_overview.md](00_overview.md) の設計原則2）。
+正準キーは `items.id`。1つの `item` がファイル・外部リンクを束ねる（[00_overview.md](00_overview.md) の設計原則2）。
+
+ナレッジ（要約/wikiページ/embedding）を保持するテーブルは持たない。ナレッジ本文の正本はKnowledgeHub Vault側にあり、MediaVaultは材料提供に限定する（[04_jobs-and-agent-integration.md](04_jobs-and-agent-integration.md#knowledgehubとの責務分界)）。Vaultノート側がMediaVaultの `items.id` を出典として記録するため、参照方向はVault → MediaVaultの一方向である。
 
 ## 設計上の注意（旧設計からの移行）
 

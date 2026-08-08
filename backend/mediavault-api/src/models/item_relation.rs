@@ -8,14 +8,28 @@ use uuid::Uuid;
 
 use crate::models::response::{ApiError, ApiErrorCode};
 
-/// 関連付け種別（`reference`=関連作品, `dlc`=DLC）
-/// 🔵 信頼性レベル: database-schema.sqlのrelation_type ENUM定義に直接対応
+/// 関連付け種別。`item_id`（起点）→ `related_item_id`（終点）の向きが種別ごとに意味を持つ。
+///
+/// | 値 | 起点 | 終点 |
+/// |---|---|---|
+/// | `adaptation` | 原作 | 映像化・翻案作品 |
+/// | `sequel` | 前作 | 続編 |
+/// | `prequel` | 後の作品 | 前日譚 |
+/// | `spinoff` | 本編 | スピンオフ |
+/// | `dlc` | 本編 | DLC・追加コンテンツ |
+/// | `reference` | 引用元 | 引用先 |
+///
+/// 🔵 信頼性レベル: init_schema.up.sqlのrelation_type ENUM定義に直接対応
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "relation_type", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum RelationType {
-    Reference,
+    Adaptation,
+    Sequel,
+    Prequel,
+    Spinoff,
     Dlc,
+    Reference,
 }
 
 /// item_relations本体（`POST /item-relations`のレスポンスで返す表現）
@@ -73,18 +87,63 @@ mod tests {
         assert_eq!(request.relation_type, RelationType::Dlc);
     }
 
+    /// TASK-0001 テストケース1: 6種別すべてがデシリアライズできる
+    #[test]
+    fn create_item_relation_request_deserializes_all_six_relation_types() {
+        let cases = [
+            ("adaptation", RelationType::Adaptation),
+            ("sequel", RelationType::Sequel),
+            ("prequel", RelationType::Prequel),
+            ("spinoff", RelationType::Spinoff),
+            ("dlc", RelationType::Dlc),
+            ("reference", RelationType::Reference),
+        ];
+
+        for (raw, expected) in cases {
+            let value = serde_json::json!({
+                "item_id": Uuid::new_v4(),
+                "related_item_id": Uuid::new_v4(),
+                "relation_type": raw
+            });
+
+            let request: CreateItemRelationRequest = serde_json::from_value(value)
+                .unwrap_or_else(|e| panic!("{raw} のデシリアライズに失敗: {e}"));
+
+            assert_eq!(request.relation_type, expected, "raw={raw}");
+        }
+    }
+
+    /// TASK-0001: 6種別すべてがENUM文字列と一致する形でシリアライズされる
+    #[test]
+    fn relation_type_serializes_to_lowercase_enum_labels() {
+        let cases = [
+            (RelationType::Adaptation, "adaptation"),
+            (RelationType::Sequel, "sequel"),
+            (RelationType::Prequel, "prequel"),
+            (RelationType::Spinoff, "spinoff"),
+            (RelationType::Dlc, "dlc"),
+            (RelationType::Reference, "reference"),
+        ];
+
+        for (variant, expected) in cases {
+            assert_eq!(serde_json::to_value(variant).unwrap(), expected);
+        }
+    }
+
     /// テストケース3: relation_typeが不正値の場合はデシリアライズエラーになる
     #[test]
     fn create_item_relation_request_with_invalid_relation_type_fails_deserialization() {
-        let value = serde_json::json!({
-            "item_id": Uuid::new_v4(),
-            "related_item_id": Uuid::new_v4(),
-            "relation_type": "invalid"
-        });
+        for raw in ["invalid", "inspired_by", "Adaptation", "SEQUEL"] {
+            let value = serde_json::json!({
+                "item_id": Uuid::new_v4(),
+                "related_item_id": Uuid::new_v4(),
+                "relation_type": raw
+            });
 
-        let result: Result<CreateItemRelationRequest, _> = serde_json::from_value(value);
+            let result: Result<CreateItemRelationRequest, _> = serde_json::from_value(value);
 
-        assert!(result.is_err());
+            assert!(result.is_err(), "{raw} は拒否されるべき");
+        }
     }
 
     /// テストケース2: item_id == related_item_idでVALIDATION_ERRORになる

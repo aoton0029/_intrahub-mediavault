@@ -38,7 +38,7 @@
 
 ```sql
 CREATE TYPE job_type AS ENUM (
-    'extract_text', 'index', 'resolve_links', 'wiki', 'embed'
+    'extract_text', 'index', 'resolve_links'
 );
 
 CREATE TYPE job_state AS ENUM (
@@ -137,10 +137,8 @@ COMMIT
 | `extract_text` | api | `POST /items/{id}/files`・`/files/upload` で `file_type='pdf'` のファイルが登録されたとき | `{ "item_file_id": uuid, "path": string }` |
 | `index` | api / worker | items のメタデータ更新時、および `extract_text` 完了時（worker が後続を enqueue） | `{ "item_id": uuid }` |
 | `resolve_links` | api | ファイル登録時、および視聴リンク未解決の item を検出したとき | `{ "item_id": uuid, "hints": { "title": string, "media_type": media_type } }` |
-| `wiki` | mcp（エージェント） | `enqueue_job` ツール | `{ "item_id": uuid, "source": "extracted_text" \| "description" }` |
-| `embed` | mcp（エージェント） | `enqueue_job` ツール | `{ "item_id": uuid, "source": "wiki" \| "description" }` |
 
-`wiki`/`embed` の**生成ロジックは既定では worker に実装しない**（[04](04_jobs-and-agent-integration.md) の責務分界に従う）。worker は KnowledgeHub 側エージェントが生成した結果を `knowledge` に格納する経路と、大量件数のバッチ実行の枠だけを提供する。
+ナレッジ生成のジョブ種別（旧 `wiki`/`embed`）は持たない。ナレッジは生成も格納も KnowledgeHub 側で完結するため（[04](04_jobs-and-agent-integration.md#knowledgehubとの責務分界) の責務分界に従う）、mcp の `enqueue_job` が受け付けるのは上記パイプラインジョブの再実行依頼のみである。
 
 ### 2-3. 冪等性
 
@@ -150,7 +148,7 @@ COMMIT
 - 実装は `INSERT ... ON CONFLICT DO NOTHING` + `RETURNING id`。何も返らなかった場合は既存ジョブの id を引き直して返す。
 - 終端状態の行は部分ユニークインデックスの対象外なので、再実行したいときは同じ `dedup_key` で再 enqueue できる。
 
-`dedup_key` を `NULL` にすれば重複抑止なしで積める（`wiki` の手動再生成など、意図的に何度も走らせたいケース）。
+`dedup_key` を `NULL` にすれば重複抑止なしで積める（`index` の手動再構築など、意図的に何度も走らせたいケース）。
 
 ---
 
@@ -237,7 +235,6 @@ UPDATE jobs
 | `extract_text` | 抽出テキストの格納先カラム（下記「未決事項」参照） |
 | `index` | 検索インデックス（Postgres FTS の tsvector カラム、または Meilisearch） |
 | `resolve_links` | `item_links` に INSERT（Jellyfin/Calibre-Web の URL） |
-| `wiki` / `embed` | `knowledge` テーブル |
 
 `jobs` の更新と副作用の書き込みは 1 トランザクションで COMMIT する。したがって各ジョブハンドラは**冪等に**実装する（同じジョブが 2 回走っても `item_links` が重複しない等）。
 
@@ -303,7 +300,6 @@ worker 復帰時に滞留分が順次処理される。
 
 - **`extract_text` の格納先**: 現行スキーマの `item_files` に本文テキスト用カラムが無い。`item_files.extracted_text TEXT` を追加するか、`item_texts` 別表にするか未決。全文検索の設計（Postgres FTS の tsvector をどこに置くか）と併せて決める。
 - **`item_links.kind`**: [02_data-model.md](02_data-model.md) は `item_links.kind` = `jellyfin`/`calibre`/`url` としているが、実スキーマの `item_links` は `url` と `label` のみで `kind` カラムが無い。`resolve_links` の実装前にどちらかへ揃える必要がある。
-- **`knowledge` テーブル**: 未定義。`wiki`/`embed` の実装は `knowledge` のスキーマ確定が前提。
 - **検索バックエンド**: Postgres FTS か Meilisearch か未決（`index` ジョブの中身が決まらない）。
 
 依存の小ささから、**実装は `resolve_links` を最初の 1 種として着手するのが妥当**（新規テーブル・新規カラムを必要とせず、`item_links` への INSERT のみで完結する）。

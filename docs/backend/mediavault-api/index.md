@@ -87,7 +87,7 @@
 | `item_status` | （例: unwatched/watching/completed 等、item のステータス管理に使用） |
 | `item_source` | アイテムの取得経路（手動登録／外部API取込／CSVインポート等） |
 | `group_type` | season, volume, chapter |
-| `relation_type` | reference, dlc |
+| `relation_type` | adaptation, sequel, prequel, spinoff, dlc, reference |
 | `file_type` | pdf, image, other |
 | `api_provider` | tmdb, igdb, ndl, steam, open_library, ani_list（jikanは認証不要のため対象外） |
 

@@ -67,7 +67,7 @@
 | id | UUID |
 | item_id | UUID |
 | related_item_id | UUID |
-| relation_type | RelationType（reference/dlc） |
+| relation_type | RelationType（adaptation/sequel/prequel/spinoff/dlc/reference、向きの意味は [item-relations.md](item-relations.md) 参照） |
 | created_at | datetime |
 
 ## ItemLink / ItemTrailer / ItemFile

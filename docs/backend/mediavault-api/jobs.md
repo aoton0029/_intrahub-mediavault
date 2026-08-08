@@ -24,7 +24,7 @@
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `id` | uuid | ジョブID |
-| `job_type` | `job_type` | `extract_text` / `index` / `resolve_links` / `wiki` / `embed` |
+| `job_type` | `job_type` | `extract_text` / `index` / `resolve_links` |
 | `state` | `job_state` | `queued` / `running` / `succeeded` / `failed` / `cancelling` / `cancelled` |
 | `payload` | object | job_type ごとのパラメータ（下記） |
 | `result` | object \| null | 成功時の結果。終端前は `null` |
@@ -45,8 +45,8 @@
 | `extract_text` | `{ "item_file_id": uuid, "path": string }` |
 | `index` | `{ "item_id": uuid }` |
 | `resolve_links` | `{ "item_id": uuid, "hints": { "title": string, "media_type": media_type } }` |
-| `wiki` | `{ "item_id": uuid, "source": "extracted_text" \| "description" }` |
-| `embed` | `{ "item_id": uuid, "source": "wiki" \| "description" }` |
+
+ナレッジ生成のジョブ種別は持たない（[basic-design/04_jobs-and-agent-integration.md](../../basic-design/04_jobs-and-agent-integration.md#knowledgehubとの責務分界)）。
 
 ---
 
