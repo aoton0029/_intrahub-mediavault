@@ -132,6 +132,11 @@ pub struct ListItemsQuery {
     /// after_created_at/after_idと合わせて指定された場合のみ有効
     #[serde(default)]
     pub after_value: Option<String>,
+    /// true指定時のみCOUNT(*)を実行し`pagination.total`を返す（TASK-0003）。
+    /// 未指定時はCOUNTクエリを実行しない（既存の性能特性を維持するためのオプトイン方式）
+    /// 🔵 信頼性レベル: TASK-0003完了条件「include_total=trueを指定したときのみtotalが返る」に直接対応
+    #[serde(default)]
+    pub include_total: Option<bool>,
 }
 
 /// `GET /items` の並び順

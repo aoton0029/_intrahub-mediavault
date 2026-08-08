@@ -238,6 +238,10 @@ pub struct Pagination {
     /// sortがcreated_at以外の場合の次ページカーソル（ソートキー値の文字列表現）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_after_value: Option<String>,
+    /// 検索条件に該当する全件数（TASK-0003）。`include_total=true`指定時のみSome。
+    /// 未指定時はフィールドごと省略し、既存レスポンスの形を変えない
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<i64>,
 }
 
 /// ページネーション付き統一APIレスポンス（成功）
@@ -365,6 +369,7 @@ mod tests {
                     uuid::Uuid::parse_str("b2b5c1a0-0000-0000-0000-000000000000").unwrap(),
                 ),
                 next_after_value: None,
+                total: None,
             },
         );
 
@@ -429,6 +434,7 @@ mod tests {
                 next_after_created_at: None,
                 next_after_id: None,
                 next_after_value: None,
+                total: None,
             },
         );
 

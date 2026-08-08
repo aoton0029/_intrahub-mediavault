@@ -1,6 +1,7 @@
 pub mod backup;
 pub mod cast;
 pub mod categories;
+pub mod collection;
 pub mod health;
 pub mod import_booklog;
 pub mod import_steam;

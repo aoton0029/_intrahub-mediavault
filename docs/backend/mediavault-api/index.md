@@ -98,6 +98,7 @@
 | Method | Path | 説明 | 詳細 |
 |--------|------|------|------|
 | GET | /health | ヘルスチェック | [health.md](./health.md) |
+| GET | /collection/overview | コレクション全体統計（media_type別/status別件数・お気に入り・最近追加/更新） | [collection.md](./collection.md) |
 | GET | /items | アイテム一覧取得（フィルタ・ページネーション） | [items.md](./items.md) |
 | POST | /items | アイテム新規作成 | [items.md](./items.md) |
 | GET | /items/search | 外部API横断検索 | [items.md](./items.md) |
@@ -156,6 +157,7 @@
 
 - [data-model.md](./data-model.md) — レスポンスに登場するstructのフィールド一覧
 - [health.md](./health.md) — Health
+- [collection.md](./collection.md) — Collection（コレクション全体統計）
 - [items.md](./items.md) — Items
 - [tags.md](./tags.md) — Tags
 - [categories.md](./categories.md) — Categories

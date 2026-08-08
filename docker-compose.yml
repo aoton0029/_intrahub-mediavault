@@ -62,6 +62,31 @@ services:
           - backend
       media-db:
 
+  mediavault-mcp:
+    build:
+      context: ./backend
+      dockerfile: mediavault-mcp/Dockerfile
+    restart: unless-stopped
+    environment:
+      MCP_BIND_ADDR: 0.0.0.0:8081
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:?MCP_AUTH_TOKEN is required}
+      MEDIAVAULT_API_BASE_URL: http://mediavault-api:8080
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      RUST_LOG: ${RUST_LOG:-info}
+    ports:
+      - "${MCP_BIND_ADDRESS:-0.0.0.0}:8081:8081"
+    depends_on:
+      - mediavault-api
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8081/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - mediavault-api
+
   mediavault-web:
     build:
       context: ./frontend
@@ -70,7 +95,7 @@ services:
     environment:
       TZ: ${TZ:-UTC}
     ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:8080:80"
+      - "${BIND_ADDRESS:-127.0.0.1}:${MEDIAVAULT_WEB_PORT:-8080}:80"
     depends_on:
       mediavault-api:
         condition: service_healthy

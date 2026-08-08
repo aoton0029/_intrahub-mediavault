@@ -7,10 +7,11 @@ use std::collections::HashMap;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;
 
+use crate::models::collection::RecentItemsOrder;
 use crate::models::item::{
-    CategoryRef, CreateItemRequest, DateField, Item, ItemSort, ItemSource, ListItemYearsQuery,
-    ListItemsQuery, MediaType, MediaTypeCount, MediaTypeCounts, TagRef, UpdateItemRequest,
-    UpdateStatusRequest, YearCount, has_any_update_field,
+    CategoryRef, CreateItemRequest, DateField, Item, ItemSort, ItemSource, ItemStatus,
+    ListItemYearsQuery, ListItemsQuery, MediaType, MediaTypeCount, MediaTypeCounts, TagRef,
+    UpdateItemRequest, UpdateStatusRequest, YearCount, has_any_update_field,
 };
 use crate::models::response::{ApiError, ApiErrorCode};
 
@@ -249,12 +250,23 @@ fn push_item_filters(builder: &mut QueryBuilder<'_, Postgres>, query: &ListItems
         }
     }
 
-    // 【TASK-0029】: titleフィルタ（部分一致・ILIKE）。/internal/items/search の検索条件として
-    // list_items_handlerの検索ロジックを再利用するために追加した 🔵
+    // 【TASK-0002】: titleフィルタ（部分一致・ILIKE）。本題・原題・別名(details.alternative_titles)
+    // を横断してOR検索する。alternative_titlesはjsonb_typeofで配列であることを確認してから
+    // jsonb_array_elements_textを適用する（非配列・欠落時のランタイムエラーを避けるため） 🔵
     if let Some(title) = &query.title {
         push_clause_prefix!();
-        builder.push("title ILIKE ");
-        builder.push_bind(format!("%{title}%"));
+        let pattern = format!("%{title}%");
+        builder.push("(title ILIKE ");
+        builder.push_bind(pattern.clone());
+        builder.push(" OR original_title ILIKE ");
+        builder.push_bind(pattern.clone());
+        builder.push(
+            " OR (jsonb_typeof(items.details -> 'alternative_titles') = 'array' AND EXISTS (\
+            SELECT 1 FROM jsonb_array_elements_text(items.details -> 'alternative_titles') AS alt(value) \
+            WHERE alt.value ILIKE ",
+        );
+        builder.push_bind(pattern);
+        builder.push(")))");
     }
 
     has_condition
@@ -375,6 +387,31 @@ pub async fn list_items(pool: &PgPool, query: &ListItemsQuery) -> Result<Vec<Ite
         .await
         .map_err(db_error)?;
     Ok(items)
+}
+
+/// 【機能概要】: GET /items 一覧取得と同一のフィルタ条件で該当件数を数えるCOUNTクエリを構築する（TASK-0003）
+/// 【実装方針】: `push_item_filters`を`build_list_items_query`と共有することで、WHERE句の
+/// 二重管理・条件乖離を防ぐ。keysetカーソル（after_created_at/after_id/after_value）と
+/// limit/sortはCOUNTの結果に影響しないため意図的に反映しない
+/// 🔵 信頼性レベル: TASK-0003 実装詳細2「フィルタ条件は本体クエリと完全に同一にし、
+/// keysetカーソルとlimitだけを除外する」に直接対応
+pub fn build_count_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgres> {
+    let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new("SELECT COUNT(*) FROM items");
+    push_item_filters(&mut builder, query);
+    builder
+}
+
+/// 【機能概要】: `include_total=true`指定時のみ呼び出され、絞り込み条件に該当する全件数を返す
+/// 【実装方針】: build_count_items_queryで構築したクエリをfetch_oneし、DBエラーはdb_errorで変換する
+/// 🔵 信頼性レベル: TASK-0003完了条件「include_total=trueを指定したときのみpagination.totalが返る」に直接対応
+pub async fn count_items(pool: &PgPool, query: &ListItemsQuery) -> Result<i64, ApiError> {
+    let mut builder = build_count_items_query(query);
+    let total: i64 = builder
+        .build_query_scalar()
+        .fetch_one(pool)
+        .await
+        .map_err(db_error)?;
+    Ok(total)
 }
 
 /// 【機能概要】: 年別コレクションページ用に、指定日付カラムの年ごとのアイテム件数を
@@ -626,6 +663,54 @@ pub async fn count_items_by_media_type(pool: &PgPool) -> Result<MediaTypeCounts,
     }
 
     Ok(counts)
+}
+
+/// 【機能概要】: コレクション全体の総件数・お気に入り件数を1クエリで集計する（TASK-0004）
+/// 【実装方針】: `COUNT(*) FILTER (WHERE ...)`でtotal/favoriteを1本のクエリにまとめ、
+/// 往復回数を減らす
+pub async fn count_collection_totals(pool: &PgPool) -> Result<(i64, i64), ApiError> {
+    let row: (i64, i64) =
+        sqlx::query_as("SELECT COUNT(*), COUNT(*) FILTER (WHERE is_favorite) FROM items")
+            .fetch_one(pool)
+            .await
+            .map_err(db_error)?;
+    Ok(row)
+}
+
+/// 【機能概要】: status別のアイテム件数を集計する（TASK-0004、`GET /collection/overview`用）
+/// 【実装方針】: `GROUP BY status`で集計する。該当0件のstatusはRust側で0埋めする
+pub async fn count_items_by_status(pool: &PgPool) -> Result<Vec<(ItemStatus, i64)>, ApiError> {
+    let rows: Vec<(ItemStatus, i64)> =
+        sqlx::query_as("SELECT status, COUNT(*) FROM items GROUP BY status")
+            .fetch_all(pool)
+            .await
+            .map_err(db_error)?;
+    Ok(rows)
+}
+
+/// 【機能概要】: 最近追加/更新されたitemsを指定件数だけ取得する（TASK-0004、`GET /collection/overview`用）
+/// 【実装方針】: `order_by`で`created_at`（recently_added）/ `updated_at`（recently_updated）を
+/// 切り替える。列挙は`build_list_items_query`と同一の明示カラムリストで揃える
+pub async fn list_recent_items(
+    pool: &PgPool,
+    limit: u32,
+    order_by: RecentItemsOrder,
+) -> Result<Vec<Item>, ApiError> {
+    let column = match order_by {
+        RecentItemsOrder::CreatedAt => "created_at",
+        RecentItemsOrder::UpdatedAt => "updated_at",
+    };
+    let sql = format!(
+        "SELECT id, media_type, title, original_title, description, cover_image_url, \
+        release_date, homepage_url, status, consumed_date, rating, is_favorite, \
+        source, external_id, created_at, updated_at FROM items ORDER BY {column} DESC LIMIT $1"
+    );
+    let items: Vec<Item> = sqlx::query_as(&sql)
+        .bind(limit as i64)
+        .fetch_all(pool)
+        .await
+        .map_err(db_error)?;
+    Ok(items)
 }
 
 /// 【機能概要】: `UpdateItemRequest`のうちSomeであるフィールドのみを対象にUPDATE文のSET句を
@@ -915,6 +1000,7 @@ mod tests {
             after_id: None,
             sort: None,
             after_value: None,
+            include_total: None,
         }
     }
 
@@ -1050,6 +1136,22 @@ mod tests {
         assert!(!sql.contains("WHERE")); // 【確認内容】: 他フィルタも無いため WHERE 自体が生成されないことを確認
     }
 
+    /// TASK-0002: title 指定時のSQLに本題・原題・別名(alternative_titles)横断のOR条件が含まれる
+    /// 🔵 信頼性レベル: TASK-0002 実装詳細1より
+    #[test]
+    fn build_list_items_sql_contains_title_original_title_and_alternative_titles_conditions() {
+        let mut query = empty_query();
+        query.title = Some("keyword".to_string());
+
+        let builder = build_list_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(sql.contains("title ILIKE ")); // 【確認内容】: 本題条件が含まれることを確認 🔵
+        assert!(sql.contains("original_title ILIKE ")); // 【確認内容】: 原題条件が含まれることを確認 🔵
+        assert!(sql.contains("jsonb_typeof(items.details -> 'alternative_titles') = 'array'")); // 【確認内容】: 非配列ガードが含まれることを確認 🔵
+        assert!(sql.contains("jsonb_array_elements_text(items.details -> 'alternative_titles')")); // 【確認内容】: 別名の展開条件が含まれることを確認 🔵
+    }
+
     /// TC-0010-Q02: media_type 指定時のSQLに `media_type = ` を含む
     /// 🔵 信頼性レベル: 完了条件「media_type 絞り込み」に対応
     #[test]
@@ -1137,6 +1239,83 @@ mod tests {
         assert!(sql.contains("AND")); // 【確認内容】: 複数フィルタがAND結合されることを確認 🟡
         assert!(sql.contains("media_type = ")); // 【確認内容】: media_type条件が含まれることを確認 🟡
         assert!(sql.contains("is_favorite = ")); // 【確認内容】: is_favorite条件が含まれることを確認 🟡
+    }
+
+    /// TASK-0003 TC1相当: COUNTクエリはCOUNT(*)を返し、LIMIT/ORDER BYを含まない
+    /// 🔵 信頼性レベル: TASK-0003完了条件「totalはページネーションの影響を受けない」に直接対応
+    #[test]
+    fn build_count_items_sql_selects_count_without_limit_or_order_by() {
+        let query = empty_query();
+        let builder = build_count_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(sql.starts_with("SELECT COUNT(*) FROM items")); // 【確認内容】: COUNT(*)クエリであることを確認
+        assert!(!sql.contains("LIMIT")); // 【確認内容】: countにはページネーションが影響しないことを確認
+        assert!(!sql.contains("ORDER BY")); // 【確認内容】: countにはソート順が不要であることを確認
+        assert!(!sql.contains("WHERE")); // 【確認内容】: フィルタなし時はWHERE句が付かないことを確認
+    }
+
+    /// TASK-0003 TC3相当: フィルタ条件がCOUNTクエリのWHERE句に反映される
+    /// 🔵 信頼性レベル: TASK-0003完了条件「フィルタが COUNT に反映される」に直接対応
+    #[test]
+    fn build_count_items_sql_reflects_filters() {
+        let mut query = empty_query();
+        query.is_favorite = Some(true);
+
+        let builder = build_count_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(sql.contains("WHERE is_favorite = ")); // 【確認内容】: is_favoriteフィルタがCOUNTクエリに反映されることを確認
+    }
+
+    /// TASK-0003 TC4相当: keysetカーソル（after_created_at/after_id）はCOUNTクエリのWHERE句に影響しない
+    /// 🔵 信頼性レベル: TASK-0003完了条件「totalはページネーションの影響を受けない」に直接対応
+    #[test]
+    fn build_count_items_sql_ignores_keyset_cursor() {
+        let mut query = empty_query();
+        query.after_created_at = Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 7, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+        );
+        query.after_id = Some(Uuid::new_v4());
+
+        let builder = build_count_items_query(&query);
+        let sql = builder.sql();
+
+        assert!(!sql.contains("WHERE")); // 【確認内容】: カーソル指定のみではCOUNTクエリにWHERE句が付かないことを確認
+    }
+
+    /// TASK-0003 統合テスト2相当: include_total=trueの場合のみcount_itemsが実行される（実DB必要）
+    /// 🔵 信頼性レベル: TASK-0003完了条件「該当件数」・単体テストTC1・TC5に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn count_items_returns_matching_row_count() {
+        let pool = test_pool().await;
+        seed_items_by_media_type(&pool, MediaType::Anime, 3).await;
+        seed_items_by_media_type(&pool, MediaType::Movie, 2).await;
+
+        let mut query = empty_query();
+        query.media_type = Some(MediaType::Anime);
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(total, 3); // 【確認内容】: フィルタに該当する3件のみカウントされることを確認
+    }
+
+    /// TASK-0003 単体テスト5相当: 該当0件の場合はエラーにせずtotal=0を返す（実DB必要）
+    /// 🔵 信頼性レベル: TASK-0003完了条件「0件時の扱い」に直接対応
+    #[tokio::test]
+    #[ignore]
+    async fn count_items_returns_zero_when_no_rows_match() {
+        let pool = test_pool().await;
+        seed_items_by_media_type(&pool, MediaType::Anime, 2).await;
+
+        let mut query = empty_query();
+        query.media_type = Some(MediaType::Movie);
+        let total = count_items(&pool, &query).await.unwrap();
+
+        assert_eq!(total, 0); // 【確認内容】: 該当なしの場合エラーにせず0を返すことを確認
     }
 
     /// TC-0010-N01: 絞り込みなしの一覧取得（デフォルトページネーション、実DB必要）
@@ -1303,6 +1482,107 @@ mod tests {
         let items = list_items(&pool, &query).await.unwrap();
 
         assert_eq!(items.len(), 2); // 【確認内容】: CAT_Aを持つitemのみ2件取得されることを確認 🟡
+    }
+
+    /// TASK-0002 テストケース1: 本題での検索（後方互換、実DB必要）
+    /// 🔵 信頼性レベル: TASK-0002 完了条件より
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_title_filter_matches_by_main_title() {
+        let pool = test_pool().await;
+        insert_test_item_with_titles(&pool, "作品A", None, None).await;
+        insert_test_item_with_titles(&pool, "無関係B", None, None).await;
+
+        let mut query = empty_query();
+        query.title = Some("作品".to_string());
+        let items = list_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 1); // 【確認内容】: 本題部分一致で1件ヒットすることを確認 🔵
+        assert_eq!(items[0].title, "作品A");
+    }
+
+    /// TASK-0002 テストケース2: 原題での検索（実DB必要）
+    /// 🔵 信頼性レベル: REQ-011・受け入れ基準 TC-011-01 より
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_title_filter_matches_by_original_title() {
+        let pool = test_pool().await;
+        insert_test_item_with_titles(&pool, "作品A", Some("Original Title"), None).await;
+        insert_test_item_with_titles(&pool, "作品B", None, None).await;
+
+        let mut query = empty_query();
+        query.title = Some("Original".to_string());
+        let items = list_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 1); // 【確認内容】: 原題部分一致で1件ヒットすることを確認 🔵
+        assert_eq!(items[0].title, "作品A");
+    }
+
+    /// TASK-0002 テストケース3: 別名での検索（実DB必要）
+    /// 🔵 信頼性レベル: REQ-011・受け入れ基準 TC-011-02 より
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_title_filter_matches_by_alternative_titles() {
+        let pool = test_pool().await;
+        insert_test_item_with_titles(
+            &pool,
+            "作品A",
+            None,
+            Some(serde_json::json!({"alternative_titles": ["略称A", "AltName"]})),
+        )
+        .await;
+        insert_test_item_with_titles(&pool, "作品B", None, None).await;
+
+        let mut query = empty_query();
+        query.title = Some("略称".to_string());
+        let items = list_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 1); // 【確認内容】: 別名部分一致で1件ヒットすることを確認 🔵
+        assert_eq!(items[0].title, "作品A");
+    }
+
+    /// TASK-0002 テストケース4: detailsが非配列・欠落でもSQLエラーにならない（実DB必要）
+    /// 🟡 信頼性レベル: detailsが自由形式JSONであることから導かれる境界ケース
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_title_filter_ignores_non_array_or_missing_alternative_titles() {
+        let pool = test_pool().await;
+        insert_test_item_with_titles(&pool, "作品C", None, None).await; // details = null
+        insert_test_item_with_titles(
+            &pool,
+            "作品D",
+            None,
+            Some(serde_json::json!({"alternative_titles": "文字列"})),
+        )
+        .await; // 非配列
+
+        let mut query = empty_query();
+        query.title = Some("何か".to_string());
+        let result = list_items(&pool, &query).await;
+
+        assert!(result.is_ok()); // 【確認内容】: 非配列・欠落でもSQLエラーにならず正常完了することを確認 🟡
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    /// TASK-0002 テストケース5: 複数条件にヒットしても重複しない（実DB必要）
+    /// 🔵 信頼性レベル: TASK-0002 完了条件より
+    #[tokio::test]
+    #[ignore]
+    async fn list_items_title_filter_does_not_duplicate_when_matching_multiple_fields() {
+        let pool = test_pool().await;
+        insert_test_item_with_titles(
+            &pool,
+            "共通語タイトル",
+            Some("共通語原題"),
+            Some(serde_json::json!({"alternative_titles": ["共通語別名"]})),
+        )
+        .await;
+
+        let mut query = empty_query();
+        query.title = Some("共通語".to_string());
+        let items = list_items(&pool, &query).await.unwrap();
+
+        assert_eq!(items.len(), 1); // 【確認内容】: 3条件すべてにヒットしても1件のみ返ることを確認 🔵
     }
 
     /// TC-0010-N08: tag_id と media_type の AND 複合（実DB必要）
@@ -2019,6 +2299,26 @@ mod tests {
         }
 
         item_id
+    }
+
+    /// TASK-0002テスト用ヘルパー: title/original_title/detailsを指定してitemを投入する
+    async fn insert_test_item_with_titles(
+        pool: &PgPool,
+        title: &str,
+        original_title: Option<&str>,
+        details: Option<serde_json::Value>,
+    ) -> Uuid {
+        sqlx::query_scalar(
+            "INSERT INTO items (media_type, title, original_title, status, is_favorite, \
+            source, external_id, details) \
+            VALUES ('anime', $1, $2, 'not_started', false, 'manual', NULL, $3) RETURNING id",
+        )
+        .bind(title)
+        .bind(original_title)
+        .bind(details)
+        .fetch_one(pool)
+        .await
+        .expect("テスト用item(title/original_title/details)の投入に失敗しました")
     }
 
     /// テスト用ヘルパー: 最小構成のCreateItemRequestを構築する

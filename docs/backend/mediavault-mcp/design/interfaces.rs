@@ -66,6 +66,9 @@ pub enum McpErrorCode {
     InvalidArgument,
     /// 名前指定の対象がマスタに存在しない（`create_if_missing` 未指定）🔵 REQ-111
     NameNotResolved,
+    /// レスポンスのデシリアライズに失敗した 🟡 TASK-0009 で追加。dataflow.md の
+    ///    `ApiClientError::Decode` の変換先として必要になったため
+    DecodeFailed,
 }
 
 impl McpErrorCode {
@@ -76,6 +79,7 @@ impl McpErrorCode {
             Self::InternalAuthFailed => "MCP_INTERNAL_AUTH_FAILED",
             Self::InvalidArgument => "MCP_INVALID_ARGUMENT",
             Self::NameNotResolved => "MCP_NAME_NOT_RESOLVED",
+            Self::DecodeFailed => "MCP_DECODE_FAILED",
         }
     }
 }

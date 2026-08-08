@@ -120,6 +120,14 @@ pub async fn list_items_handler(
         (None, None, None)
     };
 
+    // 【total取得】: include_total=trueの場合のみCOUNTクエリを実行する（オプトイン方式）。
+    // 未指定/falseの場合はCOUNTを実行せず、既存の性能特性を維持する 🔵
+    let total = if normalized_query.include_total.unwrap_or(false) {
+        Some(item_repository::count_items(&state.db, &normalized_query).await?)
+    } else {
+        None
+    };
+
     // 【tags/categories付与】: カードUIのタグピル表示のため、一覧アイテムにもtags/categoriesを
     // バッチ取得して合成する（N+1回避のためitem_id単位で一括取得しRust側でzipする）
     let item_ids: Vec<uuid::Uuid> = items.iter().map(|item| item.id).collect();
@@ -149,6 +157,7 @@ pub async fn list_items_handler(
             next_after_created_at,
             next_after_id,
             next_after_value,
+            total,
         },
     ))
 }

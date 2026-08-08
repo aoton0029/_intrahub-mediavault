@@ -2,6 +2,7 @@ pub mod api_credential;
 pub mod backup;
 pub mod cast;
 pub mod category;
+pub mod collection;
 pub mod external_search;
 pub mod import;
 pub mod item;

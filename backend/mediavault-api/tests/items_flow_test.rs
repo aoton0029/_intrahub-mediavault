@@ -327,3 +327,91 @@ async fn it_011_get_immediately_after_delete_returns_404_item_not_found() {
     let json = body_json(response).await;
     assert_eq!(json["error"]["code"], "ITEM_NOT_FOUND"); // 【確認内容】: エラーコードがITEM_NOT_FOUNDであることを確認 🔵
 }
+
+/// TASK-0003 TC1/TC2/TC6: include_total指定時のみpagination.totalが返る
+/// 【テスト目的】: `include_total=true`指定時のみtotalが返り、未指定・falseでは省略されることを確認する
+/// 🔵 信頼性レベル: TASK-0003完了条件・単体テストTC1/TC2/TC6に直接対応
+#[tokio::test]
+#[ignore] // 実DB（docker compose up -d db）が必要。cargo test -- --ignored で実行
+async fn task_0003_include_total_returns_total_only_when_requested() {
+    let state = test_app_state().await;
+    let app = build_full_router(state);
+
+    // 【テストデータ準備】: is_favorite=trueのアイテムを2件作成する
+    for _ in 0..2 {
+        let create_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/items")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "media_type": "anime",
+                            "title": "include_totalテスト",
+                            "is_favorite": true
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(create_response.status(), StatusCode::CREATED);
+    }
+
+    // 【実際の処理実行】: include_total未指定でGET /itemsを実行する
+    let without_total = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/items?is_favorite=true")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(without_total.status(), StatusCode::OK);
+    let without_total_json = body_json(without_total).await;
+    assert!(
+        without_total_json["pagination"].get("total").is_none(),
+        "include_total未指定時はtotalフィールドが省略されること"
+    ); // 【確認内容】: TC2 未指定時はtotalが返らないことを確認 🔵
+
+    // 【実際の処理実行】: include_total=falseを明示指定してGET /itemsを実行する
+    let explicit_false = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/items?is_favorite=true&include_total=false")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let explicit_false_json = body_json(explicit_false).await;
+    assert!(
+        explicit_false_json["pagination"].get("total").is_none(),
+        "include_total=false明示時もtotalフィールドが省略されること"
+    ); // 【確認内容】: TC6 include_total=falseは未指定時と同じ挙動であることを確認 🟡
+
+    // 【実際の処理実行】: include_total=trueでGET /itemsを実行する
+    let with_total = app
+        .oneshot(
+            Request::builder()
+                .uri("/items?is_favorite=true&include_total=true")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(with_total.status(), StatusCode::OK);
+    let with_total_json = body_json(with_total).await;
+
+    // 【結果検証】: is_favorite=trueに該当する件数（2件以上、少なくとも作成した2件を含む）がtotalに反映されることを確認する
+    let total = with_total_json["pagination"]["total"]
+        .as_i64()
+        .expect("include_total=true時はtotalが数値で返ること"); // 【確認内容】: TC1 totalが返ることを確認 🔵
+    assert!(total >= 2, "作成した2件を含む件数がtotalに反映されること");
+}

@@ -12,11 +12,16 @@
   - `category_id` (uuid, optional)
   - `is_favorite` (bool, optional)
   - `status` (string, optional)
-  - `title` (string, optional) — 部分一致検索
+  - `title` (string, optional) — 本題（`title`）・原題（`original_title`）・別名（`details.alternative_titles`、配列でない場合や欠落時は無視）を横断した部分一致検索。3つの条件はORで結合され、同一itemが複数条件にヒットしても重複せず1件のみ返る
+  - `year` (i32, optional) — `date_field`で指定したカラム（未指定時は`release_date`/`consumed_date`のいずれか）の年一致で絞り込む
+  - `date_field` (string, optional, `release` / `consumed` / `any`, デフォルト`any`) — `year`指定時にどの日付カラムを対象とするか。`any`は`release_date`/`consumed_date`のどちらか一致すれば対象（OR条件）。`year`未指定時は無視される
+  - `sort` (string, optional, `created_at` / `updated_at` / `rating` / `title` / `release_date`, デフォルト`created_at`) — 並び順。`created_at`/`updated_at`/`rating`/`release_date`は降順、`title`のみ昇順。ページング時は`after_value`と併用する
   - `limit` (u32, optional, default 20, max 100)
   - `after_created_at` (string, optional, NaiveDateTime形式 例: `"2026-07-01T12:00:00"`) — 前回レスポンスの`pagination.next_after_created_at`をそのまま渡す
   - `after_id` (uuid, optional) — 前回レスポンスの`pagination.next_after_id`をそのまま渡す
-  - 先頭ページを取得する場合は`after_created_at`/`after_id`を両方省略する。片方のみ指定された場合は無効なカーソルとして無視され、先頭ページとして扱われる（400にはならない）
+  - `after_value` (string, optional) — `sort`が`created_at`以外の場合のカーソル値（ソートキー自体の前回最終値）。`after_created_at`/`after_id`と併せて3値すべて指定された場合のみカーソル条件が適用される
+  - 先頭ページを取得する場合は`after_created_at`/`after_id`（および`sort`指定時は`after_value`）を省略する。一部のみ指定された場合は無効なカーソルとして無視され、先頭ページとして扱われる（400にはならない）
+  - `include_total` (bool, optional, default `false`) — `true`のときのみ`COUNT(*)`クエリを実行し、`pagination.total`に検索条件に該当する全件数（ページネーションの影響を受けない）を返す。未指定・`false`時はCOUNTクエリを実行せず`total`フィールドも返さない（オプトイン方式。既定でCOUNTを避けるという本APIの設計意図を維持するため）。`total`の絞り込み条件は本体の`data`と完全に同一（`media_type`/`tag_id`/`category_id`/`is_favorite`/`status`/`title`/`year`を反映し、`after_created_at`/`after_id`/`after_value`/`limit`/`sort`は反映されない）
 - **成功レスポンス** (200): `PaginatedOk<ItemWithRefs[]>`（`ItemWithRefs` = `Item`の全フィールド + `tags: TagRef[]` + `categories: CategoryRef[]`。フロントエンドのカードUIでタグピル表示に使う）
 
 ```json
@@ -53,7 +58,7 @@
 }
 ```
 
-`pagination`は`{ limit: number, has_more: boolean, next_after_created_at: string | null, next_after_id: string | null }`。`has_more=false`のとき`next_after_created_at`/`next_after_id`は`null`。件数の総数（`total`）は返さない（COUNT(*)クエリを避けるため）。
+`pagination`は`{ limit: number, has_more: boolean, next_after_created_at: string | null, next_after_id: string | null, total?: number }`。`has_more=false`のとき`next_after_created_at`/`next_after_id`は`null`。件数の総数（`total`）は既定では返さない（`COUNT(*)`クエリを避けるため）。`include_total=true`を指定した場合のみ`pagination.total`が追加され、それ以外は`total`フィールド自体が省略される。
 
 ## GET /items/counts-by-media-type
 サイドバー表示用に、メディア種別ごとのアイテム件数を集計して返す。`/items/{id}` より前にルーティング登録。

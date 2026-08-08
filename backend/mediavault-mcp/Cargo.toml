@@ -1,0 +1,30 @@
+[package]
+name = "mediavault-mcp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.9"
+tokio = { version = "1.52.3", features = ["full"] }
+tower = "0.5.3"
+tower-http = { version = "0.7.0", features = ["trace"] }
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+schemars = { version = "1", features = ["uuid1"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+futures = "0.3"
+url = "2"
+subtle = "2"
+thiserror = "2"
+base64 = "0.22"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
+rmcp = { version = "3.1", features = ["server", "transport-streamable-http-server", "macros"] }
+
+[dev-dependencies]
+wiremock = "0.6"
+tokio-util = "0.7"

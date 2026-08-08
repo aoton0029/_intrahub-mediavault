@@ -3,4 +3,5 @@ resolver = "3"
 members = [
     "mediavault-api",
     "api-client-lib",
+    "mediavault-mcp",
 ]

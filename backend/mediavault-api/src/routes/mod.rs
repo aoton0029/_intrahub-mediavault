@@ -19,6 +19,7 @@ use crate::handlers::categories::{
     attach_category_handler, create_category_handler, delete_category_handler,
     detach_category_handler, list_categories_handler,
 };
+use crate::handlers::collection::get_collection_overview_handler;
 use crate::handlers::health::health_handler;
 use crate::handlers::import_booklog::{
     cancel_booklog_import_job_handler, get_booklog_import_job_handler, import_booklog_handler,
@@ -70,6 +71,9 @@ use crate::handlers::tags::{
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_handler))
+        // 【TASK-0004】: GET /collection/overview（コレクション全体統計）。/items配下とは
+        // パス階層が異なるため/items/{id}との衝突はないが、慣例に倣いリテラルパスとして登録する
+        .route("/collection/overview", get(get_collection_overview_handler))
         // 【TASK-0010】: GET /items（一覧・絞り込み）を既存POST /itemsと同一パスに追加 🔵
         .route("/items", get(list_items_handler).post(create_item_handler))
         // 【TASK-0024】: GET /items/search（外部API検索）を/items/{id}より前にリテラル登録し誤マッチ防止 🔵
