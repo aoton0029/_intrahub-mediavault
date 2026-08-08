@@ -747,6 +747,11 @@ pub fn build_update_item_query(request: &UpdateItemRequest) -> Option<QueryBuild
         };
     }
 
+    if let Some(media_type) = request.media_type {
+        push_set_separator!();
+        builder.push("media_type = ");
+        builder.push_bind(media_type);
+    }
     if let Some(title) = &request.title {
         push_set_separator!();
         builder.push("title = ");
@@ -968,6 +973,7 @@ mod tests {
         f: impl FnOnce(&mut crate::models::item::UpdateItemRequest),
     ) -> crate::models::item::UpdateItemRequest {
         let mut request = crate::models::item::UpdateItemRequest {
+            media_type: None,
             title: None,
             original_title: None,
             description: None,

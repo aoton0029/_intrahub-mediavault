@@ -12,7 +12,8 @@ use crate::models::external_search::SearchResultItem;
 use crate::models::item::{
     Item, ItemDetail, ItemSort, ItemWithRefs, ListItemYearsQuery, ListItemsQuery, MediaType,
     MediaTypeCounts, UpdateItemRequest, UpdateStatusRequest, YearCount, deserialize_request,
-    parse_create_item_request, parse_item_id, validate_update_title,
+    parse_create_item_request, parse_item_id, validate_media_type_transition,
+    validate_update_title,
 };
 use crate::models::item_episode::CreateItemEpisodeRequest;
 use crate::models::item_group::{CreateItemGroupRequest, GroupType};
@@ -240,6 +241,13 @@ pub async fn update_item_handler(
     let request: UpdateItemRequest = deserialize_request(body)?;
 
     validate_update_title(&request.title)?;
+
+    if request.media_type.is_some() {
+        let current = item_repository::get_item_by_id(&state.db, id)
+            .await?
+            .ok_or_else(|| ApiError::new(ApiErrorCode::ItemNotFound, "アイテムが見つかりません"))?;
+        validate_media_type_transition(current.media_type, request.media_type)?;
+    }
 
     let item = item_repository::update_item(&state.db, id, request)
         .await?

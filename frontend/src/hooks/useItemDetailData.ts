@@ -513,6 +513,17 @@ export function useItemDetailData<TDetail>(
     onSuccess: invalidate,
   });
 
+  const mediaTypeMutation = useMutation({
+    mutationFn: async (mediaType: MediaType) => {
+      await fetchApi(`/items/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_type: mediaType }),
+      });
+    },
+    onSuccess: invalidate,
+  });
+
   const deleteItemMutation = useMutation({
     mutationFn: async () => {
       await parseJson(await apiFetch(`/items/${id}`, { method: "DELETE" }));
@@ -630,6 +641,7 @@ export function useItemDetailData<TDetail>(
     updateCitation: (citationId: string, payload: Record<string, unknown>) =>
       citationUpdateMutation.mutateAsync({ citationId, payload }),
     removeCitation: (citationId: string) => citationRemoveMutation.mutateAsync(citationId),
+    updateMediaType: (mediaType: MediaType) => mediaTypeMutation.mutateAsync(mediaType),
     deleteItem: () => deleteItemMutation.mutateAsync(),
   };
 }

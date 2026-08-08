@@ -40,13 +40,34 @@ export function NovelDetailPage() {
     }
   }
 
+  async function handleConvertToAcademicBook() {
+    if (!id) return;
+    if (!window.confirm("この作品を専門書として登録し直しますか？")) return;
+    try {
+      await detail.updateMediaType("academic_book");
+      toast.success("専門書として登録し直しました。");
+      navigate(`/academic-books/${id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "種別の変更に失敗しました。");
+    }
+  }
+
   const pageChrome = useMemo(() => ({
     breadcrumbs: [
       { label: "メディア", to: "/media" },
       { label: "小説" },
     ],
     actions: id ? (
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          style={{ opacity: 0.6 }}
+          title="この作品を専門書として登録し直します"
+          onClick={() => void handleConvertToAcademicBook()}
+        >
+          専門書として扱う
+        </button>
         <Link className="btn btn-accent" to={`/media/${id}/edit`}>編集する</Link>
         <button type="button" className="btn btn-danger" onClick={() => void handleDelete()}>削除する</button>
       </div>

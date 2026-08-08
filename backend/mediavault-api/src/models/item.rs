@@ -225,9 +225,12 @@ pub struct MediaTypeCount {
 
 /// アイテム部分更新リクエスト（PATCH semantics）
 ///
-/// `media_type`, `source`, `external_id`は変更不可フィールドのため除外する。
+/// `source`, `external_id`は変更不可フィールドのため除外する。
+/// `media_type`はnovel⇄academic_book間のインポート種別誤り訂正用途に限り変更を許可する
+/// （`validate_media_type_transition`で遷移可否を検証する）。
 #[derive(Debug, Clone, Deserialize)]
 pub struct UpdateItemRequest {
+    pub media_type: Option<MediaType>,
     pub title: Option<String>,
     pub original_title: Option<String>,
     pub description: Option<String>,
@@ -310,6 +313,29 @@ pub fn validate_update_title(title: &Option<String>) -> Result<(), ApiError> {
     Ok(())
 }
 
+/// `UpdateItemRequest.media_type`が現在の`media_type`から遷移可能かを検証する。
+///
+/// インポート時の種別誤り（小説/専門書の取り違え）を訂正する用途のみを想定し、
+/// novel⇄academic_book間の遷移のみを許可する。それ以外の遷移（現在値・指定値の
+/// いずれかがnovel/academic_book以外の場合を含む）はVALIDATION_ERRORとする。
+pub fn validate_media_type_transition(
+    current: MediaType,
+    requested: Option<MediaType>,
+) -> Result<(), ApiError> {
+    let Some(requested) = requested else {
+        return Ok(());
+    };
+    let allowed = matches!(current, MediaType::Novel | MediaType::AcademicBook)
+        && matches!(requested, MediaType::Novel | MediaType::AcademicBook);
+    if !allowed {
+        return Err(ApiError::new(
+            ApiErrorCode::ValidationError,
+            "media_typeはnovelとacademic_book間でのみ変更できます",
+        ));
+    }
+    Ok(())
+}
+
 /// `UpdateItemRequest`の全フィールドが`None`かどうかを判定する。
 ///
 /// 【機能概要】: SET対象フィールドが1つも存在しない（更新リクエストが実質no-op）かを判定する
@@ -319,7 +345,8 @@ pub fn validate_update_title(title: &Option<String>) -> Result<(), ApiError> {
 /// 実行せず取得のみ」より
 pub fn has_any_update_field(request: &UpdateItemRequest) -> bool {
     // 【全フィールド判定】: いずれか1つでもSomeであれば更新対象ありと判定する 🔵
-    request.title.is_some()
+    request.media_type.is_some()
+        || request.title.is_some()
         || request.original_title.is_some()
         || request.description.is_some()
         || request.cover_image_url.is_some()
@@ -651,6 +678,7 @@ mod tests {
         // 【テストデータ準備】: 全フィールドNoneのUpdateItemRequest（リクエストボディ{}相当）
         // 【初期条件設定】: EDGE-0012-01の具体例
         let request = UpdateItemRequest {
+            media_type: None,
             title: None,
             original_title: None,
             description: None,
