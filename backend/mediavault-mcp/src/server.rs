@@ -19,6 +19,7 @@ use crate::services::context;
 use crate::services::create_item;
 use crate::services::health::check_api_health;
 use crate::services::import_external_item;
+use crate::services::organize;
 use crate::services::search_external_catalog;
 use crate::services::search_library;
 use crate::services::update_consumption;
@@ -27,6 +28,7 @@ use crate::tools::create_item::{CreateItemParams, CreateItemResult};
 use crate::tools::get_item_context::{GetItemContextParams, ItemContextResult};
 use crate::tools::health::HealthResult;
 use crate::tools::import_external_item::{ImportExternalItemParams, ImportExternalItemResult};
+use crate::tools::organize_item::{OrganizeItemParams, OrganizeItemResult};
 use crate::tools::search_external_catalog::{
     SearchExternalCatalogParams, SearchExternalCatalogResult,
 };
@@ -167,6 +169,21 @@ impl MediaVaultServer {
         Parameters(params): Parameters<UpdateConsumptionParams>,
     ) -> rmcp::Json<UpdateConsumptionResult> {
         rmcp::Json(update_consumption::update(&self.api, params).await)
+    }
+
+    /// 🔵 Intent: TASK-0020・mcp-tools.md 7. organize_item より。
+    ///    タグ・カテゴリ・マイリストを**名前で**指定して作品に付与する。既に付与済みなら
+    ///    重複を作らず `already_applied` を返す（設計決定 D-03・REQ-113）。
+    ///    存在しない名前は既定では作成されない（REQ-111）。ロールバックしない（REQ-141）。
+    #[tool(
+        description = "タグ・カテゴリ・マイリストを名前で指定して作品に付与する。存在しない名前は既定では作成されず「候補なし」として返る。新規作成したい場合のみ create_if_missing: true を指定すること。",
+        annotations(read_only_hint = false, destructive_hint = false)
+    )]
+    async fn organize_item(
+        &self,
+        Parameters(params): Parameters<OrganizeItemParams>,
+    ) -> rmcp::Json<OrganizeItemResult> {
+        rmcp::Json(organize::organize(&self.api, params).await)
     }
 }
 

@@ -8,6 +8,8 @@
 //!
 //! **ロールバックしない**（REQ-141）。関連付けが失敗しても作成済み Item を削除しない。
 
+use std::collections::HashSet;
+
 use serde::Serialize;
 use url::Url;
 use uuid::Uuid;
@@ -18,7 +20,8 @@ use crate::api::models::{Item, ItemFile, ItemLink, MediaType};
 use crate::result::operation::{OperationResult, aggregate_outcome};
 use crate::result::outcome::{McpErrorCode, Outcome, ToolError, classify_api_error};
 use crate::result::summary::ItemSummary;
-use crate::services::resolve::{MasterResolver, Resolution};
+use crate::services::attach;
+use crate::services::resolve::MasterResolver;
 use crate::tools::create_item::{CreateItemParams, CreateItemResult};
 
 /// `POST /items` のリクエストボディ。
@@ -48,27 +51,6 @@ struct CreateItemFileRequest<'a> {
 struct CreateItemLinkRequest<'a> {
     url: &'a str,
     label: &'a str,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct AddMylistItemRequest {
-    item_id: Uuid,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct CreateTagRequest<'a> {
-    name: &'a str,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct CreateMylistRequest<'a> {
-    name: &'a str,
-}
-
-/// `POST /tags` / `POST /mylists` が返す、名前解決に必要な最小限の形。
-#[derive(Debug, Clone, serde::Deserialize)]
-struct CreatedNamedEntity {
-    id: Uuid,
 }
 
 /// `create_item` の本体。
@@ -211,6 +193,9 @@ async fn apply_links(api: &ApiClient, item_id: Uuid, urls: &[String]) -> Vec<Ope
     results
 }
 
+/// 🔵 Intent: 付与ロジックは `organize_item`（TASK-0020）と共通のため
+///    `services::attach` へ切り出した。Item は直前に新規作成したばかりで何も付与
+///    されていないため、`already_attached` は常に空集合を渡す。
 async fn apply_tags(
     api: &ApiClient,
     resolver: &mut MasterResolver<'_>,
@@ -218,47 +203,20 @@ async fn apply_tags(
     names: &[String],
     create_if_missing: bool,
 ) -> Vec<OperationResult> {
+    let already_attached = HashSet::new();
     let mut results = Vec::with_capacity(names.len());
     for name in names {
-        let resolution = match resolver.resolve_tag(name).await {
-            Ok(resolution) => resolution,
-            Err(err) => {
-                results.push(failed_result(name.clone(), err));
-                continue;
-            }
-        };
-
-        let (tag_id, created_new) = match resolution {
-            Resolution::Found(named_ref) => (named_ref.id, false),
-            Resolution::NotFound { available, .. } => {
-                if !create_if_missing {
-                    results.push(OperationResult::NotResolved {
-                        requested_name: name.clone(),
-                        available_names: available,
-                    });
-                    continue;
-                }
-                match create_tag(api, name).await {
-                    Ok(id) => (id, true),
-                    Err(err) => {
-                        results.push(failed_result(name.clone(), err));
-                        continue;
-                    }
-                }
-            }
-        };
-
-        let attach = api
-            .post_empty_no_content(&format!("/api/v1/items/{item_id}/tags/{tag_id}"))
-            .await;
-        results.push(match attach {
-            Ok(()) => OperationResult::Applied {
-                target_id: tag_id,
-                target_name: name.clone(),
-                created_new,
-            },
-            Err(err) => failed_result(name.clone(), err),
-        });
+        results.push(
+            attach::apply_tag(
+                api,
+                resolver,
+                item_id,
+                name,
+                create_if_missing,
+                &already_attached,
+            )
+            .await,
+        );
     }
     results
 }
@@ -270,64 +228,22 @@ async fn apply_mylists(
     names: &[String],
     create_if_missing: bool,
 ) -> Vec<OperationResult> {
+    let already_attached = HashSet::new();
     let mut results = Vec::with_capacity(names.len());
     for name in names {
-        let resolution = match resolver.resolve_mylist(name).await {
-            Ok(resolution) => resolution,
-            Err(err) => {
-                results.push(failed_result(name.clone(), err));
-                continue;
-            }
-        };
-
-        let (mylist_id, created_new) = match resolution {
-            Resolution::Found(named_ref) => (named_ref.id, false),
-            Resolution::NotFound { available, .. } => {
-                if !create_if_missing {
-                    results.push(OperationResult::NotResolved {
-                        requested_name: name.clone(),
-                        available_names: available,
-                    });
-                    continue;
-                }
-                match create_mylist(api, name).await {
-                    Ok(id) => (id, true),
-                    Err(err) => {
-                        results.push(failed_result(name.clone(), err));
-                        continue;
-                    }
-                }
-            }
-        };
-
-        let body = AddMylistItemRequest { item_id };
-        let add = api
-            .post_no_content(&format!("/api/v1/mylists/{mylist_id}/items"), &body)
-            .await;
-        results.push(match add {
-            Ok(()) => OperationResult::Applied {
-                target_id: mylist_id,
-                target_name: name.clone(),
-                created_new,
-            },
-            Err(err) => failed_result(name.clone(), err),
-        });
+        results.push(
+            attach::apply_mylist(
+                api,
+                resolver,
+                item_id,
+                name,
+                create_if_missing,
+                &already_attached,
+            )
+            .await,
+        );
     }
     results
-}
-
-async fn create_tag(api: &ApiClient, name: &str) -> Result<Uuid, ApiClientError> {
-    let body = CreateTagRequest { name };
-    api.post::<_, CreatedNamedEntity>("/api/v1/tags", &body)
-        .await
-        .map(|entity| entity.id)
-}
-
-async fn create_mylist(api: &ApiClient, name: &str) -> Result<Uuid, ApiClientError> {
-    let body = CreateMylistRequest { name };
-    api.post::<_, CreatedNamedEntity>("/api/v1/mylists", &body)
-        .await
-        .map(|entity| entity.id)
 }
 
 /// `ApiClientError` から `OperationResult::Failed` を組み立てる短縮ヘルパ。
