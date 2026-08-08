@@ -53,3 +53,11 @@ DROP TYPE IF EXISTS streaming_platform;
 DROP TABLE IF EXISTS item_images;
 DROP TYPE IF EXISTS image_source;
 DROP TYPE IF EXISTS image_kind;
+
+-- ========================================
+-- citations migration (down)
+-- ========================================
+
+DROP TRIGGER IF EXISTS trg_citations_updated_at ON citations;
+DROP TABLE IF EXISTS citations;
+DROP TYPE IF EXISTS locator_type;

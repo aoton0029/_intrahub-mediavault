@@ -37,6 +37,20 @@ type ItemFile = {
   created_at: string;
 };
 type ItemTrailer = { id: string; item_id: string; url: string; label: string | null; created_at: string };
+type LocatorType = "page" | "timestamp" | "location" | "chapter" | "none";
+type Citation = {
+  id: string;
+  item_id: string;
+  quote_text: string;
+  note: string | null;
+  locator_type: LocatorType;
+  page_number: number | null;
+  timestamp_seconds: number | null;
+  location_number: number | null;
+  chapter: string | null;
+  created_at: string;
+  updated_at: string;
+};
 type ItemStaff = {
   id: string;
   item_id: string;
@@ -96,6 +110,7 @@ type MovieDetailBundle = {
   links: ItemLink[];
   files: ItemFile[];
   trailers: ItemTrailer[];
+  citations: Citation[];
 };
 
 async function parseJson<T>(response: Response) {
@@ -164,7 +179,7 @@ async function createCategory(name: string) {
 }
 
 async function fetchMovieDetailBundle(id: string): Promise<MovieDetailBundle> {
-  const [item, staff, cast, relations, streamingLinks, images, mylists, links, files, trailers] = await Promise.all([
+  const [item, staff, cast, relations, streamingLinks, images, mylists, links, files, trailers, citations] = await Promise.all([
     fetchApi<ItemDetail>(`/items/${id}`),
     fetchApi<ItemStaff[]>(`/items/${id}/staff`),
     fetchApi<ItemCast[]>(`/items/${id}/cast`),
@@ -175,9 +190,10 @@ async function fetchMovieDetailBundle(id: string): Promise<MovieDetailBundle> {
     fetchApi<ItemLink[]>(`/items/${id}/links`),
     fetchApi<ItemFile[]>(`/items/${id}/files`),
     fetchApi<ItemTrailer[]>(`/items/${id}/trailers`),
+    fetchApi<Citation[]>(`/items/${id}/citations`),
   ]);
 
-  return { item, staff, cast, relations, streamingLinks, images, mylists, links, files, trailers };
+  return { item, staff, cast, relations, streamingLinks, images, mylists, links, files, trailers, citations };
 }
 
 function buildActionLabel(item: ItemDetail) {
@@ -412,6 +428,43 @@ export function useMovieDetailData(id: string | undefined) {
     onSuccess: invalidate,
   });
 
+  const citationAddMutation = useMutation({
+    mutationFn: async (payload: {
+      quote_text: string;
+      note?: string;
+      locator_type: LocatorType;
+      page_number?: number;
+      timestamp_seconds?: number;
+      location_number?: number;
+      chapter?: string;
+    }) => {
+      await fetchApi(`/items/${id}/citations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  const citationUpdateMutation = useMutation({
+    mutationFn: async ({ citationId, payload }: { citationId: string; payload: Record<string, unknown> }) => {
+      await fetchApi(`/citations/${citationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  const citationRemoveMutation = useMutation({
+    mutationFn: async (citationId: string) => {
+      await parseJson(await apiFetch(`/citations/${citationId}`, { method: "DELETE" }));
+    },
+    onSuccess: invalidate,
+  });
+
   const calibreLinkMutation = useMutation({
     mutationFn: async ({ fileId, calibreBookId }: { fileId: string; calibreBookId: number }) => {
       await fetchApi(`/items/${id}/files/${fileId}/calibre-link`, {
@@ -489,6 +542,7 @@ export function useMovieDetailData(id: string | undefined) {
     categories: item?.categories ?? [],
     mylists: bundle?.mylists ?? [],
     files: bundle?.files ?? [],
+    citations: bundle?.citations ?? [],
     overview: item?.description ?? "",
     actionLabel: item ? buildActionLabel(item) : "",
     isLoading: detailQuery.isLoading,
@@ -523,6 +577,18 @@ export function useMovieDetailData(id: string | undefined) {
     addTrailer: (url: string, label?: string) => trailerAddMutation.mutateAsync({ url, label }),
     removeTrailer: (trailerId: string) => trailerRemoveMutation.mutateAsync(trailerId),
     linkCalibre: (fileId: string, calibreBookId: number) => calibreLinkMutation.mutateAsync({ fileId, calibreBookId }),
+    addCitation: (payload: {
+      quote_text: string;
+      note?: string;
+      locator_type: LocatorType;
+      page_number?: number;
+      timestamp_seconds?: number;
+      location_number?: number;
+      chapter?: string;
+    }) => citationAddMutation.mutateAsync(payload),
+    updateCitation: (citationId: string, payload: Record<string, unknown>) =>
+      citationUpdateMutation.mutateAsync({ citationId, payload }),
+    removeCitation: (citationId: string) => citationRemoveMutation.mutateAsync(citationId),
     deleteItem: () => deleteItemMutation.mutateAsync(),
   };
 }

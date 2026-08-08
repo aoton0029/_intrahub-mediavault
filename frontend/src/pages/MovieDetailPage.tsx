@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { CastAddModal, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal, TrailerAddModal, LinkAddModal } from "@/components/shared";
+import { CastAddModal, CitationFormModal, ConfirmDialog, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal, TrailerAddModal, LinkAddModal } from "@/components/shared";
 import { useMovieDetailData } from "@/hooks/useMovieDetailData";
 
 const MOVIE_STATUS_LABELS = {
@@ -33,6 +33,9 @@ export function MovieDetailPage() {
   const [isFileModalOpen, setFileModalOpen] = useState(false);
   const [isTrailerModalOpen, setTrailerModalOpen] = useState(false);
   const [isLinkModalOpen, setLinkModalOpen] = useState(false);
+  const [isCitationModalOpen, setCitationModalOpen] = useState(false);
+  const [editingCitation, setEditingCitation] = useState<(typeof detail.citations)[number] | null>(null);
+  const [deletingCitationId, setDeletingCitationId] = useState<string | null>(null);
 
   async function handleDelete() {
     if (!id) return;
@@ -142,6 +145,37 @@ export function MovieDetailPage() {
     },
   }));
 
+  const citations = detail.citations.map((citation) => ({
+    id: citation.id,
+    quoteText: citation.quote_text,
+    note: citation.note,
+    locatorType: citation.locator_type,
+    pageNumber: citation.page_number,
+    timestampSeconds: citation.timestamp_seconds,
+    locationNumber: citation.location_number,
+    chapter: citation.chapter,
+    onEdit: (citationId: string) => {
+      setEditingCitation(detail.citations.find((entry) => entry.id === citationId) ?? null);
+    },
+    onRemove: (citationId: string) => setDeletingCitationId(citationId),
+  }));
+
+  const citationsFooter = (
+    <div className="filter-bar" style={{ marginTop: 10 }}>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={() => {
+          setEditingCitation(null);
+          setCitationModalOpen(true);
+        }}
+      >
+        <FiPlus className="icon" />
+        引用を追加
+      </button>
+    </div>
+  );
+
   const linksFooter = (
     <div className="filter-bar" style={{ marginTop: 10 }}>
       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLinkModalOpen(true)}>
@@ -236,6 +270,8 @@ export function MovieDetailPage() {
           relatedWorks={relatedWorks}
           streaming={detailSectionMatrix.movie.streaming ? streaming : undefined}
           images={detailSectionMatrix.movie.images ? images : undefined}
+          citations={citations}
+          citationsFooter={citationsFooter}
           resourceTabs={detail.resourceTabs}
           staffFooter={(
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStaffModalOpen(true)}>
@@ -359,6 +395,51 @@ export function MovieDetailPage() {
           await detail.addLink(label, url);
           toast.success("リンクを追加しました。");
         }}
+      />
+    ) : null}
+    {isCitationModalOpen || editingCitation ? (
+      <CitationFormModal
+        open
+        onClose={() => {
+          setCitationModalOpen(false);
+          setEditingCitation(null);
+        }}
+        initial={editingCitation ? {
+          quoteText: editingCitation.quote_text,
+          note: editingCitation.note,
+          locatorType: editingCitation.locator_type,
+          pageNumber: editingCitation.page_number,
+          timestampSeconds: editingCitation.timestamp_seconds,
+          locationNumber: editingCitation.location_number,
+          chapter: editingCitation.chapter,
+        } : undefined}
+        onSubmit={async (values) => {
+          const payload = {
+            quote_text: values.quoteText,
+            note: values.note || undefined,
+            locator_type: values.locatorType,
+            page_number: values.pageNumber ?? undefined,
+            timestamp_seconds: values.timestampSeconds ?? undefined,
+            location_number: values.locationNumber ?? undefined,
+            chapter: values.chapter || undefined,
+          };
+          if (editingCitation) {
+            await detail.updateCitation(editingCitation.id, payload);
+            toast.success("引用を更新しました。");
+          } else {
+            await detail.addCitation(payload);
+            toast.success("引用を追加しました。");
+          }
+        }}
+      />
+    ) : null}
+    {deletingCitationId ? (
+      <ConfirmDialog
+        open
+        onClose={() => setDeletingCitationId(null)}
+        title="引用を削除"
+        message="この引用を削除しますか？この操作は取り消せません。"
+        onConfirm={() => runAction(() => detail.removeCitation(deletingCitationId), "引用を削除しました。")}
       />
     ) : null}
     </>

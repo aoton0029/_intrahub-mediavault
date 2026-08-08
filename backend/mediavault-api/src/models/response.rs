@@ -116,6 +116,8 @@ pub enum ApiErrorCode {
     UnsupportedBackupVersion,
     /// 指定されたブクログインポートジョブが見つからない（GET /import/booklog/jobs/:job_id時404）
     ImportJobNotFound,
+    /// 指定されたcitationが見つからない（PATCH/DELETE /citations/:id時404）
+    CitationNotFound,
 }
 
 impl ApiErrorCode {
@@ -166,6 +168,7 @@ impl ApiErrorCode {
                 ("UNSUPPORTED_BACKUP_VERSION", StatusCode::BAD_REQUEST)
             }
             ApiErrorCode::ImportJobNotFound => ("IMPORT_JOB_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::CitationNotFound => ("CITATION_NOT_FOUND", StatusCode::NOT_FOUND),
         }
     }
 

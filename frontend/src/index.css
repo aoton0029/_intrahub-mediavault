@@ -253,6 +253,10 @@
   .rail-divider { margin: 18px 0; border: 0; border-top: 1px solid var(--color-border-soft); }
   .resource-panel[hidden] { display: none; }
   .detail-section-actions { display: flex; align-items: center; gap: 8px; }
+  .citation-item { padding: 12px 0; border-bottom: 1px solid var(--color-border-soft); }
+  .citation-item .detail-section-actions { justify-content: space-between; }
+  .citation-quote { margin: 0 0 6px; padding-left: 12px; border-left: 3px solid var(--color-border); font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; }
+  .citation-note { margin: 0 0 8px; color: var(--color-text-faint); font-size: 12.5px; white-space: pre-wrap; }
   .icon { width: 16px; height: 16px; flex-shrink: 0; vertical-align: -3px; }
   .streaming-platform-icon { display: inline-flex; align-items: center; margin-right: 6px; font-size: 16px; flex-shrink: 0; }
   .collage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }

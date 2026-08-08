@@ -281,6 +281,32 @@ CREATE TABLE item_images (
 
 CREATE INDEX idx_item_images_item_id ON item_images(item_id);
 
+-- ========================================
+-- citations migration (up)
+-- ========================================
+
+CREATE TYPE locator_type AS ENUM ('page', 'timestamp', 'location', 'chapter', 'none');
+
+CREATE TABLE citations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    quote_text TEXT NOT NULL,
+    note TEXT,
+    locator_type locator_type NOT NULL DEFAULT 'none',
+    page_number INTEGER,
+    timestamp_seconds INTEGER,
+    location_number INTEGER,
+    chapter VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_citations_quote_text_not_empty CHECK (quote_text <> '')
+);
+
+CREATE INDEX idx_citations_item_id ON citations(item_id);
+
+CREATE TRIGGER trg_citations_updated_at BEFORE UPDATE ON citations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER trg_items_updated_at BEFORE UPDATE ON items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_item_groups_updated_at BEFORE UPDATE ON item_groups

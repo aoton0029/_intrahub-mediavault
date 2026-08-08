@@ -62,6 +62,7 @@ function createHookResult() {
     categories: [{ id: "category-1", name: "2026年鑑賞予定" }],
     mylists: [{ id: "mylist-1", name: "お気に入り原作", created_at: "2026-07-01T12:00:00" }],
     files: [{ id: "file-1", item_id: "anime-1", path: "/tmp/pamphlet.pdf", label: "パンフレットPDF", file_type: "pdf", calibre_book_id: null, created_at: "2026-07-01T12:00:00" }],
+    citations: [],
     overview: "記憶を失った少女が旅をする物語。",
     actionLabel: "星屑のシンフォニア ・ 2025",
     isLoading: false,
@@ -98,6 +99,9 @@ function createHookResult() {
     addTrailer: vi.fn().mockResolvedValue(undefined),
     removeTrailer: vi.fn().mockResolvedValue(undefined),
     linkCalibre: vi.fn().mockResolvedValue(undefined),
+    addCitation: vi.fn().mockResolvedValue(undefined),
+    updateCitation: vi.fn().mockResolvedValue(undefined),
+    removeCitation: vi.fn().mockResolvedValue(undefined),
     deleteItem: vi.fn().mockResolvedValue(undefined),
   } as ReturnType<typeof useAnimeDetailData>;
 }

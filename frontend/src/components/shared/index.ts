@@ -28,5 +28,7 @@ export * from "./StreamingLinkAddModal";
 export * from "./FileAddModal";
 export * from "./TrailerAddModal";
 export * from "./LinkAddModal";
+export * from "./CitationFormModal";
+export * from "./ConfirmDialog";
 export * from "./MediaTypeDropdown";
 export * from "./DisplaySettingsDropdown";

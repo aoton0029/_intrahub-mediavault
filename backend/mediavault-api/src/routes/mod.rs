@@ -19,6 +19,10 @@ use crate::handlers::categories::{
     attach_category_handler, create_category_handler, delete_category_handler,
     detach_category_handler, list_categories_handler,
 };
+use crate::handlers::citations::{
+    create_citation_handler, delete_citation_handler, list_citations_handler,
+    update_citation_handler,
+};
 use crate::handlers::collection::get_collection_overview_handler;
 use crate::handlers::health::health_handler;
 use crate::handlers::import_booklog::{
@@ -252,6 +256,15 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/items/{id}/trailers/{trailer_id}",
             axum::routing::delete(delete_item_trailer_handler),
+        )
+        // citations（作品・論文からの引用）CRUD
+        .route(
+            "/items/{id}/citations",
+            axum::routing::post(create_citation_handler).get(list_citations_handler),
+        )
+        .route(
+            "/citations/{id}",
+            axum::routing::patch(update_citation_handler).delete(delete_citation_handler),
         )
         .route(
             "/settings/api-keys",

@@ -65,6 +65,7 @@ function createHookResult() {
     categories: [{ id: "category-1", name: "2024年鑑賞" }],
     mylists: [{ id: "mylist-1", name: "映画館で観た作品", created_at: "2026-07-01T12:00:00" }],
     files: [{ id: "file-1", item_id: "movie-1", path: "/tmp/pamphlet.png", label: "パンフレット画像", file_type: "image", calibre_book_id: null, created_at: "2026-07-01T12:00:00" }],
+    citations: [],
     overview: "失われた海底都市を巡る、若き海洋学者たちの冒険譚。",
     actionLabel: "深海のオデッセイ ・ 2024年",
     isLoading: false,
@@ -99,6 +100,9 @@ function createHookResult() {
     addTrailer: vi.fn().mockResolvedValue(undefined),
     removeTrailer: vi.fn().mockResolvedValue(undefined),
     linkCalibre: vi.fn().mockResolvedValue(undefined),
+    addCitation: vi.fn().mockResolvedValue(undefined),
+    updateCitation: vi.fn().mockResolvedValue(undefined),
+    removeCitation: vi.fn().mockResolvedValue(undefined),
     deleteItem: vi.fn().mockResolvedValue(undefined),
   } as ReturnType<typeof useMovieDetailData>;
 }

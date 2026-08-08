@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { FiBookmark, FiCheck, FiEdit2, FiFileText, FiFilm, FiFolder, FiGitBranch, FiImage, FiLayers, FiTag, FiTv, FiUsers, FiX } from "react-icons/fi";
+import { FiBookmark, FiCheck, FiEdit2, FiFileText, FiFilm, FiFolder, FiGitBranch, FiImage, FiLayers, FiMessageSquare, FiTag, FiTrash2, FiTv, FiUsers, FiX } from "react-icons/fi";
 import { FaAmazon } from "react-icons/fa";
 import { SiAppletv, SiDmm, SiNetflix } from "react-icons/si";
 import { PropertyList, type PropertyItem, RelatedWorksList, ExternalLinkText, ResourceEntryList, resourceTabIcons, resourceTabLabels, Tabs, type TabItem, TagList, type TagListItem, type RelatedWork, type ResourceTabKey } from "@/components/shared";
@@ -11,6 +11,19 @@ export type StaffMember = { id: string; label: string; sub: string; actionLabel?
 export type StreamingPlatform = "netflix" | "amazon_prime" | "disney_plus" | "dmm_tv" | "apple_tv";
 export type StreamingLinkItem = { id: string; label: string; sub: string; platform?: StreamingPlatform; actionLabel?: string; onAction?: (id: string) => void };
 export type ImageItem = { id: string; url: string; isCover?: boolean; onSetCover?: (url: string) => void; onRemove?: (id: string) => void };
+export type LocatorType = "page" | "timestamp" | "location" | "chapter" | "none";
+export type CitationItem = {
+  id: string;
+  quoteText: string;
+  note: string | null;
+  locatorType: LocatorType;
+  pageNumber: number | null;
+  timestampSeconds: number | null;
+  locationNumber: number | null;
+  chapter: string | null;
+  onEdit?: (id: string) => void;
+  onRemove?: (id: string) => void;
+};
 
 const STREAMING_PLATFORM_ICONS: Record<StreamingPlatform, { icon: ReactNode; color: string }> = {
   netflix: { icon: <SiNetflix />, color: "#E50914" },
@@ -248,6 +261,69 @@ export function ImageGrid({
   );
 }
 
+function formatTimestamp(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
+
+function formatLocator(citation: CitationItem) {
+  switch (citation.locatorType) {
+    case "page":
+      return citation.pageNumber !== null ? `${citation.pageNumber}ページ` : null;
+    case "timestamp":
+      return citation.timestampSeconds !== null ? formatTimestamp(citation.timestampSeconds) : null;
+    case "location":
+      return citation.locationNumber !== null ? `位置No.${citation.locationNumber}` : null;
+    case "chapter":
+      return citation.chapter || null;
+    default:
+      return null;
+  }
+}
+
+export function CitationList({
+  citations,
+  footerAction,
+}: {
+  citations: CitationItem[];
+  footerAction?: ReactNode;
+}) {
+  return (
+    <div>
+      {citations.map((citation) => {
+        const locator = formatLocator(citation);
+        return (
+          <div key={citation.id} className="citation-item">
+            <blockquote className="citation-quote">{citation.quoteText}</blockquote>
+            {citation.note ? <p className="citation-note">{citation.note}</p> : null}
+            <div className="detail-section-actions">
+              <span className="sub">{locator ?? "付加情報なし"}</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                {citation.onEdit ? (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => citation.onEdit?.(citation.id)}>
+                    <FiEdit2 className="icon" />
+                    編集
+                  </button>
+                ) : null}
+                {citation.onRemove ? (
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => citation.onRemove?.(citation.id)}>
+                    <FiTrash2 className="icon" />
+                    削除
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {footerAction}
+    </div>
+  );
+}
+
 export function OverviewSection({
   overview,
   onSave,
@@ -322,6 +398,7 @@ export function DetailMain({
   relatedWorks,
   streaming,
   images,
+  citations,
   resourceTabs,
   groupTitle = "構成",
   groupActions,
@@ -331,6 +408,7 @@ export function DetailMain({
   relatedWorksFooter,
   streamingFooter,
   imagesFooter,
+  citationsFooter,
   linksFooter,
   filesFooter,
   trailersFooter,
@@ -344,6 +422,7 @@ export function DetailMain({
   relatedWorks?: RelatedWork[];
   streaming?: StreamingLinkItem[];
   images?: ImageItem[];
+  citations?: CitationItem[];
   resourceTabs?: Partial<Record<ResourceTabKey, { id: string; label: string; detail: string; onRemove?: (id: string) => void }[]>>;
   groupTitle?: string;
   groupActions?: (group: Group) => ReactNode;
@@ -353,6 +432,7 @@ export function DetailMain({
   relatedWorksFooter?: ReactNode;
   streamingFooter?: ReactNode;
   imagesFooter?: ReactNode;
+  citationsFooter?: ReactNode;
   linksFooter?: ReactNode;
   filesFooter?: ReactNode;
   trailersFooter?: ReactNode;
@@ -415,6 +495,15 @@ export function DetailMain({
       label: "画像",
       icon: <FiImage className="icon" />,
       content: <DetailSection icon={<FiImage className="icon" />} title="画像"><ImageGrid items={images} footerAction={imagesFooter} /></DetailSection>,
+    });
+  }
+
+  if (citations) {
+    tabs.push({
+      key: "citations",
+      label: "引用",
+      icon: <FiMessageSquare className="icon" />,
+      content: <DetailSection icon={<FiMessageSquare className="icon" />} title="引用"><CitationList citations={citations} footerAction={citationsFooter} /></DetailSection>,
     });
   }
 
