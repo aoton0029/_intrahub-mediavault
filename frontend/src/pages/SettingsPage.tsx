@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { FiActivity, FiCheckCircle, FiDatabase, FiDownload, FiKey, FiSave, FiUpload, FiXCircle } from "react-icons/fi";
+import { FiActivity, FiCheckCircle, FiDatabase, FiDownload, FiKey, FiMoon, FiSave, FiUpload, FiXCircle } from "react-icons/fi";
 import { ApiKeyCard } from "@/components/shared/ApiKeyCard";
 import { FormActions, FormField, FormSection } from "@/components/shared/Forms";
 import { SettingsShell } from "@/components/shared/SettingsShell";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useSettingsData, type BackupImportReport, type HealthStatus, type ImportSummary } from "@/hooks/useSettingsData";
 
 const BOOKLOG_POLL_INTERVAL_MS = 1000;
@@ -24,6 +25,22 @@ const providers: ProviderEntry[] = [
   { provider: "annict", displayName: "Annict" },
   { provider: "rakuten", displayName: "楽天" },
 ];
+
+const RAKUTEN_APPLICATION_ID_FIELD = "applicationId";
+const RAKUTEN_ACCESS_KEY_FIELD = "accessKey";
+
+function AppearancePanel() {
+  return (
+    <div className="panel-appearance">
+      <h2>
+        <FiMoon className="icon" />
+        外観
+      </h2>
+      <p className="desc">アプリの表示テーマを切り替えます。</p>
+      <ThemeToggle />
+    </div>
+  );
+}
 
 function ApiKeysPanel() {
   const { saveApiKey, fetchApiKeyStatuses } = useSettingsData();
@@ -90,6 +107,53 @@ function ApiKeysPanel() {
     }
   }
 
+  async function handleSaveRakuten(values: Record<string, string>) {
+    const applicationId = values[RAKUTEN_APPLICATION_ID_FIELD]?.trim() ?? "";
+    const accessKey = values[RAKUTEN_ACCESS_KEY_FIELD]?.trim() ?? "";
+
+    if (!applicationId || !accessKey) {
+      setMessages((current) => ({
+        ...current,
+        rakuten: { type: "error", text: "Application IDとAccess Keyの両方を入力してください" },
+      }));
+      return;
+    }
+
+    const provider: ProviderKey = "rakuten";
+    const combined = `${applicationId}:${accessKey}`;
+
+    setSavingProvider(provider);
+    try {
+      await saveApiKey(provider, combined);
+      setConfiguredProviders((current) => new Set(current).add(provider));
+      setMessages((current) => ({
+        ...current,
+        [provider]: { type: "success", text: "APIキーを保存しました" },
+      }));
+      window.setTimeout(() => {
+        setMessages((current) => {
+          if (current[provider]?.type !== "success") {
+            return current;
+          }
+
+          const next = { ...current };
+          delete next[provider];
+          return next;
+        });
+      }, 2500);
+    } catch (error) {
+      setMessages((current) => ({
+        ...current,
+        [provider]: {
+          type: "error",
+          text: error instanceof Error ? error.message : "APIキーの保存に失敗しました",
+        },
+      }));
+    } finally {
+      setSavingProvider(null);
+    }
+  }
+
   return (
     <div className="panel-api">
       <h2>
@@ -102,10 +166,19 @@ function ApiKeysPanel() {
         <div key={entry.provider}>
           <ApiKeyCard
             provider={entry.displayName}
-            keyMasked={`provider: ${entry.provider} ・ ${configuredProviders.has(entry.provider) ? "設定済み" : "未設定"}`}
+            keyMasked={configuredProviders.has(entry.provider) ? "********" : "未設定"}
             variant="inline-save"
             saving={savingProvider === entry.provider}
-            onSave={(value) => void handleSave(entry.provider, value)}
+            onSave={entry.provider === "rakuten" ? undefined : (value) => void handleSave(entry.provider, value)}
+            fields={
+              entry.provider === "rakuten"
+                ? [
+                    { key: RAKUTEN_APPLICATION_ID_FIELD, label: "Application ID" },
+                    { key: RAKUTEN_ACCESS_KEY_FIELD, label: "Access Key" },
+                  ]
+                : undefined
+            }
+            onSaveFields={entry.provider === "rakuten" ? (values) => void handleSaveRakuten(values) : undefined}
           />
           {messages[entry.provider] ? (
             <p
@@ -485,6 +558,11 @@ export function SettingsPage() {
   return (
     <SettingsShell
       tabs={[
+        {
+          key: "appearance",
+          label: "外観",
+          content: <AppearancePanel />,
+        },
         {
           key: "api",
           label: "API連携",

@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { navigationSections, type NavigationItem, type NavigationSection } from "@/config/navigation";
 import { cn } from "@/lib/cn";
-import { ThemeToggle } from "./ThemeToggle";
 
 function isNavItemActive(currentPathname: string, currentSearch: string, target: string) {
   const [targetPathname, targetSearch = ""] = target.split("?");
@@ -73,7 +72,6 @@ export function Sidebar() {
       {navigationSections.map((section, index) => (
         <NavSection key={section.label ?? `section-${index}`} section={section} />
       ))}
-      <ThemeToggle />
     </aside>
   );
 }
