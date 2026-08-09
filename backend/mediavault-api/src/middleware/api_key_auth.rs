@@ -13,6 +13,8 @@ use crate::models::response::{ApiError, ApiErrorCode};
 ///
 /// ヘッダー値は `Bearer <key>` 形式、または生キー文字列のいずれかを許容する。
 pub async fn api_key_auth(req: Request, next: Next) -> Result<Response, ApiError> {
+    let method = req.method().clone();
+    let uri = req.uri().clone();
     let expected = std::env::var("INTERNAL_API_KEY").unwrap_or_default();
 
     let provided = req
@@ -23,10 +25,13 @@ pub async fn api_key_auth(req: Request, next: Next) -> Result<Response, ApiError
 
     match provided {
         Some(key) if !expected.is_empty() && key == expected => Ok(next.run(req).await),
-        _ => Err(ApiError::new(
-            ApiErrorCode::Unauthorized,
-            "認証に失敗しました",
-        )),
+        _ => {
+            tracing::warn!(%method, %uri, "内部APIへの認証されていないアクセスを拒否しました");
+            Err(ApiError::new(
+                ApiErrorCode::Unauthorized,
+                "認証に失敗しました",
+            ))
+        }
     }
 }
 

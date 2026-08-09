@@ -40,9 +40,15 @@ pub async fn import_steam_handler(
     State(state): State<AppState>,
     Json(request): Json<SteamImportRequest>,
 ) -> Result<axum::response::Response, ApiError> {
+    tracing::info!("Steamライブラリのインポートを開始しました");
     // 【usecase呼び出し】: 本番経路はSteamCredentialLookup::Pool(実DB)・ベースURLはNone（本番URL固定）を使う 🔵
     let credentials = SteamCredentialLookup::Pool(state.db.clone());
     let summary = import_steam_library(&state.db, &credentials, None, &request.steam_id).await?;
+    tracing::info!(
+        success_count = summary.success_count,
+        failure_count = summary.failure_count,
+        "Steamライブラリのインポートが完了しました"
+    );
 
     // 【成功レスポンス】: ImportSummaryを200で返す 🔵
     Ok(Json(ApiOk::new(summary)).into_response())

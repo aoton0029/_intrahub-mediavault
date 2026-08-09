@@ -107,6 +107,12 @@ pub async fn import_booklog_handler(
 
     // 【ジョブ登録】: 楽天エンリッチメント＋DB登録はバックグラウンドで実行し、即座にjob_idを返す
     let job_id = import_job_store::create_job(parsed_rows.len() as u32);
+    tracing::info!(
+        %job_id,
+        row_count = parsed_rows.len(),
+        parse_failure_count = failures.len(),
+        "ブクログインポートジョブを受け付けました"
+    );
     let db = state.db.clone();
     tokio::spawn(run_booklog_import_job(db, job_id, parsed_rows, failures));
 
@@ -146,6 +152,7 @@ pub async fn cancel_booklog_import_job_handler(
     }
 
     import_job_store::request_cancel(job_id);
+    tracing::info!(%job_id, "ブクログインポートジョブの中止を受け付けました");
 
     let status = import_job_store::get(job_id).expect("job existence checked above");
     Ok(Json(ApiOk::new(status)).into_response())
@@ -161,6 +168,7 @@ async fn run_booklog_import_job(
     parsed_rows: Vec<ParsedBooklogRow>,
     initial_failures: Vec<ImportFailure>,
 ) {
+    tracing::info!(%job_id, row_count = parsed_rows.len(), "ブクログインポートジョブを開始しました");
     let mut summary = ImportSummary::empty();
     summary.failures = initial_failures;
     summary.failure_count = summary.failures.len() as u32;
@@ -170,6 +178,12 @@ async fn run_booklog_import_job(
 
     for mut parsed in parsed_rows {
         if import_job_store::is_cancelling(job_id) {
+            tracing::info!(
+                %job_id,
+                success_count = summary.success_count,
+                failure_count = summary.failure_count,
+                "ブクログインポートジョブを中止しました"
+            );
             import_job_store::cancel(job_id, summary);
             return;
         }
@@ -222,6 +236,12 @@ async fn run_booklog_import_job(
         import_job_store::advance(job_id);
     }
 
+    tracing::info!(
+        %job_id,
+        success_count = summary.success_count,
+        failure_count = summary.failure_count,
+        "ブクログインポートジョブが完了しました"
+    );
     import_job_store::complete(job_id, summary);
 }
 

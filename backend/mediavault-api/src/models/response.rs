@@ -200,7 +200,35 @@ impl ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         let status = self.status;
+        let error_code = self.error.code.as_str();
+
+        match api_error_log_level(status) {
+            tracing::Level::ERROR => {
+                tracing::error!(
+                    status = status.as_u16(),
+                    error_code,
+                    "APIリクエストの処理に失敗しました"
+                );
+            }
+            _ => {
+                tracing::warn!(
+                    status = status.as_u16(),
+                    error_code,
+                    "APIリクエストをエラーレスポンスとして終了しました"
+                );
+            }
+        }
+
         (status, Json(self)).into_response()
+    }
+}
+
+// 🟡 Intent: サーバー・外部依存障害とクライアント起因エラーをログレベルで区別する。
+fn api_error_log_level(status: StatusCode) -> tracing::Level {
+    if status.is_server_error() {
+        tracing::Level::ERROR
+    } else {
+        tracing::Level::WARN
     }
 }
 
@@ -283,6 +311,30 @@ mod tests {
     use super::*;
     use crate::models::api_credential::ApiProvider;
     use axum::response::IntoResponse;
+
+    #[test]
+    fn server_errors_are_classified_as_error_logs() {
+        assert_eq!(
+            api_error_log_level(StatusCode::INTERNAL_SERVER_ERROR),
+            tracing::Level::ERROR
+        );
+        assert_eq!(
+            api_error_log_level(StatusCode::BAD_GATEWAY),
+            tracing::Level::ERROR
+        );
+    }
+
+    #[test]
+    fn client_errors_are_classified_as_warning_logs() {
+        assert_eq!(
+            api_error_log_level(StatusCode::BAD_REQUEST),
+            tracing::Level::WARN
+        );
+        assert_eq!(
+            api_error_log_level(StatusCode::NOT_FOUND),
+            tracing::Level::WARN
+        );
+    }
 
     /// TC1: VALIDATION_ERROR が 400 を返す
     #[test]

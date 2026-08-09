@@ -6,15 +6,13 @@
 //! エントリポイントとする（振る舞いの変更なし）。
 
 use axum::http::HeaderValue;
-use mediavault_api::{AppState, db, routes};
+use mediavault_api::{AppState, db, logging, routes};
 use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info,api_client_lib=debug"));
-    tracing_subscriber::fmt().with_env_filter(env_filter).init();
+    logging::init();
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let internal_api_key = std::env::var("INTERNAL_API_KEY").unwrap_or_default();
@@ -25,6 +23,9 @@ async fn main() {
     let cors_allowed_origin =
         std::env::var("CORS_ALLOWED_ORIGIN").unwrap_or_else(|_| "http://localhost".to_string());
 
+    tracing::info!(port, "mediavault-apiを起動します");
+    tracing::info!("データベースへ接続します");
+
     let db = match db::create_pool(&database_url).await {
         Ok(pool) => pool,
         Err(err) => {
@@ -32,11 +33,14 @@ async fn main() {
             std::process::exit(1);
         }
     };
+    tracing::info!("データベースへ接続しました");
 
+    tracing::info!("データベースマイグレーションを確認します");
     if let Err(err) = db::run_migrations(&db).await {
         tracing::error!("マイグレーションの適用に失敗しました: {err}");
         std::process::exit(1);
     }
+    tracing::info!("データベースの準備が完了しました");
 
     db::seed_api_credentials_from_env(&db).await;
 
@@ -61,15 +65,28 @@ async fn main() {
         .nest("/api/v1", routes::build_router(state.clone()))
         .merge(routes::internal::build_internal_router(state))
         .layer(cors);
+    let app = logging::with_http_tracing(app);
 
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .unwrap_or_else(|err| panic!("ポート{port}でのリスニングに失敗しました: {err}"));
 
-    tracing::info!("mediavault-api がポート{port}でリスニングを開始しました");
+    tracing::info!(%addr, "mediavault-apiがリクエスト受付を開始しました");
 
     axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("サーバーの起動に失敗しました");
+
+    tracing::info!("mediavault-apiを停止しました");
+}
+
+async fn shutdown_signal() {
+    if let Err(err) = tokio::signal::ctrl_c().await {
+        tracing::error!(error = %err, "停止シグナルの待機に失敗しました");
+        return;
+    }
+
+    tracing::info!("停止シグナルを受信しました");
 }

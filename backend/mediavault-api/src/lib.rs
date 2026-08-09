@@ -10,6 +10,7 @@
 pub mod db;
 pub mod handlers;
 pub mod import;
+pub mod logging;
 pub mod middleware;
 pub mod models;
 pub mod repositories;
