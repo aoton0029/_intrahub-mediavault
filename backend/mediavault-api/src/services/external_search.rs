@@ -943,13 +943,22 @@ impl ExternalSearchService {
     ) -> Result<Vec<SearchResultItem>, ExternalSearchError> {
         let api_key = self.ensure_key(ApiProvider::Annict).await?;
         let client = self.build_annict_client(api_key)?;
-        let response = client
+        let result = client
             .list_works(ListWorksRequest {
                 filter_title: Some(query.to_string()),
                 ..Default::default()
             })
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &result {
+            Ok(response) => tracing::debug!(
+                provider = "annict",
+                query,
+                result_count = response.model.len(),
+                "annict list_works succeeded"
+            ),
+            Err(err) => tracing::error!(provider = "annict", query, error = %err, "annict list_works failed"),
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
 
         let jikan_images_by_mal_id = self.search_jikan_anime_images(query).await;
 
@@ -975,14 +984,26 @@ impl ExternalSearchService {
         let Ok(client) = self.build_jikan_client() else {
             return HashMap::new();
         };
-        let Ok(response) = client
+        let response = match client
             .execute(JikanRequest::SearchAnime(JikanAnimeSearchRequest {
                 q: Some(query.to_string()),
                 ..Default::default()
             }))
             .await
-        else {
-            return HashMap::new();
+        {
+            Ok(response) => {
+                tracing::debug!(provider = "jikan", query, "jikan anime search succeeded");
+                response
+            }
+            Err(err) => {
+                tracing::warn!(
+                    provider = "jikan",
+                    query,
+                    error = %err,
+                    "jikan anime search failed, falling back to annict-only thumbnails"
+                );
+                return HashMap::new();
+            }
         };
         let raw_data = raw_data_to_value(&response.raw);
         raw_data
@@ -1011,13 +1032,27 @@ impl ExternalSearchService {
     ) -> Result<CreateItemRequest, ExternalSearchError> {
         let api_key = self.ensure_key(ApiProvider::Annict).await?;
         let annict_client = self.build_annict_client(api_key)?;
-        let response = annict_client
+        let result = annict_client
             .list_works(ListWorksRequest {
                 filter_ids: Some(annict_work_id.to_string()),
                 ..Default::default()
             })
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &result {
+            Ok(response) => tracing::debug!(
+                provider = "annict",
+                annict_work_id,
+                result_count = response.model.len(),
+                "annict list_works (import details) succeeded"
+            ),
+            Err(err) => tracing::error!(
+                provider = "annict",
+                annict_work_id,
+                error = %err,
+                "annict list_works (import details) failed"
+            ),
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let work = response.model.into_iter().next().ok_or_else(|| {
             ExternalSearchError::ExternalApiError(api_client_lib::ApiError::Http {
                 status: 404,
@@ -1045,11 +1080,20 @@ impl ExternalSearchService {
 
         match jikan_result {
             Ok(response) => {
+                tracing::debug!(provider = "jikan", mal_id, "jikan get anime details succeeded");
                 let raw_data = raw_data_to_value(&response.raw);
                 let jikan_data = raw_data.get("data").cloned().unwrap_or(raw_data);
                 Ok(build_anime_create_request(&work, Some(&jikan_data)))
             }
-            Err(_) => Ok(build_anime_create_request(&work, None)),
+            Err(err) => {
+                tracing::warn!(
+                    provider = "jikan",
+                    mal_id,
+                    error = %err,
+                    "jikan get anime details failed, falling back to annict-only data"
+                );
+                Ok(build_anime_create_request(&work, None))
+            }
         }
     }
 
@@ -1073,27 +1117,35 @@ impl ExternalSearchService {
         let api_key = self.ensure_key(ApiProvider::Annict).await?;
         let client = self.build_annict_client(api_key)?;
 
-        let work_response = client
+        let work_result = client
             .list_works(ListWorksRequest {
                 filter_ids: Some(annict_work_id.to_string()),
                 ..Default::default()
             })
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &work_result {
+            Ok(r) => tracing::debug!(provider = "annict", annict_work_id, result_count = r.model.len(), "annict list_works (related data) succeeded"),
+            Err(err) => tracing::error!(provider = "annict", annict_work_id, error = %err, "annict list_works (related data) failed"),
+        }
+        let work_response = work_result.map_err(ExternalSearchError::ExternalApiError)?;
         let season_group_name = work_response
             .model
             .first()
             .and_then(|w| non_empty(w.season_name_text.clone()))
             .unwrap_or_else(|| "本編".to_string());
 
-        let episodes_response = client
+        let episodes_result = client
             .list_episodes(ListEpisodesRequest {
                 filter_work_id: Some(work_id),
                 sort_sort_number: Some("asc".to_string()),
                 ..Default::default()
             })
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &episodes_result {
+            Ok(r) => tracing::debug!(provider = "annict", work_id, result_count = r.model.len(), "annict list_episodes succeeded"),
+            Err(err) => tracing::error!(provider = "annict", work_id, error = %err, "annict list_episodes failed"),
+        }
+        let episodes_response = episodes_result.map_err(ExternalSearchError::ExternalApiError)?;
         let episodes: Vec<AnimeEpisodeData> = episodes_response
             .model
             .iter()
@@ -1104,13 +1156,17 @@ impl ExternalSearchService {
             })
             .collect();
 
-        let staffs_response = client
+        let staffs_result = client
             .list_staffs(ListStaffsRequest {
                 filter_work_id: Some(work_id),
                 ..Default::default()
             })
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &staffs_result {
+            Ok(r) => tracing::debug!(provider = "annict", work_id, result_count = r.model.len(), "annict list_staffs succeeded"),
+            Err(err) => tracing::error!(provider = "annict", work_id, error = %err, "annict list_staffs failed"),
+        }
+        let staffs_response = staffs_result.map_err(ExternalSearchError::ExternalApiError)?;
         let staff: Vec<AnimeStaffMemberData> = staffs_response
             .model
             .iter()
@@ -1139,13 +1195,17 @@ impl ExternalSearchService {
             })
             .collect();
 
-        let casts_response = client
+        let casts_result = client
             .list_casts(ListCastsRequest {
                 filter_work_id: Some(work_id),
                 ..Default::default()
             })
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &casts_result {
+            Ok(r) => tracing::debug!(provider = "annict", work_id, result_count = r.model.len(), "annict list_casts succeeded"),
+            Err(err) => tracing::error!(provider = "annict", work_id, error = %err, "annict list_casts failed"),
+        }
+        let casts_response = casts_result.map_err(ExternalSearchError::ExternalApiError)?;
         let cast: Vec<AnimeCastMemberData> = casts_response
             .model
             .iter()
@@ -1180,13 +1240,17 @@ impl ExternalSearchService {
     ) -> Result<Vec<SearchResultItem>, ExternalSearchError> {
         let api_key = self.ensure_key(ApiProvider::Rakuten).await?;
         let client = self.build_rakuten_client(api_key)?;
-        let response = client
+        let result = client
             .search_books(SearchBooksRequest {
                 title: Some(query.to_string()),
                 ..Default::default()
             })
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &result {
+            Ok(r) => tracing::debug!(provider = "rakuten", query, result_count = r.model.len(), "rakuten search_books succeeded"),
+            Err(err) => tracing::error!(provider = "rakuten", query, error = %err, "rakuten search_books failed"),
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         Ok(response
             .model
             .iter()
@@ -1203,13 +1267,17 @@ impl ExternalSearchService {
     ) -> Result<CreateItemRequest, ExternalSearchError> {
         let api_key = self.ensure_key(ApiProvider::Rakuten).await?;
         let client = self.build_rakuten_client(api_key)?;
-        let response = client
+        let result = client
             .search_books(SearchBooksRequest {
                 isbn: Some(external_id.to_string()),
                 ..Default::default()
             })
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &result {
+            Ok(r) => tracing::debug!(provider = "rakuten", external_id, result_count = r.model.len(), "rakuten search_books (import details) succeeded"),
+            Err(err) => tracing::error!(provider = "rakuten", external_id, error = %err, "rakuten search_books (import details) failed"),
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let book = response.model.into_iter().next().ok_or_else(|| {
             ExternalSearchError::ExternalApiError(api_client_lib::ApiError::Http {
                 status: 404,
@@ -1232,10 +1300,14 @@ impl ExternalSearchService {
             language: None,
             page: None,
         });
-        let response = client
-            .execute(request)
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+        let result = client.execute(request).await;
+        match &result {
+            Ok(_) => tracing::debug!(provider = "tmdb", query, "tmdb search_movie succeeded"),
+            Err(err) => {
+                tracing::error!(provider = "tmdb", query, error = %err, "tmdb search_movie failed")
+            }
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let raw_data = raw_data_to_value(&response.raw);
         Ok(map_array_items(
             &raw_data,
@@ -1256,13 +1328,17 @@ impl ExternalSearchService {
         })?;
         let api_key = self.ensure_key(ApiProvider::Tmdb).await?;
         let client = self.build_tmdb_client(api_key)?;
-        let response = client
+        let result = client
             .execute(TmdbRequest::GetMovieDetails(MovieDetailsRequest {
                 movie_id,
                 language: None,
             }))
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &result {
+            Ok(_) => tracing::debug!(provider = "tmdb", movie_id, "tmdb get_movie_details succeeded"),
+            Err(err) => tracing::error!(provider = "tmdb", movie_id, error = %err, "tmdb get_movie_details failed"),
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let raw_data = raw_data_to_value(&response.raw);
         Ok(build_movie_create_request(&raw_data))
     }
@@ -1280,10 +1356,14 @@ impl ExternalSearchService {
             language: None,
             page: None,
         });
-        let response = client
-            .execute(request)
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+        let result = client.execute(request).await;
+        match &result {
+            Ok(_) => tracing::debug!(provider = "tmdb", query, "tmdb search_tv succeeded"),
+            Err(err) => {
+                tracing::error!(provider = "tmdb", query, error = %err, "tmdb search_tv failed")
+            }
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let raw_data = raw_data_to_value(&response.raw);
         Ok(map_array_items(
             &raw_data,
@@ -1304,13 +1384,17 @@ impl ExternalSearchService {
         })?;
         let api_key = self.ensure_key(ApiProvider::Tmdb).await?;
         let client = self.build_tmdb_client(api_key)?;
-        let response = client
+        let result = client
             .execute(TmdbRequest::GetTvSeries(TvSeriesRequest {
                 series_id,
                 language: None,
             }))
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &result {
+            Ok(_) => tracing::debug!(provider = "tmdb", series_id, "tmdb get_tv_series succeeded"),
+            Err(err) => tracing::error!(provider = "tmdb", series_id, error = %err, "tmdb get_tv_series failed"),
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let raw_data = raw_data_to_value(&response.raw);
         Ok(build_drama_create_request(&raw_data))
     }
@@ -1330,10 +1414,14 @@ impl ExternalSearchService {
             term: query.to_string(),
             page: None,
         });
-        let response = client
-            .execute(request)
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+        let result = client.execute(request).await;
+        match &result {
+            Ok(_) => tracing::debug!(provider = "steam", query, "steam store_search succeeded"),
+            Err(err) => {
+                tracing::error!(provider = "steam", query, error = %err, "steam store_search failed")
+            }
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let raw_data = raw_data_to_value(&response.raw);
         Ok(map_array_items(
             &raw_data,
@@ -1353,12 +1441,16 @@ impl ExternalSearchService {
             )))
         })?;
         let client = self.build_steam_client()?;
-        let response = client
+        let result = client
             .execute(SteamRequest::GetAppDetails(SteamAppDetailsRequest {
                 app_id,
             }))
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &result {
+            Ok(_) => tracing::debug!(provider = "steam", app_id, "steam get_app_details succeeded"),
+            Err(err) => tracing::error!(provider = "steam", app_id, error = %err, "steam get_app_details failed"),
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         // レスポンスは `{"<appid>": {"success": bool, "data": {...}}}` 形式のためraw JSONから直接抽出する
         let raw_data = raw_data_to_value(&response.raw);
         let data = raw_data
@@ -1386,10 +1478,14 @@ impl ExternalSearchService {
             cnt: None,
             dpid: None,
         });
-        let response = client
-            .execute(request)
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+        let result = client.execute(request).await;
+        match &result {
+            Ok(_) => tracing::debug!(provider = "ndl", query, "ndl search succeeded"),
+            Err(err) => {
+                tracing::error!(provider = "ndl", query, error = %err, "ndl search failed")
+            }
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let NdlModel::Items(models) = response.model;
         Ok(models
             .iter()
@@ -1405,13 +1501,17 @@ impl ExternalSearchService {
         media_type: MediaType,
     ) -> Result<CreateItemRequest, ExternalSearchError> {
         let client = self.build_ndl_client()?;
-        let response = client
+        let result = client
             .execute(NdlRequest::Search(NdlSearchRequest {
                 isbn: Some(external_id.to_string()),
                 ..Default::default()
             }))
-            .await
-            .map_err(ExternalSearchError::ExternalApiError)?;
+            .await;
+        match &result {
+            Ok(_) => tracing::debug!(provider = "ndl", external_id, "ndl search (import details) succeeded"),
+            Err(err) => tracing::error!(provider = "ndl", external_id, error = %err, "ndl search (import details) failed"),
+        }
+        let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let NdlModel::Items(models) = response.model;
         let item = models.into_iter().next().ok_or_else(|| {
             ExternalSearchError::ExternalApiError(api_client_lib::ApiError::Http {

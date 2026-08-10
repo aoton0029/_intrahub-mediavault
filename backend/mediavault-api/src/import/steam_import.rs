@@ -137,10 +137,22 @@ async fn fetch_owned_games(
         include_appinfo: true,
         include_played_free_games: true,
     };
-    let response = client
-        .get_owned_games(request)
-        .await
-        .map_err(map_steam_api_error)?;
+    let result = client.get_owned_games(request).await;
+    match &result {
+        Ok(response) => tracing::debug!(
+            provider = "steam",
+            steam_id = steam_id_u64,
+            game_count = response.model.games.len(),
+            "steam get_owned_games succeeded"
+        ),
+        Err(err) => tracing::error!(
+            provider = "steam",
+            steam_id = steam_id_u64,
+            error = %err,
+            "steam get_owned_games failed"
+        ),
+    }
+    let response = result.map_err(map_steam_api_error)?;
 
     Ok(response.model.games)
 }

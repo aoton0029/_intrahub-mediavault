@@ -302,8 +302,16 @@ async fn enrich_from_rakuten(client: &RakutenClient, isbn: &str, parsed: &mut Pa
     };
 
     let Some(book) = response.model.into_iter().next() else {
+        tracing::debug!(
+            "rakuten enrichment found no match for booklog row {} (isbn={isbn})",
+            parsed.row_number
+        );
         return;
     };
+    tracing::debug!(
+        "rakuten enrichment succeeded for booklog row {} (isbn={isbn})",
+        parsed.row_number
+    );
 
     let media_type = parsed.request.media_type;
     let rating = parsed.request.rating;
@@ -354,7 +362,13 @@ async fn classify_media_types(parsed_rows: &mut [ParsedBooklogRow]) {
             .collect();
 
         let response = match client.get(OpenBdGetRequest { isbns }).await {
-            Ok(response) => response,
+            Ok(response) => {
+                tracing::debug!(
+                    result_count = response.model.len(),
+                    "openbd batch lookup succeeded"
+                );
+                response
+            }
             Err(err) => {
                 tracing::warn!("openbd batch lookup failed, keeping Novel fallback: {err}");
                 continue;
