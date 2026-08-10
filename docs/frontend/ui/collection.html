@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>年別 - MediaVault</title>
+<style>
+/* ---------------------------------------------------------------- */
+/* Design tokens (BookOrbit-inspired dark theme)                     */
+/* ---------------------------------------------------------------- */
+:root{
+  --background:#171717;
+  --foreground:#f5f5f5;
+  --card:#1c1c1c;
+  --popover:#1e1e1e;
+  --border:rgba(255,255,255,.1);
+  --input:rgba(255,255,255,.15);
+  --muted:#242424;
+  --muted-foreground:#9a9a9a;
+  --primary:#5b8def;
+  --primary-foreground:#0b1220;
+  --accent:#262626;
+  --accent-foreground:#f5f5f5;
+  --destructive:#e5484d;
+  --sidebar:#151515;
+  --radius:10px;
+  --elevation-sm:0 1px 3px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.4);
+  --elevation-md:0 4px 8px -1px rgba(0,0,0,.5), 0 2px 4px -2px rgba(0,0,0,.4);
+  --elevation-lg:0 10px 20px -3px rgba(0,0,0,.5), 0 4px 8px -4px rgba(0,0,0,.4);
+  --elevation-xl:0 20px 30px -5px rgba(0,0,0,.6), 0 8px 12px -6px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--background);color:var(--foreground);font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;font-size:14px}
+a{color:inherit}
+button{font-family:inherit;color:inherit;cursor:pointer}
+.icon{width:1em;height:1em;flex:none}
+
+/* ---------------------------------------------------------------- */
+/* App shell / sidebar (kept close to original layout)               */
+/* ---------------------------------------------------------------- */
+.app-shell{display:flex;min-height:100vh}
+.sidebar{width:230px;flex:none;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 10px;gap:4px}
+.brand{display:flex;align-items:center;gap:8px;padding:6px 10px 18px;font-weight:700;font-size:15px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--primary)}
+.nav-section{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
+.nav-section-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);padding:6px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;text-decoration:none;color:var(--muted-foreground);font-size:13px}
+.nav-item:hover{background:var(--accent);color:var(--foreground)}
+.nav-item.active{background:color-mix(in srgb, var(--primary) 14%, transparent);color:var(--primary)}
+.main{flex:1;min-width:0}
+.titlebar{display:flex;align-items:center;justify-content:space-between;padding:20px 28px 4px}
+.titlebar h1{font-size:20px;margin:0}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;border:1px solid var(--border)}
+.btn-accent{background:var(--primary);color:var(--primary-foreground);border-color:transparent}
+.content{padding:16px 28px 60px}
+
+/* ---------------------------------------------------------------- */
+/* Toolbar                                                            */
+/* ---------------------------------------------------------------- */
+.filter-toolbar{
+  position:sticky;top:0;z-index:30;
+  display:flex;align-items:center;flex-wrap:wrap;gap:16px 24px;
+  margin-bottom:22px;padding:10px 14px;
+  background:color-mix(in srgb, var(--background) 82%, transparent);
+  backdrop-filter:blur(10px);
+  border:1px solid var(--border);border-radius:var(--radius);
+}
+.toolbar-group{display:flex;align-items:center;gap:8px}
+.toolbar-divider{width:1px;height:20px;background:var(--border);flex:none}
+.sort-search-group{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;font-size:13px;white-space:nowrap;
+  border:1px solid var(--input);background:var(--background);color:var(--muted-foreground);border-radius:8px;transition:.15s}
+.chip:hover{color:var(--foreground);background:var(--muted)}
+.chip[aria-expanded="true"], .chip.is-active{border-color:var(--primary);color:var(--primary);background:color-mix(in srgb, var(--primary) 10%, transparent)}
+.chip.is-toggle-on{color:var(--primary);border-color:var(--primary)}
+
+/* generic dropdown/popover panel chrome */
+.dropdown{position:relative}
+.dropdown-panel{
+  position:absolute;top:calc(100% + 6px);left:0;z-index:40;min-width:180px;
+  background:var(--popover);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--elevation-lg);padding:6px;
+  opacity:0;transform:scale(.96) translateY(-4px);pointer-events:none;
+  transform-origin:top left;transition:opacity .12s ease, transform .12s ease;
+}
+.dropdown-panel.align-right{left:auto;right:0;transform-origin:top right}
+.dropdown[data-open="true"] .dropdown-panel{opacity:1;transform:scale(1) translateY(0);pointer-events:auto}
+.dropdown-item{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border:0;background:none;text-align:left;border-radius:6px;font-size:13px;color:var(--foreground)}
+.dropdown-item:hover{background:var(--accent)}
+.dropdown-item.is-selected{color:var(--primary)}
+.dropdown-item .icon{width:14px;height:14px;color:var(--muted-foreground)}
+.dropdown-sep{height:1px;background:var(--border);margin:5px 3px}
+.dropdown-item.danger{color:var(--destructive)}
+.dropdown-item.danger:hover{background:color-mix(in srgb, var(--destructive) 16%, transparent)}
+.dropdown-group-label{margin:2px 9px 2px;font-size:11px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.03em}
+.dropdown-item[data-status]{justify-content:space-between}
+.dropdown-item[data-status]::after{content:"";width:14px;height:14px}
+.dropdown-item[data-status].is-selected::after{content:"✓";color:var(--primary);font-size:12px;line-height:14px}
+
+.popover-panel{
+  position:absolute;top:calc(100% + 6px);right:0;z-index:40;width:280px;
+  background:var(--popover);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--elevation-lg);padding:16px;
+  opacity:0;transform:scale(.96) translateY(-4px);pointer-events:none;
+  transform-origin:top right;transition:opacity .12s ease, transform .12s ease;
+}
+.dropdown[data-open="true"] .popover-panel{opacity:1;transform:scale(1) translateY(0);pointer-events:auto}
+.field-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;font-size:13px}
+.field-row + .field-row{border-top:1px solid var(--border)}
+.field-title{font-size:12px;font-weight:600;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.03em;margin:0 0 8px}
+.switch{width:34px;height:20px;border-radius:999px;background:var(--muted);position:relative;border:1px solid var(--input);flex:none}
+.switch::after{content:"";position:absolute;top:1px;left:1px;width:16px;height:16px;border-radius:50%;background:var(--muted-foreground);transition:.15s}
+.switch.on{background:color-mix(in srgb, var(--primary) 40%, transparent);border-color:var(--primary)}
+.switch.on::after{left:15px;background:var(--primary)}
+input[type="range"]{width:100%}
+
+.search-box{position:relative;display:flex;align-items:center}
+.search-box .icon{position:absolute;left:9px;color:var(--muted-foreground);pointer-events:none;transition:color .15s}
+.search-box input{
+  height:32px;width:32px;padding:0 0 0 30px;border-radius:8px;border:1px solid var(--input);
+  background:transparent;color:transparent;font-size:13px;transition:width .25s ease, color .15s ease, background .15s ease;cursor:pointer;
+}
+.search-box input::placeholder{color:transparent}
+.search-box input:focus, .search-box input.is-expanded{
+  width:220px;color:var(--foreground);background:var(--muted);cursor:text;outline:none;
+}
+.search-box input:focus::placeholder, .search-box input.is-expanded::placeholder{color:var(--muted-foreground)}
+
+.view-mode-toggle{display:flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--input);border-radius:10px;background:var(--muted)}
+.view-mode-toggle button{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:none;color:var(--muted-foreground)}
+.view-mode-toggle button .icon{width:14px;height:14px}
+.view-mode-toggle button.active{background:color-mix(in srgb, var(--primary) 16%, transparent);color:var(--primary)}
+
+/* ---------------------------------------------------------------- */
+/* Year sections                                                      */
+/* ---------------------------------------------------------------- */
+.year-section{margin-bottom:34px}
+.year-section-heading{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:16px;font-weight:700}
+.year-section-heading .icon{width:18px;height:18px;color:var(--muted-foreground)}
+.year-section-count{font-weight:400;color:var(--muted-foreground);font-size:13px}
+
+/* ---------------------------------------------------------------- */
+/* Card grid                                                          */
+/* ---------------------------------------------------------------- */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:26px 18px}
+
+.media-card{position:relative}
+.media-card .cover{
+  position:relative;aspect-ratio:2/3;border-radius:8px;overflow:hidden;background:var(--muted);
+  box-shadow:var(--elevation-md);transform:scale(1);transition:transform .15s ease, box-shadow .15s ease;
+}
+.media-card:hover .cover{transform:scale(1.02);box-shadow:var(--elevation-xl)}
+.media-card .cover img{width:100%;height:100%;object-fit:cover;display:block}
+.media-card .badge{
+  position:absolute;top:6px;right:6px;padding:2px 7px;font-size:10px;font-weight:600;border-radius:999px;
+  background:rgba(0,0,0,.6);color:#fff;transition:opacity .15s;
+}
+.media-card:hover .badge{opacity:0}
+
+.card-overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;padding:8px;
+  background:linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,0) 85%);
+  opacity:0;pointer-events:none;transition:opacity .15s ease;
+}
+.media-card:hover .card-overlay, .media-card.menu-open .card-overlay{opacity:1;pointer-events:auto}
+
+.card-overlay-top{display:flex;justify-content:flex-end;gap:4px}
+.card-overlay-top button{
+  width:26px;height:26px;border-radius:7px;border:0;background:rgba(0,0,0,.5);color:#fff;
+  display:flex;align-items:center;justify-content:center;transition:background .15s;
+}
+.card-overlay-top button:hover{background:rgba(0,0,0,.75)}
+.card-overlay-top .icon{width:14px;height:14px}
+
+.card-overlay-center{flex:1;display:flex;align-items:center;justify-content:center}
+.card-overlay-center button{
+  width:44px;height:44px;border-radius:999px;border:0;background:var(--primary);color:var(--primary-foreground);
+  display:flex;align-items:center;justify-content:center;box-shadow:var(--elevation-lg);
+  transform:scale(.75);transition:transform .2s ease;
+}
+.media-card:hover .card-overlay-center button{transform:scale(1)}
+.card-overlay-center .icon{width:18px;height:18px}
+
+.card-overlay-bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:6px}
+.card-overlay-bottom .card-title{font-size:12px;font-weight:600;color:#fff;line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0}
+.card-overlay-bottom .kebab-btn{
+  width:24px;height:24px;flex:none;border-radius:6px;border:0;background:rgba(0,0,0,.5);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+}
+.card-overlay-bottom .kebab-btn:hover{background:rgba(0,0,0,.75)}
+.card-overlay-bottom .icon{width:14px;height:14px}
+
+.media-card .body{padding:8px 2px 0}
+.media-card .title{font-size:12.5px;line-height:1.4;margin:0;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+.card-menu{
+  position:fixed;z-index:60;min-width:190px;background:var(--popover);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:var(--elevation-lg);padding:6px;
+  opacity:0;transform:scale(.96);pointer-events:none;transition:opacity .12s ease, transform .12s ease;
+}
+.card-menu.open{opacity:1;transform:scale(1);pointer-events:auto}
+
+/* ---------------------------------------------------------------- */
+/* Table view                                                         */
+/* ---------------------------------------------------------------- */
+.table-view{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--card)}
+.table-view[hidden]{display:none}
+.table-view table{width:100%;border-collapse:collapse;font-size:13px}
+.table-view thead th{
+  position:sticky;top:0;z-index:5;background:var(--card);text-align:left;font-weight:600;font-size:11px;
+  text-transform:uppercase;letter-spacing:.03em;color:var(--muted-foreground);padding:10px 14px;border-bottom:1px solid var(--border);
+}
+.table-view th.col-cover{width:56px}
+.table-view th.col-actions{width:44px}
+.table-view tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
+.table-view tbody tr:last-child{border-bottom:0}
+.table-view tbody tr:hover{background:var(--muted)}
+.table-view td{padding:8px 14px;vertical-align:middle}
+.table-row-cover{width:40px;height:56px;border-radius:5px;overflow:hidden;background:var(--muted);box-shadow:var(--elevation-sm);flex:none}
+.table-row-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.table-row-title{display:flex;align-items:center;gap:6px;font-weight:500}
+.table-row-badge{padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;background:var(--muted);color:var(--muted-foreground);border:1px solid var(--border);flex:none}
+.table-row-status{padding:2px 9px;border-radius:999px;font-size:11px;border:1px solid var(--input);color:var(--muted-foreground);white-space:nowrap}
+.table-row-status.in_progress{border-color:var(--primary);color:var(--primary);background:color-mix(in srgb, var(--primary) 10%, transparent)}
+.table-row-rating{color:#f5b942;font-size:12px;letter-spacing:1px;white-space:nowrap}
+.table-row-updated{color:var(--muted-foreground);white-space:nowrap}
+.table-row-menu-btn{
+  width:26px;height:26px;border-radius:6px;border:0;background:none;color:var(--muted-foreground);
+  display:flex;align-items:center;justify-content:center;
+}
+.table-row-menu-btn:hover{background:var(--accent);color:var(--foreground)}
+
+/* ---------------------------------------------------------------- */
+/* Quick-view sidebar (sheet)                                        */
+/* ---------------------------------------------------------------- */
+.sheet-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:70;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.sheet-backdrop.open{opacity:1;pointer-events:auto}
+.quick-view-sheet{
+  position:fixed;top:0;right:0;height:100vh;width:400px;max-width:90vw;background:var(--card);
+  border-left:1px solid var(--border);box-shadow:var(--elevation-xl);z-index:80;
+  display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;
+}
+.quick-view-sheet.open{transform:translateX(0)}
+.qv-header{display:flex;gap:14px;padding:20px;border-bottom:1px solid var(--border)}
+.qv-header img{width:76px;aspect-ratio:2/3;object-fit:cover;border-radius:6px;box-shadow:var(--elevation-sm);flex:none}
+.qv-header-info{min-width:0}
+.qv-header-info h2{font-size:15px;margin:2px 0 2px;line-height:1.35}
+.qv-original{margin:0;font-size:12px;color:var(--muted-foreground)}
+.qv-close{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:7px;border:1px solid var(--input);background:var(--muted);display:flex;align-items:center;justify-content:center}
+.qv-body{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:18px}
+
+.qv-facts{display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--muted);border-radius:8px;border:1px solid var(--border)}
+.qv-fact{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px}
+.qv-fact-label{color:var(--muted-foreground);flex:none}
+.qv-fact-value{color:var(--foreground);text-align:right}
+.qv-status-group{display:flex;gap:4px}
+.qv-status-chip{padding:3px 8px;border-radius:999px;font-size:11px;background:transparent;border:1px solid var(--input);color:var(--muted-foreground)}
+.qv-status-chip.is-active{border-color:var(--primary);color:var(--primary);background:color-mix(in srgb, var(--primary) 12%, transparent)}
+.qv-rating{display:flex;gap:2px}
+.qv-star{border:0;background:none;color:var(--muted-foreground);font-size:15px;line-height:1;padding:0}
+.qv-rating[data-value="1"] .qv-star:nth-child(-n+1),
+.qv-rating[data-value="2"] .qv-star:nth-child(-n+2),
+.qv-rating[data-value="3"] .qv-star:nth-child(-n+3),
+.qv-rating[data-value="4"] .qv-star:nth-child(-n+4),
+.qv-rating[data-value="5"] .qv-star:nth-child(-n+5){color:#f5b942}
+.qv-fav-toggle{display:flex;align-items:center;gap:5px;border:0;background:none;color:var(--muted-foreground);font-size:12px}
+.qv-fav-toggle .icon{width:14px;height:14px}
+.qv-fav-toggle[aria-pressed="true"]{color:var(--destructive)}
+.qv-fav-toggle[aria-pressed="true"] .icon{fill:currentColor}
+
+.qv-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.qv-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;background:var(--muted);color:var(--muted-foreground);border:1px solid var(--border)}
+.qv-pill-remove{border:0;background:none;color:var(--muted-foreground);font-size:12px;line-height:1;padding:0}
+.qv-pill-remove:hover{color:var(--destructive)}
+.qv-pill-add{border:1px dashed var(--input);background:none;color:var(--muted-foreground);font-size:11px;padding:3px 9px;border-radius:999px}
+.qv-pill-add:hover{color:var(--foreground);border-color:var(--muted-foreground)}
+.qv-mylist-row{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.qv-mylist-row .qv-fact-value{color:var(--muted-foreground);font-size:12px}
+
+.qv-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);margin:0 0 6px}
+.qv-desc{font-size:13px;line-height:1.6;color:var(--foreground);opacity:.9;margin:0}
+.qv-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px}
+.qv-footer .btn-secondary{flex:1;justify-content:center;background:#2b6cb0;color:#fff;border:0;border-radius:8px;height:36px;font-weight:600;font-size:13px}
+.qv-footer .btn-danger{flex:1;justify-content:center;background:none;color:var(--destructive);border:1px solid var(--destructive);border-radius:8px;height:36px;font-weight:600;font-size:13px}
+.qv-footer .btn-danger:hover{background:color-mix(in srgb, var(--destructive) 14%, transparent)}
+
+@media (max-width:720px){
+  .sidebar{display:none}
+  .content{padding:14px}
+  .quick-view-sheet{width:100vw;max-width:100vw}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span><span>MediaVault</span></div>
+    <div class="nav-section">
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span>ホーム</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">メディア</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg><span>すべて</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect></svg><span>映画</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>ドラマ</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>アニメ</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>漫画</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg><span>小説</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><span>ゲーム</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">リサーチ</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>学術書・専門書</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg><span>論文・文献</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">コレクション</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg><span>マイリスト</span></a>
+      <a class="nav-item active" href="#" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>年別</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">ツール</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg><span>並べてシェア</span></a>
+    </div>
+    <div class="nav-section" style="margin-top:auto">
+      <div class="nav-section-label">Misc</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span>設定</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="titlebar">
+      <div><h1>年別</h1></div>
+    </div>
+
+    <div class="content">
+      <div class="filter-toolbar">
+        <div class="toolbar-group">
+          <!-- year dropdown -->
+          <div class="dropdown" id="dd-year">
+            <button type="button" class="chip" aria-haspopup="listbox" aria-expanded="false" data-toggle="dd-year">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span data-label>2026年</span>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="dropdown-panel" role="listbox">
+              <button type="button" class="dropdown-item" data-year="2024">2024年</button>
+              <button type="button" class="dropdown-item" data-year="2025">2025年</button>
+              <button type="button" class="dropdown-item is-selected" data-year="2026">2026年</button>
+            </div>
+          </div>
+
+          <span class="toolbar-divider"></span>
+
+          <button type="button" class="chip is-active" id="year-mode-release" aria-pressed="true">リリース年</button>
+          <button type="button" class="chip is-active" id="year-mode-consumed" aria-pressed="true">視聴・読了年</button>
+        </div>
+
+        <div class="sort-search-group">
+          <label class="search-box">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input id="search-input" type="text" aria-label="タイトル検索" placeholder="タイトルで検索...">
+          </label>
+
+          <!-- sort dropdown -->
+          <div class="dropdown" id="dd-sort">
+            <button type="button" class="chip" aria-haspopup="true" aria-expanded="false" data-toggle="dd-sort">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path><path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path></svg>
+              <span data-label>Rating</span>
+            </button>
+            <div class="dropdown-panel align-right" role="listbox">
+              <button type="button" class="dropdown-item is-selected" data-sort="rating">Rating</button>
+              <button type="button" class="dropdown-item" data-sort="created_at">Recently added</button>
+              <button type="button" class="dropdown-item" data-sort="updated_at">Recently updated</button>
+              <button type="button" class="dropdown-item" data-sort="title">Title</button>
+              <button type="button" class="dropdown-item" data-sort="release_date">Release date</button>
+            </div>
+          </div>
+
+          <span class="toolbar-divider"></span>
+
+          <div class="view-mode-toggle" role="group" aria-label="表示形式">
+            <button type="button" class="active" data-view="grid" title="グリッド表示" aria-pressed="true">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>
+            </button>
+            <button type="button" data-view="table" title="テーブル表示" aria-pressed="false">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            </button>
+          </div>
+
+          <!-- display settings popover -->
+          <div class="dropdown" id="dd-display">
+            <button type="button" class="chip" aria-haspopup="true" aria-expanded="false" data-toggle="dd-display">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+              表示設定
+            </button>
+            <div class="popover-panel">
+              <p class="field-title">カバーサイズ</p>
+              <input type="range" min="1" max="5" value="3">
+              <div class="field-row"><span>グリッド間隔</span><input type="range" min="1" max="5" value="3" style="width:100px"></div>
+              <div class="field-row"><span>ラベルを表示</span><div class="switch on" data-switch></div></div>
+              <div class="field-row"><span>ホバーオーバーレイ</span><div class="switch on" data-switch></div></div>
+              <div class="field-row"><span>評価バッジ</span><div class="switch" data-switch></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="grid-sections"></div>
+
+      <div class="table-view" id="table-view" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th class="col-cover"></th>
+              <th>タイトル</th>
+              <th>ステータス</th>
+              <th>評価</th>
+              <th>更新日時</th>
+              <th class="col-actions"></th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<aside class="quick-view-sheet" id="quick-view" aria-hidden="true">
+  <button type="button" class="qv-close" id="qv-close" aria-label="閉じる">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+  </button>
+  <div class="qv-header">
+    <img id="qv-cover" src="" alt="">
+    <div class="qv-header-info">
+      <span class="qv-pill" id="qv-badge">Anime</span>
+      <h2 id="qv-title">タイトル</h2>
+      <p class="qv-original" id="qv-original">原題未登録</p>
+    </div>
+  </div>
+  <div class="qv-body">
+    <div class="qv-facts">
+      <div class="qv-fact">
+        <span class="qv-fact-label">ステータス</span>
+        <div class="qv-status-group" role="group" aria-label="ステータス">
+          <button type="button" class="qv-status-chip" data-status="not_started">未着手</button>
+          <button type="button" class="qv-status-chip is-active" data-status="in_progress">視聴中</button>
+          <button type="button" class="qv-status-chip" data-status="completed">視聴済</button>
+        </div>
+      </div>
+      <div class="qv-fact">
+        <span class="qv-fact-label">評価</span>
+        <div class="qv-rating" id="qv-rating" data-value="4">
+          <button type="button" class="qv-star" data-star="1">★</button>
+          <button type="button" class="qv-star" data-star="2">★</button>
+          <button type="button" class="qv-star" data-star="3">★</button>
+          <button type="button" class="qv-star" data-star="4">★</button>
+          <button type="button" class="qv-star" data-star="5">★</button>
+        </div>
+      </div>
+      <div class="qv-fact">
+        <span class="qv-fact-label">視聴日</span>
+        <span class="qv-fact-value">視聴日未登録</span>
+      </div>
+      <div class="qv-fact">
+        <span class="qv-fact-label">お気に入り</span>
+        <button type="button" class="qv-fav-toggle" id="qv-fav" aria-pressed="false">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+          <span>未登録</span>
+        </button>
+      </div>
+      <div class="qv-fact">
+        <span class="qv-fact-label">公開日</span>
+        <span class="qv-fact-value">公開日未登録</span>
+      </div>
+      <div class="qv-fact">
+        <span class="qv-fact-label">ソース</span>
+        <span class="qv-fact-value">手動登録</span>
+      </div>
+    </div>
+
+    <div>
+      <p class="qv-section-title">タグ</p>
+      <div class="qv-pills qv-editable-pills">
+        <span class="qv-pill">お気に入り候補<button type="button" class="qv-pill-remove" aria-label="タグを削除">×</button></span>
+        <button type="button" class="qv-pill-add">＋ タグを追加</button>
+      </div>
+    </div>
+    <div>
+      <p class="qv-section-title">カテゴリ</p>
+      <div class="qv-pills qv-editable-pills">
+        <span class="qv-pill">未設定<button type="button" class="qv-pill-remove" aria-label="カテゴリを削除">×</button></span>
+        <button type="button" class="qv-pill-add">＋ カテゴリを追加</button>
+      </div>
+    </div>
+    <div>
+      <p class="qv-section-title">マイリスト</p>
+      <div class="qv-mylist-row">
+        <span class="qv-fact-value">所属しているマイリストはありません</span>
+        <button type="button" class="qv-pill-add">＋ マイリストに追加</button>
+      </div>
+    </div>
+    <div>
+      <p class="qv-section-title">概要</p>
+      <p class="qv-desc" id="qv-desc">概要は未登録です。編集ページから追記できます。</p>
+    </div>
+  </div>
+  <div class="qv-footer">
+    <button type="button" class="btn-secondary">編集する</button>
+    <button type="button" class="btn-danger" data-action="delete">削除する</button>
+  </div>
+</aside>
+
+<div class="card-menu" id="card-menu">
+  <button type="button" class="dropdown-item" data-action="quick-view">詳細を見る</button>
+  <button type="button" class="dropdown-item" data-action="toggle-favorite">お気に入りに追加</button>
+  <div class="dropdown-sep"></div>
+  <p class="dropdown-group-label">ステータスを変更</p>
+  <button type="button" class="dropdown-item" data-action="set-status" data-status="not_started">未着手</button>
+  <button type="button" class="dropdown-item is-selected" data-action="set-status" data-status="in_progress">視聴中</button>
+  <button type="button" class="dropdown-item" data-action="set-status" data-status="completed">視聴済</button>
+  <div class="dropdown-sep"></div>
+  <button type="button" class="dropdown-item" data-action="add-mylist">マイリストに追加</button>
+  <button type="button" class="dropdown-item">編集する</button>
+  <div class="dropdown-sep"></div>
+  <button type="button" class="dropdown-item danger" data-action="delete">削除する</button>
+</div>
+
+<script>
+const SECTIONS = [
+  {
+    key: "movie", label: "映画", badge: "Movie",
+    icon: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>',
+    items: [
+      {id:"e02b085d",title:"木挽町のあだ討ち",img:"./collection_files/ks2xQQw2HMbDzz9TdTMW2PoMYLy.jpg"},
+      {id:"34e75f3b",title:"劇場版モノノ怪 第三章 蛇神",img:"./collection_files/93zvlPMHQb3xoX40bNL8bck7O00.jpg"},
+      {id:"107e3ec1",title:"教場 Reunion",img:"./collection_files/8SHL2mYaL9vS0ETzoF9SixWRyvw.jpg"},
+      {id:"7557fb60",title:"黒牢城",img:"./collection_files/1GWVlPM1v6k84LsmDkfDzLlGf0O.jpg"},
+      {id:"60a91865",title:"镖人：风起大漠",img:"./collection_files/R84km7PJ0frFSNPmvIjG6LV1kg.jpg"},
+      {id:"377b19c4",title:"Spider-Man: Brand New Day",img:"./collection_files/iPOn6DinuVyLY17YM9mKuPofV08.jpg"},
+      {id:"bbb834ac",title:"Return to Silent Hill",img:"./collection_files/mdw7bSnE11WpwWf3ViXtnavuqiT.jpg"},
+      {id:"c9b40683",title:"Obsession",img:"./collection_files/bRwnj8WEKBCvmfeUNOukJPwB43K.jpg"},
+      {id:"0593e177",title:"急に具合が悪くなる",img:"./collection_files/uJkX6VUQbgoDO2LCt7X6wdAXvZj.jpg"},
+      {id:"34f859b6",title:"パリに咲くエトワール",img:"./collection_files/6zvnFfSQ5Q4L5ggsn5MALCB3PDd.jpg"},
+      {id:"e5ab0d9c",title:"ゴジラ-0.0",img:"./collection_files/fy1RecLQ4DeJPRcOBFh03GhDkVo.jpg"},
+      {id:"b16bb339",title:"アギトー超能力戦争ー",img:"./collection_files/jPni7Oz12gZcCMnXsyqgcbBu2Pj.jpg"},
+      {id:"651c457c",title:"The Odyssey",img:"./collection_files/5rhTDKUhPYvpdQIijFIs5VoWsON.jpg"},
+      {id:"fa336853",title:"Supergirl",img:"./collection_files/1QCWdqzTfh2x9UylVpspIU6QTuM.jpg"},
+      {id:"9ae9e751",title:"Street Fighter",img:"./collection_files/wOnoOeDcsLSo72ON1UC6c1VHKk1.jpg"},
+      {id:"9c54b9f2",title:"Resident Evil",img:"./collection_files/qku2uWSoJ9amQV5MWo1Eek29iji.jpg"},
+      {id:"08292622",title:"魔法使いの夜",img:"./collection_files/cCujIxpgUxGg0X1X2ItSXCso9ws.jpg"},
+      {id:"f473475c",title:"ALL YOU NEED IS KILL",img:"./collection_files/kznh3ACnXYVyyAYes7JN6i1wy2d.jpg"},
+      {id:"27a9420b",title:"岸辺露伴は動かない『泉京香は黙らない』",img:"./collection_files/50ElQ4AWqdLHpkpZcOFnBPT9vMs.jpg"},
+      {id:"0c213922",title:"Mortal Kombat II",img:"./collection_files/hwRdDFIhaEmpRgoki805YvyyjZf.jpg"},
+      {id:"bc4e7fd1",title:"How to Rob a Bank",img:"./collection_files/oUt2f6qHRZDnprG16ELimRhDGDV.jpg"},
+      {id:"f88ae17c",title:"Backrooms",img:"./collection_files/rhGx6E3qRNMgj3i5su2oukNHwIQ.jpg"},
+      {id:"f097cff3",title:"Dune: Part Three",img:"./collection_files/d43fvHQsIMa4kpyhKXw0haEJIvI.jpg"},
+      {id:"1a853e06",title:"Disclosure Day",img:"./collection_files/AnJ8IQJI23hNpYXVNaythu061Ru.jpg"},
+      {id:"cf080fe7",title:"Digger",img:"./collection_files/1ATXKrIPJyKNwnJ6lcG088Sa6zi.jpg"},
+      {id:"4e3a7ac8",title:"Avengers: Doomsday",img:"./collection_files/bh2OuKvq19jBHsloUVCfPSZZw81.jpg"},
+      {id:"2c699c7f",title:"SEKIRO: NO DEFEAT",img:"./collection_files/lBWZojUmupfmx3pqVZJIL2v7gF4.jpg"},
+      {id:"c7d471c1",title:"銀河特急 ミルキー☆サブウェイ 各駅停車劇場行き",img:"./collection_files/brQf6Odu4S6WzfVLuXLbOcbsOP2.jpg"},
+      {id:"b5428d76",title:"楽園追放 心のレゾナンス",img:"./collection_files/cp9XcvYQgwFPQgfDi3Yjjq2I3dI.jpg"},
+      {id:"3fee21cc",title:"機動戦士ガンダム 閃光のハサウェイ キルケーの魔女",img:"./collection_files/6YkVpc9Dn1L2FHNlLOybpSKeGc7.jpg"},
+      {id:"8768ebd8",title:"Queen of Chess",img:"./collection_files/ag5TZNcK3vHdCCpZIY8syjwzgfr.jpg"},
+      {id:"39e2e93d",title:"機動警察パトレイバー EZY : File 02",img:"./collection_files/5mxpCqNuEpoSPnmL9wAoGOpJq81.jpg"},
+      {id:"b6c0c5df",title:"機動警察パトレイバー EZY File 01",img:"./collection_files/9W1lZhy9O0xQSSCSdwTsl4Qamxl.jpg"},
+      {id:"ba343f35",title:"The Mandalorian and Grogu",img:"./collection_files/7GV5rrUJf0BRUhoh2cyFoeNthlQ.jpg"},
+      {id:"7459d3dc",title:"Project Hail Mary",img:"./collection_files/yihdXomYb5kTeSivtFndMy5iDmf.jpg"},
+      {id:"e7d6df3a",title:"超かぐや姫！",img:"./collection_files/9I9cM38gecZcwJ0C6r0cwfvtPJP.jpg"}
+    ]
+  },
+  {
+    key: "anime", label: "アニメ", badge: "Anime",
+    icon: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>',
+    items: [
+      {id:"84f9ec29",title:"攻殻機動隊 THE GHOST IN THE SHELL",img:"./collection_files/158937l.jpg"},
+      {id:"dbb15feb",title:"天幕のジャードゥーガル",img:"./collection_files/158891l.jpg"},
+      {id:"870ffadd",title:"ヤニねこ",img:"./collection_files/ogp.jpg"},
+      {id:"4f6ee84f",title:"さよならララ",img:"./collection_files/ogp3.jpg"},
+      {id:"7c4fccfb",title:"対ありでした。 ～お嬢さまは格闘ゲームなんてしない～",img:"./collection_files/ogp3(1).jpg"},
+      {id:"96f73be8",title:"鉄鍋のジャン！",img:"./collection_files/ogp(1).jpg"},
+      {id:"e0cda6b1",title:"スーパーの裏でヤニ吸うふたり",img:"./collection_files/ogp(2).jpg"},
+      {id:"0f21b215",title:"違国日記",img:"./collection_files/ogp-0903.jpg"},
+      {id:"e7f642ff",title:"ONE PIECE HEROINES",img:"./collection_files/0206_2026001.jpg"}
+    ]
+  },
+  {
+    key: "drama", label: "ドラマ", badge: "Drama",
+    icon: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>',
+    items: [
+      {id:"61e4d3b8",title:"犯罪者",img:"./collection_files/hgAzI2A11YDTrsC7FkorYA0t8R2.jpg"},
+      {id:"ba9e43c8",title:"ガス人間",img:"./collection_files/gSYPd4icODc7QdRA7BK0VqBxBYp.jpg"}
+    ]
+  }
+];
+
+const ICONS = {
+  eye:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+  plus:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
+  play:'<svg class="icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>',
+  kebab:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>'
+};
+
+/* flatten for lookup + table view, tagging each item with its section badge */
+const MEDIA = SECTIONS.flatMap(sec => sec.items.map(item => ({...item, badge: sec.badge})));
+
+function cardHtml(m){
+  return `
+  <div class="media-card" data-id="${m.id}">
+    <div class="cover">
+      <img alt="" loading="lazy" src="${m.img}">
+      <span class="badge">${m.badge}</span>
+      <div class="card-overlay">
+        <div class="card-overlay-top">
+          <button type="button" data-action="quick-view" title="クイックビュー">${ICONS.eye}</button>
+          <button type="button" title="コレクションに追加">${ICONS.plus}</button>
+        </div>
+        <div class="card-overlay-center">
+          <button type="button" title="再生する">${ICONS.play}</button>
+        </div>
+        <div class="card-overlay-bottom">
+          <p class="card-title">${m.title}</p>
+          <button type="button" class="kebab-btn" data-action="menu" title="メニュー">${ICONS.kebab}</button>
+        </div>
+      </div>
+    </div>
+    <div class="body"><p class="title">${m.title}</p></div>
+  </div>`;
+}
+
+const gridSections = document.getElementById("grid-sections");
+gridSections.innerHTML = SECTIONS.map(sec => `
+  <section class="year-section" aria-label="${sec.label}">
+    <h2 class="year-section-heading">${sec.icon}${sec.label} <span class="year-section-count">(${sec.items.length})</span></h2>
+    <div class="card-grid">${sec.items.map(cardHtml).join("")}</div>
+  </section>
+`).join("");
+
+const tableBody = document.getElementById("table-body");
+tableBody.innerHTML = MEDIA.map(m => `
+  <tr data-id="${m.id}">
+    <td><div class="table-row-cover"><img alt="" loading="lazy" src="${m.img}"></div></td>
+    <td><div class="table-row-title">${m.title}<span class="table-row-badge">${m.badge}</span></div></td>
+    <td><span class="table-row-status in_progress">視聴中</span></td>
+    <td><span class="table-row-rating">★★★★☆</span></td>
+    <td><span class="table-row-updated">更新日未登録</span></td>
+    <td><button type="button" class="table-row-menu-btn" data-action="menu" title="メニュー">${ICONS.kebab}</button></td>
+  </tr>
+`).join("");
+
+/* ---- generic dropdown/popover open-close ---- */
+const dropdowns = Array.from(document.querySelectorAll(".dropdown"));
+function closeAllDropdowns(except){
+  dropdowns.forEach(dd => {
+    if(dd === except) return;
+    dd.dataset.open = "false";
+    const trig = dd.querySelector("[data-toggle]");
+    if(trig) trig.setAttribute("aria-expanded", "false");
+  });
+}
+dropdowns.forEach(dd => {
+  const trigger = dd.querySelector("[data-toggle]");
+  if(!trigger) return;
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = dd.dataset.open !== "true";
+    closeAllDropdowns(dd);
+    dd.dataset.open = willOpen ? "true" : "false";
+    trigger.setAttribute("aria-expanded", String(willOpen));
+  });
+});
+
+document.getElementById("dd-year").querySelectorAll("[data-year]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#dd-year [data-year]").forEach(b => b.classList.remove("is-selected"));
+    btn.classList.add("is-selected");
+    document.querySelector('#dd-year [data-label]').textContent = btn.textContent;
+    closeAllDropdowns();
+  });
+});
+document.getElementById("dd-sort").querySelectorAll("[data-sort]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#dd-sort [data-sort]").forEach(b => b.classList.remove("is-selected"));
+    btn.classList.add("is-selected");
+    document.querySelector('#dd-sort [data-label]').textContent = btn.textContent;
+    closeAllDropdowns();
+  });
+});
+
+document.querySelectorAll(".popover-panel [data-switch]").forEach(sw => {
+  sw.addEventListener("click", () => sw.classList.toggle("on"));
+});
+
+[document.getElementById("year-mode-release"), document.getElementById("year-mode-consumed")].forEach(btn => {
+  btn.addEventListener("click", () => {
+    const on = btn.getAttribute("aria-pressed") === "true";
+    btn.setAttribute("aria-pressed", String(!on));
+    btn.classList.toggle("is-active", !on);
+  });
+});
+
+const gridSectionsEl = document.getElementById("grid-sections");
+const tableViewEl = document.getElementById("table-view");
+document.querySelectorAll(".view-mode-toggle button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".view-mode-toggle button").forEach(b => {
+      b.classList.remove("active"); b.setAttribute("aria-pressed", "false");
+    });
+    btn.classList.add("active"); btn.setAttribute("aria-pressed", "true");
+    const isTable = btn.dataset.view === "table";
+    tableViewEl.hidden = !isTable;
+    gridSectionsEl.hidden = isTable;
+  });
+});
+
+document.getElementById("search-input").addEventListener("focus", e => e.target.classList.add("is-expanded"));
+document.getElementById("search-input").addEventListener("blur", e => {
+  if(!e.target.value) e.target.classList.remove("is-expanded");
+});
+
+document.addEventListener("click", () => closeAllDropdowns());
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ closeAllDropdowns(); closeCardMenu(); closeQuickView(); } });
+
+/* ---- quick view sheet ---- */
+const qvSheet = document.getElementById("quick-view");
+const qvBackdrop = document.getElementById("sheet-backdrop");
+function openQuickView(media){
+  document.getElementById("qv-cover").src = media.img;
+  document.getElementById("qv-title").textContent = media.title;
+  document.getElementById("qv-badge").textContent = media.badge;
+  document.getElementById("qv-original").textContent = "原題未登録";
+  qvSheet.classList.add("open");
+  qvSheet.setAttribute("aria-hidden", "false");
+  qvBackdrop.classList.add("open");
+}
+function closeQuickView(){
+  qvSheet.classList.remove("open");
+  qvSheet.setAttribute("aria-hidden", "true");
+  qvBackdrop.classList.remove("open");
+}
+document.getElementById("qv-close").addEventListener("click", closeQuickView);
+qvBackdrop.addEventListener("click", closeQuickView);
+
+/* status chips inside quick view */
+document.querySelectorAll(".qv-status-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll(".qv-status-chip").forEach(c => c.classList.remove("is-active"));
+    chip.classList.add("is-active");
+  });
+});
+
+/* star rating inside quick view */
+const qvRating = document.getElementById("qv-rating");
+qvRating.querySelectorAll(".qv-star").forEach(star => {
+  star.addEventListener("click", () => qvRating.dataset.value = star.dataset.star);
+});
+
+/* favorite toggle inside quick view */
+const qvFav = document.getElementById("qv-fav");
+qvFav.addEventListener("click", () => {
+  const on = qvFav.getAttribute("aria-pressed") === "true";
+  qvFav.setAttribute("aria-pressed", String(!on));
+  qvFav.querySelector("span").textContent = !on ? "登録済み" : "未登録";
+});
+
+/* tag/category pill removal inside quick view */
+document.querySelectorAll(".qv-pill-remove").forEach(btn => {
+  btn.addEventListener("click", () => btn.closest(".qv-pill").remove());
+});
+
+/* delete action (kebab menu + quick view footer) */
+function confirmDelete(){
+  if(window.confirm("この作品を削除しますか？")){
+    closeCardMenu();
+    closeQuickView();
+  }
+}
+document.querySelector(".qv-footer [data-action=\"delete\"]").addEventListener("click", confirmDelete);
+
+/* ---- card kebab menu ---- */
+const cardMenu = document.getElementById("card-menu");
+let menuCard = null;
+function closeCardMenu(){
+  cardMenu.classList.remove("open");
+  if(menuCard){ menuCard.classList.remove("menu-open"); menuCard = null; }
+}
+function openCardMenu(card, anchorBtn){
+  closeCardMenu();
+  const r = anchorBtn.getBoundingClientRect();
+  cardMenu.style.top = (r.bottom + 6) + "px";
+  cardMenu.style.left = "auto";
+  cardMenu.style.right = (window.innerWidth - r.right) + "px";
+  cardMenu.classList.add("open");
+  card.classList.add("menu-open");
+  menuCard = card;
+}
+
+gridSections.addEventListener("click", (e) => {
+  const card = e.target.closest(".media-card");
+  if(!card) return;
+  const id = card.dataset.id;
+  const media = MEDIA.find(m => m.id === id);
+
+  const menuBtn = e.target.closest('[data-action="menu"]');
+  if(menuBtn){ e.preventDefault(); e.stopPropagation(); openCardMenu(card, menuBtn); return; }
+
+  const qvBtn = e.target.closest('[data-action="quick-view"]');
+  if(qvBtn){ e.preventDefault(); e.stopPropagation(); openQuickView(media); return; }
+});
+
+tableBody.addEventListener("click", (e) => {
+  const row = e.target.closest("tr[data-id]");
+  if(!row) return;
+  const media = MEDIA.find(m => m.id === row.dataset.id);
+
+  const menuBtn = e.target.closest('[data-action="menu"]');
+  if(menuBtn){ e.stopPropagation(); openCardMenu(row, menuBtn); return; }
+
+  openQuickView(media);
+});
+
+cardMenu.addEventListener("click", e => {
+  const item = e.target.closest("[data-action]");
+  if(!item){ closeCardMenu(); return; }
+  const action = item.dataset.action;
+  if(action === "quick-view" && menuCard){
+    const media = MEDIA.find(m => m.id === menuCard.dataset.id);
+    openQuickView(media);
+  } else if(action === "toggle-favorite"){
+    const on = item.textContent.startsWith("お気に入りに追加");
+    item.textContent = on ? "お気に入りを解除" : "お気に入りに追加";
+  } else if(action === "set-status"){
+    cardMenu.querySelectorAll("[data-status]").forEach(b => b.classList.remove("is-selected"));
+    item.classList.add("is-selected");
+  } else if(action === "delete"){
+    confirmDelete();
+    return;
+  }
+  closeCardMenu();
+});
+document.addEventListener("click", (e) => {
+  if(!e.target.closest("#card-menu") && !e.target.closest('[data-action="menu"]')) closeCardMenu();
+});
+</script>
+</body>
+</html>

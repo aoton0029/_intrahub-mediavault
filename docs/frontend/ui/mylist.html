@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マイリスト - MediaVault</title>
+<style>
+/* ---------------------------------------------------------------- */
+/* Design tokens (BookOrbit-inspired dark theme)                     */
+/* ---------------------------------------------------------------- */
+:root{
+  --background:#171717;
+  --foreground:#f5f5f5;
+  --card:#1c1c1c;
+  --popover:#1e1e1e;
+  --border:rgba(255,255,255,.1);
+  --input:rgba(255,255,255,.15);
+  --muted:#242424;
+  --muted-foreground:#9a9a9a;
+  --primary:#5b8def;
+  --primary-foreground:#0b1220;
+  --accent:#262626;
+  --destructive:#e5484d;
+  --sidebar:#151515;
+  --radius:10px;
+  --elevation-sm:0 1px 3px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.4);
+  --elevation-lg:0 10px 20px -3px rgba(0,0,0,.5), 0 4px 8px -4px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--background);color:var(--foreground);font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;font-size:14px}
+a{color:inherit}
+button{font-family:inherit;color:inherit;cursor:pointer}
+.icon{width:1em;height:1em;flex:none}
+
+/* ---------------------------------------------------------------- */
+/* App shell / sidebar (kept close to original layout)               */
+/* ---------------------------------------------------------------- */
+.app-shell{display:flex;min-height:100vh}
+.sidebar{width:230px;flex:none;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 10px;gap:4px}
+.brand{display:flex;align-items:center;gap:8px;padding:6px 10px 18px;font-weight:700;font-size:15px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--primary)}
+.nav-section{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
+.nav-section-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);padding:6px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;text-decoration:none;color:var(--muted-foreground);font-size:13px}
+.nav-item:hover{background:var(--accent);color:var(--foreground)}
+.nav-item.active{background:color-mix(in srgb, var(--primary) 14%, transparent);color:var(--primary)}
+.main{flex:1;min-width:0}
+.titlebar{display:flex;align-items:center;justify-content:space-between;padding:20px 28px 4px}
+.titlebar h1{font-size:20px;margin:0}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;border:1px solid var(--border)}
+.btn-accent{background:var(--primary);color:var(--primary-foreground);border-color:transparent}
+.content{padding:16px 28px 60px}
+
+/* ---------------------------------------------------------------- */
+/* Mylist overview grid                                               */
+/* ---------------------------------------------------------------- */
+.mylist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+.mylist-card{
+  position:relative;display:block;border-radius:var(--radius);border:1px solid var(--border);
+  background:var(--card);overflow:hidden;text-decoration:none;color:inherit;
+  box-shadow:var(--elevation-sm);transition:transform .15s ease, box-shadow .15s ease, border-color .15s;
+}
+.mylist-card:hover{transform:translateY(-2px);box-shadow:var(--elevation-lg);border-color:var(--input)}
+.mylist-collage{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;aspect-ratio:16/9;background:var(--muted)}
+.mylist-collage img{width:100%;height:100%;object-fit:cover;display:block}
+.mylist-collage.is-single{grid-template-columns:1fr;grid-template-rows:1fr}
+.mylist-collage-empty{display:flex;align-items:center;justify-content:center;color:var(--muted-foreground)}
+.mylist-collage-empty .icon{width:28px;height:28px}
+.mylist-card-body{padding:12px 14px}
+.mylist-card-name{margin:0 0 4px;font-size:14px;font-weight:600}
+.mylist-card-meta{margin:0;font-size:12px;color:var(--muted-foreground)}
+.mylist-card-menu-btn{
+  position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:7px;border:0;
+  background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .15s, background .15s;
+}
+.mylist-card:hover .mylist-card-menu-btn{opacity:1}
+.mylist-card-menu-btn:hover{background:rgba(0,0,0,.8)}
+
+/* ---------------------------------------------------------------- */
+/* Small dropdown (rename/delete) chrome, reused pattern              */
+/* ---------------------------------------------------------------- */
+.card-menu{
+  position:fixed;z-index:60;min-width:170px;background:var(--popover);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:var(--elevation-lg);padding:6px;
+  opacity:0;transform:scale(.96);pointer-events:none;transition:opacity .12s ease, transform .12s ease;
+}
+.card-menu.open{opacity:1;transform:scale(1);pointer-events:auto}
+.dropdown-item{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border:0;background:none;text-align:left;border-radius:6px;font-size:13px;color:var(--foreground)}
+.dropdown-item:hover{background:var(--accent)}
+.dropdown-item.danger{color:var(--destructive)}
+.dropdown-item.danger:hover{background:color-mix(in srgb, var(--destructive) 16%, transparent)}
+
+.empty-state{padding:60px 20px;text-align:center;color:var(--muted-foreground);font-size:13px}
+
+@media (max-width:720px){
+  .sidebar{display:none}
+  .content{padding:14px}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span><span>MediaVault</span></div>
+    <div class="nav-section">
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span>ホーム</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">メディア</div>
+      <a class="nav-item" href="media.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg><span>すべて</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect></svg><span>映画</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>ドラマ</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>アニメ</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>漫画</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg><span>小説</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><span>ゲーム</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">リサーチ</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>学術書・専門書</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg><span>論文・文献</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">コレクション</div>
+      <a class="nav-item active" href="#" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg><span>マイリスト</span></a>
+      <a class="nav-item" href="collection.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>年別</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">ツール</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg><span>並べてシェア</span></a>
+    </div>
+    <div class="nav-section" style="margin-top:auto">
+      <div class="nav-section-label">Misc</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span>設定</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="titlebar">
+      <div><h1>マイリスト</h1></div>
+      <div><button type="button" class="btn btn-accent" id="new-mylist-btn">＋ 新規マイリスト</button></div>
+    </div>
+
+    <div class="content">
+      <div class="mylist-grid" id="mylist-grid"></div>
+    </div>
+  </main>
+</div>
+
+<div class="card-menu" id="card-menu">
+  <button type="button" class="dropdown-item" data-action="rename">名前を変更</button>
+  <button type="button" class="dropdown-item danger" data-action="delete">削除する</button>
+</div>
+
+<script>
+const ICONS = {
+  bookmark:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
+  kebab:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>'
+};
+
+/* Mirrors the MYLISTS data used on mylist-detail.html */
+const MYLISTS = [
+  {
+    id: "ml-season", name: "今期視聴予定",
+    items: [
+      {img:"./media_files/ogpImage.png"},
+      {img:"./media_files/0206_2026001.jpg"},
+      {img:"./media_files/tPExtAM958Gx07itJ7nWqSddBQ9.jpg"},
+      {img:"./media_files/93zvlPMHQb3xoX40bNL8bck7O00.jpg"},
+      {img:"./media_files/gSYPd4icODc7QdRA7BK0VqBxBYp.jpg"}
+    ]
+  },
+  {
+    id: "ml-favorites", name: "お気に入り保存版",
+    items: [
+      {img:"./media_files/158937l.jpg"},
+      {img:"./media_files/og_image.jpg"},
+      {img:"./media_files/eBaUVUNAWSOg70TMl7o9K3qSgYO.jpg"},
+      {img:"./media_files/3DOjh4LAyHnLkk9oUIylyW2uOCx.jpg"},
+      {img:"./media_files/wPv5WxxnLkTDw1G4Fio8odWitdA.jpg"},
+      {img:"./media_files/ogp3(1).jpg"}
+    ]
+  },
+  {
+    id: "ml-backlog", name: "積読",
+    items: [
+      {img:"./media_files/ogp-0903.jpg"},
+      {img:"./media_files/jYV0hJg1hjFjVc0g9QGD93mixaL.jpg"},
+      {img:"./media_files/ks2xQQw2HMbDzz9TdTMW2PoMYLy.jpg"},
+      {img:"./media_files/1GWVlPM1v6k84LsmDkfDzLlGf0O.jpg"}
+    ]
+  },
+  { id: "ml-empty", name: "新しいマイリスト", items: [] }
+];
+
+function collageHtml(list){
+  const covers = list.items.slice(0, 4);
+  if(covers.length === 0){
+    return `<div class="mylist-collage"><div class="mylist-collage-empty" style="grid-column:1/-1;grid-row:1/-1">${ICONS.bookmark}</div></div>`;
+  }
+  const cls = covers.length === 1 ? "mylist-collage is-single" : "mylist-collage";
+  return `<div class="${cls}">${covers.map(c => `<img src="${c.img}" alt="" loading="lazy">`).join("")}</div>`;
+}
+
+const mylistGrid = document.getElementById("mylist-grid");
+function renderGrid(){
+  if(MYLISTS.length === 0){
+    mylistGrid.innerHTML = `<div class="empty-state">まだマイリストがありません。「＋ 新規マイリスト」から作成してください。</div>`;
+    return;
+  }
+  mylistGrid.innerHTML = MYLISTS.map(m => `
+    <a class="mylist-card" href="mylist-detail.html?id=${m.id}" data-id="${m.id}">
+      ${collageHtml(m)}
+      <button type="button" class="mylist-card-menu-btn" data-action="menu" title="メニュー">${ICONS.kebab}</button>
+      <div class="mylist-card-body">
+        <p class="mylist-card-name">${m.name}</p>
+        <p class="mylist-card-meta">${m.items.length}件</p>
+      </div>
+    </a>
+  `).join("");
+}
+renderGrid();
+
+/* ---- kebab menu (rename / delete) ---- */
+const cardMenu = document.getElementById("card-menu");
+let menuTargetId = null;
+function closeCardMenu(){
+  cardMenu.classList.remove("open");
+  menuTargetId = null;
+}
+function openCardMenu(anchorBtn, id){
+  closeCardMenu();
+  const r = anchorBtn.getBoundingClientRect();
+  cardMenu.style.top = (r.bottom + 6) + "px";
+  cardMenu.style.left = "auto";
+  cardMenu.style.right = (window.innerWidth - r.right) + "px";
+  cardMenu.classList.add("open");
+  menuTargetId = id;
+}
+
+mylistGrid.addEventListener("click", (e) => {
+  const menuBtn = e.target.closest('[data-action="menu"]');
+  if(menuBtn){
+    e.preventDefault(); e.stopPropagation();
+    const card = menuBtn.closest(".mylist-card");
+    openCardMenu(menuBtn, card.dataset.id);
+  }
+});
+
+cardMenu.addEventListener("click", (e) => {
+  const item = e.target.closest("[data-action]");
+  if(!item || !menuTargetId){ closeCardMenu(); return; }
+  const list = MYLISTS.find(m => m.id === menuTargetId);
+  if(item.dataset.action === "rename"){
+    const next = window.prompt("マイリスト名を変更", list.name);
+    if(next && next.trim()){ list.name = next.trim(); renderGrid(); }
+  } else if(item.dataset.action === "delete"){
+    if(window.confirm(`「${list.name}」を削除しますか？`)){
+      const idx = MYLISTS.findIndex(m => m.id === menuTargetId);
+      MYLISTS.splice(idx, 1);
+      renderGrid();
+    }
+  }
+  closeCardMenu();
+});
+
+document.addEventListener("click", (e) => {
+  if(!e.target.closest("#card-menu") && !e.target.closest('[data-action="menu"]')) closeCardMenu();
+});
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeCardMenu(); });
+
+document.getElementById("new-mylist-btn").addEventListener("click", () => {
+  const name = window.prompt("新しいマイリスト名を入力してください");
+  if(name && name.trim()){
+    MYLISTS.push({ id: "ml-" + Date.now(), name: name.trim(), items: [] });
+    renderGrid();
+  }
+});
+</script>
+</body>
+</html>

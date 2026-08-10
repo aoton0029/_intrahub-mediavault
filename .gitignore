@@ -11,3 +11,7 @@ backend/.local/
 # pgAdmin local secrets
 docker/pgadmin/pgpass
 booklog*.csv
+
+docs/frontend/ui/*/*.jpg
+docs/frontend/ui/*/*.png
+docs/frontend/ui/*/*.webp
