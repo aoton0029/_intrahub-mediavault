@@ -174,12 +174,13 @@ export function PaperListPage() {
 
   const rows: LiteratureRowProps[] = items.map((item) => {
     const status = toContextMenuStatus(item.status);
-    const byline = [item.authors, item.publication_year, item.journal].filter(Boolean).join(" · ");
 
     return {
       id: item.id,
       title: item.original_title || item.title,
-      byline: byline || "著者・出版年未登録",
+      authors: item.authors || undefined,
+      year: item.publication_year ?? undefined,
+      journal: item.journal || undefined,
       doi: item.doi ?? undefined,
       rating: item.rating ?? undefined,
       tags: item.tags.length > 0 ? (
@@ -236,9 +237,11 @@ export function PaperListPage() {
 
       <LiteratureList items={rows} onRowClick={(id) => setQuickViewId(id)} />
 
-      <div ref={sentinelRef}>
-        <LoadMoreSentinel loading={Boolean(hasNextPage) && isFetchingNextPage} text={hasNextPage ? "読み込み中…" : "すべて読み込みました"} />
-      </div>
+      {hasNextPage ? (
+        <div ref={sentinelRef}>
+          <LoadMoreSentinel loading={isFetchingNextPage} text="読み込み中…" />
+        </div>
+      ) : null}
 
       <MediaContextMenu
         target={menuTarget}

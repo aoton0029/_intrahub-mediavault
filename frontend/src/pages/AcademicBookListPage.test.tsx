@@ -67,14 +67,14 @@ describe("AcademicBookListPage", () => {
     mockUseMediaListData.mockReset();
   });
 
-  it("renders the toolbar, compact grid, and completion sentinel without a media type select", () => {
+  it("renders the toolbar and compact grid without a media type select", () => {
     const { container } = renderWithRouter("/academic-books?tag_id=tag-1");
 
     expect(screen.queryByRole("combobox", { name: "種別" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "並び順" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "タイトル検索" })).toBeInTheDocument();
     expect(screen.getAllByText("分散システム設計の原理").length).toBeGreaterThan(0);
-    expect(screen.getByText("すべて読み込みました")).toBeInTheDocument();
+    expect(screen.queryByText("すべて読み込みました")).not.toBeInTheDocument();
     expect(container.querySelector(".card-grid.is-compact")).not.toBeNull();
     expect(screen.getAllByText("# 積読").length).toBeGreaterThan(0);
   });

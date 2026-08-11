@@ -72,9 +72,11 @@ export function ItemPickerPanel({
         )}
       </div>
 
-      <div ref={sentinelRef}>
-        <LoadMoreSentinel loading={Boolean(hasNextPage) && isFetchingNextPage} text={hasNextPage ? "もっと見る" : "すべて読み込みました"} />
-      </div>
+      {hasNextPage ? (
+        <div ref={sentinelRef}>
+          <LoadMoreSentinel loading={isFetchingNextPage} text="もっと見る" />
+        </div>
+      ) : null}
     </aside>
   );
 }

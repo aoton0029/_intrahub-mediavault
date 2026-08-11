@@ -370,6 +370,25 @@
   .table-row-menu-btn { width: 26px; height: 26px; border-radius: 6px; border: 0; background: none; color: var(--color-text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .table-row-menu-btn:hover { background: var(--color-bg-surface-hover); color: var(--color-text-primary); }
 
+  /* ---- media list: mendeley-style literature table ---- */
+  .lit-table-view table { font-size: 12.5px; }
+  .lit-table-view thead th { padding: 8px 12px; white-space: nowrap; }
+  .lit-table-view td { padding: 7px 12px; }
+  .lit-table-view tbody tr { border-bottom: 1px solid var(--color-border-soft); }
+  .lit-table-view th.col-lit-title { width: 34%; }
+  .lit-table-view th.col-lit-authors { width: 20%; }
+  .lit-table-view th.col-lit-year { width: 56px; }
+  .lit-table-view th.col-lit-journal { width: 22%; }
+  .lit-table-view th.col-lit-tags { width: 14%; }
+  .lit-table-view th.col-lit-rating { width: 96px; }
+  .lit-title { margin: 0; color: var(--color-text-primary); font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .lit-authors { color: var(--color-text-muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .lit-year { color: var(--color-text-faint); font-variant-numeric: tabular-nums; }
+  .lit-journal-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .lit-journal { color: var(--color-text-muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lit-journal-cell .doi { color: var(--color-text-faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lit-aside { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+
   /* ---- media list: card / row context menu ---- */
   .card-menu { position: fixed; z-index: 60; min-width: 190px; background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: var(--radius-app); box-shadow: 0 20px 30px -5px rgb(0 0 0 / 60%); padding: 6px; }
   .dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; border: 0; background: none; text-align: left; border-radius: 6px; font-size: 13px; color: var(--color-text-primary); cursor: pointer; }

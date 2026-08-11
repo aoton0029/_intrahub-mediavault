@@ -4,7 +4,9 @@ import { RatingStarsMini } from "./RatingStars";
 export type LiteratureRowProps = {
   id: string;
   title: string;
-  byline: string;
+  authors?: string;
+  year?: string | number;
+  journal?: string;
   doi?: string;
   rating?: number;
   tags?: ReactNode;
@@ -12,30 +14,56 @@ export type LiteratureRowProps = {
   onClick?: (id: string) => void;
 };
 
-export function LiteratureRow({ id, title, byline, doi, rating, tags, aside, onClick }: LiteratureRowProps) {
-  return (
-    <div className="lit-row" onClick={onClick ? () => onClick(id) : undefined} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined}>
-      <div className="thumb" />
-      <div className="info">
-        <p className="title">{title}</p>
-        <div className="byline">
-          {byline}
-          {typeof rating === "number" ? <RatingStarsMini value={rating} /> : null}
-        </div>
-        {doi ? <div className="doi">{doi}</div> : null}
-        {tags}
-      </div>
-      {aside ? <div className="aside">{aside}</div> : null}
-    </div>
-  );
-}
-
 export function LiteratureList({ items, onRowClick }: { items: LiteratureRowProps[]; onRowClick?: (id: string) => void }) {
   return (
-    <div className="lit-list">
-      {items.map((item) => (
-        <LiteratureRow key={item.id} {...item} onClick={item.onClick ?? onRowClick} />
-      ))}
+    <div className="table-view lit-table-view">
+      <table>
+        <thead>
+          <tr>
+            <th className="col-lit-title">タイトル</th>
+            <th className="col-lit-authors">著者</th>
+            <th className="col-lit-year">年</th>
+            <th className="col-lit-journal">掲載誌 / DOI</th>
+            <th className="col-lit-tags">タグ</th>
+            <th className="col-lit-rating">評価</th>
+            <th className="col-actions" />
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(({ id, title, authors, year, journal, doi, rating, tags, aside, onClick: rowOnClick }) => {
+            const onClick = rowOnClick ?? onRowClick;
+            return (
+              <tr key={id} onClick={onClick ? () => onClick(id) : undefined} className={onClick ? "is-clickable" : undefined}>
+                <td>
+                  <p className="lit-title" title={title}>
+                    {title}
+                  </p>
+                </td>
+                <td>
+                  <span className="lit-authors" title={authors}>
+                    {authors || <span className="meta">—</span>}
+                  </span>
+                </td>
+                <td>
+                  <span className="lit-year">{year ?? <span className="meta">—</span>}</span>
+                </td>
+                <td>
+                  <div className="lit-journal-cell">
+                    {journal ? <span className="lit-journal">{journal}</span> : null}
+                    {doi ? <span className="doi">{doi}</span> : null}
+                    {!journal && !doi ? <span className="meta">—</span> : null}
+                  </div>
+                </td>
+                <td>{tags ?? <span className="meta">—</span>}</td>
+                <td>{typeof rating === "number" ? <RatingStarsMini value={rating} /> : <span className="meta">未評価</span>}</td>
+                <td>
+                  <div className="lit-aside">{aside}</div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

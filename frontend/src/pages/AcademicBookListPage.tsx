@@ -257,9 +257,11 @@ export function AcademicBookListPage() {
         />
       )}
 
-      <div ref={sentinelRef}>
-        <LoadMoreSentinel loading={Boolean(hasNextPage) && isFetchingNextPage} text={hasNextPage ? "読み込み中…" : "すべて読み込みました"} />
-      </div>
+      {hasNextPage ? (
+        <div ref={sentinelRef}>
+          <LoadMoreSentinel loading={isFetchingNextPage} text="読み込み中…" />
+        </div>
+      ) : null}
 
       <MediaContextMenu
         target={menuTarget}
