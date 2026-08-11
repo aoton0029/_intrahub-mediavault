@@ -13,6 +13,7 @@ const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   novel: "小説",
   game: "ゲーム",
   academic_book: "学術書",
+  paper: "論文",
 };
 
 export function ItemPickerPanel({

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FiBook, FiCalendar, FiCheck, FiChevronDown } from "react-icons/fi";
+import { FiBook, FiCalendar, FiCheck, FiChevronDown, FiFileText } from "react-icons/fi";
 import {
   DEFAULT_MEDIA_SORT,
   DisplaySettingsDropdown,
@@ -36,11 +36,20 @@ function mediaTypeLabel(mediaType: MediaType) {
   if (mediaType === "academic_book") {
     return "学術書";
   }
+  if (mediaType === "paper") {
+    return "論文";
+  }
   return mediaTypeConfig[mediaType].label;
 }
 
 function MediaTypeIcon({ mediaType, className }: { mediaType: MediaType; className?: string }) {
-  const Icon = mediaType === "academic_book" ? FiBook : mediaTypeConfig[mediaType].icon;
+  if (mediaType === "academic_book") {
+    return <FiBook className={className} />;
+  }
+  if (mediaType === "paper") {
+    return <FiFileText className={className} />;
+  }
+  const Icon = mediaTypeConfig[mediaType].icon;
   return <Icon className={className} />;
 }
 

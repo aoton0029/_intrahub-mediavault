@@ -1,44 +1,38 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { FiHeart } from "react-icons/fi";
+import { FiHeart, FiMoreHorizontal } from "react-icons/fi";
 import {
-  AddWorkModal,
-  DEFAULT_MEDIA_SORT,
-  DisplaySettingsDropdown,
   FilterToolbar,
+  LiteratureList,
   LoadMoreSentinel,
-  MEDIA_SORT_OPTIONS,
   MediaContextMenu,
   MediaFilterPanel,
-  MediaGrid,
-  MediaTable,
-  MediaTypeDropdown,
   QuickViewSheet,
-  ViewModeToggle,
   useInfiniteScroll,
   type ContextMenuStatus,
   type FilterChip,
+  type FilterOption,
+  type LiteratureRowProps,
   type MediaContextMenuTarget,
-  type MediaTableRow,
-  type ViewMode,
 } from "@/components/shared";
 import { usePageChrome } from "@/components/layout/usePageChrome";
-import { useDisplaySettings } from "@/hooks/useDisplaySettings";
 import { useMediaItemActions } from "@/hooks/useQuickViewData";
-import { MEDIA_TYPE_LABELS, useMediaListData, type MediaListFilters } from "@/hooks/useMediaListData";
+import { useMediaListData, type MediaListFilters } from "@/hooks/useMediaListData";
+
+const SORT_OPTIONS: FilterOption[] = [
+  { label: "追加日順", value: "created_at" },
+  { label: "更新日順", value: "updated_at" },
+  { label: "タイトル順", value: "title" },
+];
 
 function parseFilters(searchParams: URLSearchParams): MediaListFilters {
-  const mediaType = searchParams.get("media_type");
-
   return {
     isFavorite: searchParams.get("is_favorite") === "true" ? true : undefined,
-    mediaType: mediaType ? (mediaType as MediaListFilters["mediaType"]) : undefined,
     tagId: searchParams.get("tag_id") ?? undefined,
     categoryId: searchParams.get("category_id") ?? undefined,
     title: searchParams.get("title") ?? undefined,
-    sort: searchParams.get("sort") ?? DEFAULT_MEDIA_SORT,
-    status: searchParams.get("status") ?? undefined,
+    sort: searchParams.get("sort") ?? undefined,
   };
 }
 
@@ -54,28 +48,29 @@ function toContextMenuStatus(status: string): ContextMenuStatus {
 }
 
 const STATUS_LABELS: Record<ContextMenuStatus, string> = {
-  not_started: "未着手",
-  in_progress: "視聴中",
-  completed: "視聴済",
+  not_started: "未読",
+  in_progress: "読書中",
+  completed: "読了",
 };
 
-export function MediaListPage() {
+export function PaperListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = parseFilters(searchParams);
-  const { items, mediaCards, hasNextPage, fetchNextPage, isFetchingNextPage, tags, categories } = useMediaListData(filters);
-  const { thumbnailOrientation, columns, showTitle, showRating, setThumbnailOrientation, setColumns, setShowTitle, setShowRating } = useDisplaySettings();
+  const { items, hasNextPage, fetchNextPage, isFetchingNextPage, tags, categories } = useMediaListData(filters, {
+    mediaTypeOverride: "paper",
+    getBadgeLabel: () => "論文",
+    getItemHref: (item) => `/research/papers/${item.id}`,
+  });
   const itemActions = useMediaItemActions();
 
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [menuTarget, setMenuTarget] = useState<MediaContextMenuTarget | null>(null);
-  const [isAddModalOpen, setAddModalOpen] = useState(false);
 
   usePageChrome({
     actions: (
-      <button type="button" className="btn btn-accent" onClick={() => setAddModalOpen(true)}>
-        ＋ 作品を追加
+      <button type="button" className="btn btn-accent" onClick={() => toast.info("論文の追加機能は今後対応予定です。")}>
+        ＋ 論文を追加
       </button>
     ),
   });
@@ -101,9 +96,8 @@ export function MediaListPage() {
   const chips: FilterChip[] = [
     {
       id: "favorite",
-      label: "Favorites",
+      label: "お気に入り",
       icon: <FiHeart className="icon" />,
-      iconOnly: true,
       active: Boolean(filters.isFavorite),
       onClick: () => updateSearchParams({ is_favorite: filters.isFavorite ? undefined : "true" }),
     },
@@ -140,10 +134,6 @@ export function MediaListPage() {
     }
   }, Boolean(hasNextPage) && !isFetchingNextPage);
 
-  function handleAddToCollection() {
-    toast.info("コレクション追加UIは今後の対応予定です。");
-  }
-
   function handleOpenMenu(id: string, title: string, anchor: HTMLElement) {
     const source = items.find((item) => item.id === id);
     setMenuTarget({
@@ -172,58 +162,66 @@ export function MediaListPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("この作品を削除しますか？この操作は取り消せません。")) return;
+    if (!window.confirm("この論文を削除しますか？この操作は取り消せません。")) return;
     try {
       await itemActions.deleteItem(id);
-      toast.success("作品を削除しました。");
+      toast.success("論文を削除しました。");
       if (quickViewId === id) setQuickViewId(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "削除に失敗しました。");
     }
   }
 
-  const tableRows: MediaTableRow[] = items.map((item) => ({
-    id: item.id,
-    title: item.original_title || item.title,
-    badge: MEDIA_TYPE_LABELS[item.media_type],
-    imageUrl: item.cover_image_url,
-    status: toContextMenuStatus(item.status),
-    statusLabel: STATUS_LABELS[toContextMenuStatus(item.status)],
-    rating: item.rating ?? undefined,
-    updatedLabel: item.updated_at ? item.updated_at.slice(0, 10) : "更新日未登録",
-  }));
+  const rows: LiteratureRowProps[] = items.map((item) => {
+    const status = toContextMenuStatus(item.status);
+    const byline = [item.authors, item.publication_year, item.journal].filter(Boolean).join(" · ");
+
+    return {
+      id: item.id,
+      title: item.original_title || item.title,
+      byline: byline || "著者・出版年未登録",
+      doi: item.doi ?? undefined,
+      rating: item.rating ?? undefined,
+      tags: item.tags.length > 0 ? (
+        <div className="prop-taglist">
+          {item.tags.map((tag) => (
+            <span key={tag.id} className="tag-pill">
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      ) : undefined,
+      aside: (
+        <>
+          <span className={`table-row-status ${status}`}>{STATUS_LABELS[status]}</span>
+          <button
+            type="button"
+            className="table-row-menu-btn"
+            title="メニュー"
+            aria-label="メニュー"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleOpenMenu(item.id, item.original_title || item.title, event.currentTarget);
+            }}
+          >
+            <FiMoreHorizontal className="icon" />
+          </button>
+        </>
+      ),
+    };
+  });
 
   return (
     <>
       <FilterToolbar
         chips={chips}
-        filterSlot={
-          <MediaTypeDropdown
-            includeAll
-            value={filters.mediaType && filters.mediaType !== "academic_book" && filters.mediaType !== "paper" ? filters.mediaType : "all"}
-            onChange={(value) => updateSearchParams({ media_type: value === "all" ? undefined : value })}
-          />
-        }
-        sortOptions={MEDIA_SORT_OPTIONS}
-        selectedSort={filters.sort ?? DEFAULT_MEDIA_SORT}
+        sortOptions={SORT_OPTIONS}
+        selectedSort={filters.sort ?? "created_at"}
         onSortChange={(value) => updateSearchParams({ sort: value })}
         searchValue={filters.title ?? ""}
+        searchPlaceholder="タイトル・著者・DOIで検索…"
         onSearchChange={(value) => updateSearchParams({ title: value || undefined })}
-        trailing={
-          <>
-            <ViewModeToggle value={viewMode} onChange={setViewMode} />
-            <DisplaySettingsDropdown
-              thumbnailOrientation={thumbnailOrientation}
-              onThumbnailOrientationChange={setThumbnailOrientation}
-              columns={columns}
-              onColumnsChange={setColumns}
-              showTitle={showTitle}
-              onShowTitleChange={setShowTitle}
-              showRating={showRating}
-              onShowRatingChange={setShowRating}
-            />
-          </>
-        }
       />
 
       <MediaFilterPanel
@@ -236,31 +234,10 @@ export function MediaListPage() {
         onSelectCategory={(id) => updateSearchParams({ category_id: id })}
       />
 
-      {viewMode === "grid" ? (
-        <MediaGrid
-          items={mediaCards}
-          density="compact"
-          thumbnailOrientation={thumbnailOrientation}
-          columns={columns}
-          showTitle={showTitle}
-          showRating={showRating}
-          onQuickView={(item) => item.id && setQuickViewId(item.id)}
-          onAddToCollection={handleAddToCollection}
-          onOpenMenu={(item, anchor) => item.id && handleOpenMenu(item.id, item.title, anchor)}
-        />
-      ) : (
-        <MediaTable
-          rows={tableRows}
-          onRowClick={(id) => setQuickViewId(id)}
-          onOpenMenu={(id, anchor) => {
-            const row = tableRows.find((entry) => entry.id === id);
-            if (row) handleOpenMenu(id, row.title, anchor);
-          }}
-        />
-      )}
+      <LiteratureList items={rows} onRowClick={(id) => setQuickViewId(id)} />
 
       <div ref={sentinelRef}>
-        <LoadMoreSentinel loading={Boolean(hasNextPage) && isFetchingNextPage} text={hasNextPage ? "Load more results" : "All items loaded"} />
+        <LoadMoreSentinel loading={Boolean(hasNextPage) && isFetchingNextPage} text={hasNextPage ? "読み込み中…" : "すべて読み込みました"} />
       </div>
 
       <MediaContextMenu
@@ -274,13 +251,6 @@ export function MediaListPage() {
       />
 
       <QuickViewSheet itemId={quickViewId} onClose={() => setQuickViewId(null)} onDeleted={() => setQuickViewId(null)} />
-
-      <AddWorkModal
-        open={isAddModalOpen}
-        onClose={() => setAddModalOpen(false)}
-        scope="general"
-        initialMediaType={filters.mediaType && filters.mediaType !== "academic_book" && filters.mediaType !== "paper" ? filters.mediaType : undefined}
-      />
     </>
   );
 }

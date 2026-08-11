@@ -4,6 +4,7 @@ import { HomePage } from "@/pages/HomePage";
 import { AcademicBookListPage } from "@/pages/AcademicBookListPage";
 import { AcademicBookDetailPage } from "@/pages/AcademicBookDetailPage";
 import { AcademicBookSearchPage } from "@/pages/AcademicBookSearchPage";
+import { PaperListPage } from "@/pages/PaperListPage";
 import { MediaDetailPage } from "@/pages/MediaDetailPage";
 import { MediaListPage } from "@/pages/MediaListPage";
 import { MediaSearchPage } from "@/pages/MediaSearchPage";
@@ -52,6 +53,13 @@ export const router = createBrowserRouter([
         element: <AcademicBookSearchPage />,
         handle: {
           title: "検索して追加",
+        },
+      },
+      {
+        path: "research/papers",
+        element: <PaperListPage />,
+        handle: {
+          title: "論文・文献",
         },
       },
       {

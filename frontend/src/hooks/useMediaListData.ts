@@ -2,7 +2,7 @@ import { useInfiniteQuery, useQuery, type InfiniteData } from "@tanstack/react-q
 import type { MediaCardProps } from "@/components/shared";
 import { apiFetch } from "@/lib/apiClient";
 
-export type MediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game" | "academic_book";
+export type MediaType = "anime" | "movie" | "drama" | "manga" | "novel" | "game" | "academic_book" | "paper";
 type ItemStatus = "not_started" | "in_progress" | "done" | "completed" | string;
 
 type TagRef = {
@@ -29,6 +29,10 @@ export type ItemWithRefs = {
   updated_at?: string | null;
   tags: TagRef[];
   categories: CategoryRef[];
+  authors?: string | null;
+  publication_year?: number | null;
+  journal?: string | null;
+  doi?: string | null;
 };
 
 export type PaginatedItemsResponse = {
@@ -79,6 +83,7 @@ export const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   novel: "Novel",
   game: "Game",
   academic_book: "Academic Book",
+  paper: "Paper",
 };
 
 type UseMediaListDataOptions = {

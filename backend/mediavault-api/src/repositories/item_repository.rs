@@ -68,11 +68,11 @@ pub async fn create_item_with_source(
         "INSERT INTO items (
             media_type, title, original_title, description, cover_image_url,
             release_date, homepage_url, rating, is_favorite, source, external_id, consumed_date,
-            details
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            details, authors, publication_year, journal, doi
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING id, media_type, title, original_title, description, cover_image_url,
             release_date, homepage_url, status, consumed_date, rating, is_favorite,
-            source, external_id, created_at, updated_at",
+            source, external_id, authors, publication_year, journal, doi, created_at, updated_at",
     )
     .bind(request.media_type)
     .bind(&request.title)
@@ -87,6 +87,10 @@ pub async fn create_item_with_source(
     .bind(&external_id)
     .bind(request.consumed_date)
     .bind(&request.details)
+    .bind(&request.authors)
+    .bind(request.publication_year)
+    .bind(&request.journal)
+    .bind(&request.doi)
     .fetch_one(&mut *tx)
     .await
     .map_err(db_error)?;
@@ -305,7 +309,8 @@ pub fn build_list_items_query(query: &ListItemsQuery) -> QueryBuilder<'_, Postgr
     let mut builder: QueryBuilder<'_, Postgres> = QueryBuilder::new(
         "SELECT id, media_type, title, original_title, description, cover_image_url, \
         release_date, homepage_url, status, consumed_date, rating, is_favorite, \
-        source, external_id, created_at, updated_at FROM items",
+        source, external_id, authors, publication_year, journal, doi, created_at, updated_at \
+        FROM items",
     );
 
     // 【フィルタ条件追加】: WHERE句を構築する。has_conditionを受け取り、カーソル条件の
@@ -501,7 +506,8 @@ pub async fn get_item_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Item>, Api
     let item: Option<Item> = sqlx::query_as(
         "SELECT id, media_type, title, original_title, description, cover_image_url, \
         release_date, homepage_url, status, consumed_date, rating, is_favorite, \
-        source, external_id, created_at, updated_at FROM items WHERE id = $1",
+        source, external_id, authors, publication_year, journal, doi, created_at, updated_at \
+        FROM items WHERE id = $1",
     )
     .bind(id)
     .fetch_optional(pool)
@@ -703,7 +709,8 @@ pub async fn list_recent_items(
     let sql = format!(
         "SELECT id, media_type, title, original_title, description, cover_image_url, \
         release_date, homepage_url, status, consumed_date, rating, is_favorite, \
-        source, external_id, created_at, updated_at FROM items ORDER BY {column} DESC LIMIT $1"
+        source, external_id, authors, publication_year, journal, doi, created_at, updated_at \
+        FROM items ORDER BY {column} DESC LIMIT $1"
     );
     let items: Vec<Item> = sqlx::query_as(&sql)
         .bind(limit as i64)
@@ -802,6 +809,26 @@ pub fn build_update_item_query(request: &UpdateItemRequest) -> Option<QueryBuild
         builder.push("is_favorite = ");
         builder.push_bind(is_favorite);
     }
+    if let Some(authors) = &request.authors {
+        push_set_separator!();
+        builder.push("authors = ");
+        builder.push_bind(authors.clone());
+    }
+    if let Some(publication_year) = request.publication_year {
+        push_set_separator!();
+        builder.push("publication_year = ");
+        builder.push_bind(publication_year);
+    }
+    if let Some(journal) = &request.journal {
+        push_set_separator!();
+        builder.push("journal = ");
+        builder.push_bind(journal.clone());
+    }
+    if let Some(doi) = &request.doi {
+        push_set_separator!();
+        builder.push("doi = ");
+        builder.push_bind(doi.clone());
+    }
 
     Some(builder)
 }
@@ -833,7 +860,7 @@ pub async fn update_item(
     builder.push(
         " RETURNING id, media_type, title, original_title, description, cover_image_url, \
         release_date, homepage_url, status, consumed_date, rating, is_favorite, \
-        source, external_id, created_at, updated_at",
+        source, external_id, authors, publication_year, journal, doi, created_at, updated_at",
     );
 
     // 【UPDATE実行】: RETURNINGの結果をfetch_optionalで受け、0行（対象不存在）ならNoneを返す 🔵

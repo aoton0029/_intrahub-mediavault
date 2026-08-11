@@ -487,6 +487,10 @@ mod tests {
             is_favorite: false,
             source: ItemSource::Manual,
             external_id: None,
+            authors: None,
+            publication_year: None,
+            journal: None,
+            doi: None,
             created_at: NaiveDate::from_ymd_opt(2026, 6, 23)
                 .unwrap()
                 .and_hms_opt(0, 0, 0)

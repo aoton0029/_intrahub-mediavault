@@ -59,6 +59,14 @@ pub struct Item {
     pub is_favorite: bool,
     pub source: ItemSource,
     pub external_id: Option<String>,
+    /// 著者（論文・文献用、カンマ区切りの単純文字列）
+    pub authors: Option<String>,
+    /// 出版年（論文・文献用）
+    pub publication_year: Option<i16>,
+    /// 掲載誌・出版社・会議名（論文・文献用）
+    pub journal: Option<String>,
+    /// DOI（論文・文献用）
+    pub doi: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -78,6 +86,18 @@ pub struct CreateItemRequest {
     pub homepage_url: Option<String>,
     pub rating: Option<f32>,
     pub is_favorite: Option<bool>,
+    /// 著者（論文・文献用、カンマ区切りの単純文字列）
+    #[serde(default)]
+    pub authors: Option<String>,
+    /// 出版年（論文・文献用）
+    #[serde(default)]
+    pub publication_year: Option<i16>,
+    /// 掲載誌・出版社・会議名（論文・文献用）
+    #[serde(default)]
+    pub journal: Option<String>,
+    /// DOI（論文・文献用）
+    #[serde(default)]
+    pub doi: Option<String>,
     /// メディア別詳細（anime_details等）。ハンドラ側でmedia_typeに応じて振り分ける。
     #[serde(default)]
     pub details: Option<serde_json::Value>,
@@ -241,6 +261,10 @@ pub struct UpdateItemRequest {
     pub consumed_date: Option<NaiveDate>,
     pub rating: Option<f32>,
     pub is_favorite: Option<bool>,
+    pub authors: Option<String>,
+    pub publication_year: Option<i16>,
+    pub journal: Option<String>,
+    pub doi: Option<String>,
 }
 
 /// `PATCH /items/:id/status` 専用リクエスト
@@ -356,6 +380,10 @@ pub fn has_any_update_field(request: &UpdateItemRequest) -> bool {
         || request.consumed_date.is_some()
         || request.rating.is_some()
         || request.is_favorite.is_some()
+        || request.authors.is_some()
+        || request.publication_year.is_some()
+        || request.journal.is_some()
+        || request.doi.is_some()
 }
 
 /// タグ参照（GET /items/:id レスポンス用の簡易表現）
@@ -392,6 +420,10 @@ pub struct ItemDetail {
     pub is_favorite: bool,
     pub source: ItemSource,
     pub external_id: Option<String>,
+    pub authors: Option<String>,
+    pub publication_year: Option<i16>,
+    pub journal: Option<String>,
+    pub doi: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub detail: Option<serde_json::Value>,
@@ -466,6 +498,10 @@ impl ItemDetail {
             is_favorite: item.is_favorite,
             source: item.source,
             external_id: item.external_id,
+            authors: item.authors,
+            publication_year: item.publication_year,
+            journal: item.journal,
+            doi: item.doi,
             created_at: item.created_at,
             updated_at: item.updated_at,
             detail,
@@ -689,6 +725,10 @@ mod tests {
             consumed_date: None,
             rating: None,
             is_favorite: None,
+            authors: None,
+            publication_year: None,
+            journal: None,
+            doi: None,
         };
 
         // 【実際の処理実行】: まだ実装されていないhas_any_update_field関数を呼び出す
