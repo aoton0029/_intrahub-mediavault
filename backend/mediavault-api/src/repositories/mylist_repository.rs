@@ -5,7 +5,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::models::mylist::Mylist;
+use crate::models::mylist::{Mylist, MylistWithCovers};
 use crate::models::response::{ApiError, ApiErrorCode};
 use crate::repositories::db_error_utils::is_foreign_key_violation;
 
@@ -36,6 +36,62 @@ pub async fn list_mylists(pool: &PgPool) -> Result<Vec<Mylist>, ApiError> {
         .fetch_all(pool)
         .await
         .map_err(db_error)
+}
+
+/// 【機能概要】: 全マイリストを、収録itemのカバー画像候補（最大4件）と所属item数付きで一覧取得する（`GET /mylists`）
+/// 🟡 信頼性レベル: category_repository::list_categories_with_countsを収録itemのカバー付きに拡張した推測実装
+pub async fn list_mylists_with_covers(pool: &PgPool) -> Result<Vec<MylistWithCovers>, ApiError> {
+    sqlx::query_as(
+        "SELECT m.id, m.name, m.created_at, \
+            COALESCE(cnt.item_count, 0) AS item_count, \
+            COALESCE(cov.cover_urls, '{}') AS cover_urls \
+         FROM mylists m \
+         LEFT JOIN LATERAL ( \
+             SELECT COUNT(*) AS item_count FROM mylist_items mi WHERE mi.mylist_id = m.id \
+         ) cnt ON true \
+         LEFT JOIN LATERAL ( \
+             SELECT ARRAY_AGG(sub.cover_image_url ORDER BY sub.item_id) AS cover_urls \
+             FROM ( \
+                 SELECT mi.item_id, it.cover_image_url \
+                 FROM mylist_items mi \
+                 JOIN items it ON it.id = mi.item_id \
+                 WHERE mi.mylist_id = m.id AND it.cover_image_url IS NOT NULL \
+                 ORDER BY mi.item_id \
+                 LIMIT 4 \
+             ) sub \
+         ) cov ON true \
+         ORDER BY m.created_at",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(db_error)
+}
+
+/// 【機能概要】: マイリスト名を変更する（`PATCH /mylists/:id`）
+/// 🟡 信頼性レベル: category系にrenameが無いため、update系操作として妥当な推測
+pub async fn update_mylist_name(
+    pool: &PgPool,
+    id: Uuid,
+    name: String,
+) -> Result<Option<Mylist>, ApiError> {
+    sqlx::query_as("UPDATE mylists SET name = $1 WHERE id = $2 RETURNING id, name, created_at")
+        .bind(&name)
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+        .map_err(db_error)
+}
+
+/// 【機能概要】: マイリストをmylistsテーブルから削除する。関連するmylist_itemsはON DELETE CASCADEで自動削除される
+/// 🔵 信頼性レベル: category_repository::delete_categoryと完全に対称
+pub async fn delete_mylist(pool: &PgPool, id: Uuid) -> Result<bool, ApiError> {
+    let result = sqlx::query("DELETE FROM mylists WHERE id = $1")
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(db_error)?;
+
+    Ok(result.rows_affected() > 0)
 }
 
 /// 【機能概要】: 指定したitem_idが所属する全マイリストを一覧取得する（`GET /items/:id/mylists`）

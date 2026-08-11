@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>並べてシェア - MediaVault</title>
+<style>
+/* ---------------------------------------------------------------- */
+/* Design tokens (BookOrbit-inspired dark theme, shared with media.html) */
+/* ---------------------------------------------------------------- */
+:root{
+  --background:#171717;
+  --foreground:#f5f5f5;
+  --card:#1c1c1c;
+  --popover:#1e1e1e;
+  --border:rgba(255,255,255,.1);
+  --input:rgba(255,255,255,.15);
+  --muted:#242424;
+  --muted-foreground:#9a9a9a;
+  --primary:#5b8def;
+  --primary-foreground:#0b1220;
+  --accent:#262626;
+  --destructive:#e5484d;
+  --sidebar:#151515;
+  --radius:10px;
+  --elevation-sm:0 1px 3px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.4);
+  --elevation-md:0 4px 8px -1px rgba(0,0,0,.5), 0 2px 4px -2px rgba(0,0,0,.4);
+  --elevation-lg:0 10px 20px -3px rgba(0,0,0,.5), 0 4px 8px -4px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--background);color:var(--foreground);font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;font-size:14px}
+a{color:inherit}
+button{font-family:inherit;color:inherit;cursor:pointer}
+.icon{width:1em;height:1em;flex:none}
+
+/* ---------------------------------------------------------------- */
+/* App shell / sidebar                                                */
+/* ---------------------------------------------------------------- */
+.app-shell{display:flex;min-height:100vh}
+.sidebar{width:230px;flex:none;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 10px;gap:4px}
+.brand{display:flex;align-items:center;gap:8px;padding:6px 10px 18px;font-weight:700;font-size:15px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--primary)}
+.nav-section{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
+.nav-section-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);padding:6px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;text-decoration:none;color:var(--muted-foreground);font-size:13px}
+.nav-item:hover{background:var(--accent);color:var(--foreground)}
+.nav-item.active{background:color-mix(in srgb, var(--primary) 14%, transparent);color:var(--primary)}
+.main{flex:1;min-width:0}
+.titlebar{display:flex;align-items:center;justify-content:space-between;padding:20px 28px 4px}
+.titlebar h1{font-size:20px;margin:0}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;border:1px solid var(--border);background:none;color:inherit}
+.btn-accent{background:var(--primary);color:var(--primary-foreground);border-color:transparent}
+.btn-accent:disabled{opacity:.6;cursor:default}
+.content{padding:16px 28px 60px}
+
+/* ---------------------------------------------------------------- */
+/* Toolbar / settings (chip + dropdown chrome shared with media.html) */
+/* ---------------------------------------------------------------- */
+.filter-toolbar{
+  position:sticky;top:0;z-index:30;
+  display:flex;align-items:center;flex-wrap:wrap;gap:16px 24px;
+  margin-bottom:16px;padding:10px 14px;
+  background:color-mix(in srgb, var(--background) 82%, transparent);
+  backdrop-filter:blur(10px);
+  border:1px solid var(--border);border-radius:var(--radius);
+}
+.toolbar-group{display:flex;align-items:center;gap:8px}
+.toolbar-divider{width:1px;height:20px;background:var(--border);flex:none}
+
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;font-size:13px;white-space:nowrap;
+  border:1px solid var(--input);background:var(--background);color:var(--muted-foreground);border-radius:8px;transition:.15s}
+.chip:hover{color:var(--foreground);background:var(--muted)}
+.chip[aria-expanded="true"], .chip.is-active{border-color:var(--primary);color:var(--primary);background:color-mix(in srgb, var(--primary) 10%, transparent)}
+
+.dropdown{position:relative}
+.dropdown-panel{
+  position:absolute;top:calc(100% + 6px);left:0;z-index:40;min-width:160px;
+  background:var(--popover);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--elevation-lg);padding:6px;
+  opacity:0;transform:scale(.96) translateY(-4px);pointer-events:none;
+  transform-origin:top left;transition:opacity .12s ease, transform .12s ease;
+}
+.dropdown[data-open="true"] .dropdown-panel{opacity:1;transform:scale(1) translateY(0);pointer-events:auto}
+.dropdown-item{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border:0;background:none;text-align:left;border-radius:6px;font-size:13px;color:var(--foreground)}
+.dropdown-item:hover{background:var(--accent)}
+.dropdown-item.is-selected{color:var(--primary)}
+
+/* settings strip */
+.collage-settings{
+  display:flex;flex-wrap:wrap;align-items:center;gap:20px 28px;margin-bottom:22px;padding:14px 16px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+}
+.field-inline{display:flex;flex-direction:column;gap:5px}
+.field-inline label{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted-foreground)}
+.field-inline input[type="number"]{
+  width:84px;height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--input);
+  background:var(--background);color:var(--foreground);font-size:13px;
+}
+.field-inline input[type="number"]:focus{outline:none;border-color:var(--primary)}
+.field-checkbox{display:flex;align-items:center;gap:8px;margin-top:auto}
+.switch{width:34px;height:20px;border-radius:999px;background:var(--muted);position:relative;border:1px solid var(--input);flex:none}
+.switch::after{content:"";position:absolute;top:1px;left:1px;width:16px;height:16px;border-radius:50%;background:var(--muted-foreground);transition:.15s}
+.switch.on{background:color-mix(in srgb, var(--primary) 40%, transparent);border-color:var(--primary)}
+.switch.on::after{left:15px;background:var(--primary)}
+.field-checkbox span{font-size:13px;color:var(--muted-foreground)}
+
+/* ---------------------------------------------------------------- */
+/* Layout: preview + item picker                                     */
+/* ---------------------------------------------------------------- */
+.collage-layout{display:flex;gap:22px;align-items:stretch;height:calc(100vh - 160px)}
+.collage-preview-panel{
+  flex:1 1 auto;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;
+  display:flex;flex-direction:column;height:100%;
+}
+.collage-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;flex:none}
+.collage-preview-heading-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.collage-preview-heading h2{margin:0;font-size:14px;font-weight:600}
+.collage-preview-heading .hint{font-size:12px;color:var(--muted-foreground)}
+.collage-preview-heading .btn{flex:none}
+
+.collage-preview-body{display:flex;gap:20px;align-items:center;justify-content:center;flex:1;min-height:0}
+.collage-grid{display:grid;gap:3px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;flex:none}
+.collage-cell{
+  position:relative;aspect-ratio:1/1;background:var(--muted);border:0;padding:0;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;color:var(--muted-foreground);font-size:20px;font-weight:600;
+  transition:box-shadow .15s ease;
+}
+.collage-cell img{width:100%;height:100%;object-fit:cover;display:block}
+.collage-cell.is-active{box-shadow:inset 0 0 0 3px var(--primary)}
+.collage-cell:hover{box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--primary) 60%, transparent)}
+.collage-cell .cell-index{position:absolute;top:6px;left:8px;font-size:11px;font-weight:700;color:var(--muted-foreground)}
+.collage-cell .cell-clear{
+  position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:6px;border:0;background:rgba(0,0,0,.6);
+  color:#fff;display:none;align-items:center;justify-content:center;font-size:11px;
+}
+.collage-cell:hover .cell-clear{display:flex}
+
+.collage-title-list{list-style:none;margin:0;padding:0;width:220px;flex:none;display:flex;flex-direction:column;gap:8px;padding-top:2px;max-height:100%;overflow-y:auto}
+.collage-title-list li{display:flex;gap:8px;align-items:baseline;font-size:12.5px;color:var(--foreground)}
+.collage-title-list li .idx{color:var(--muted-foreground);flex:none;width:20px;text-align:right}
+.collage-title-list li .empty{color:var(--muted-foreground);font-style:italic}
+
+/* item picker */
+.item-picker-panel{
+  width:clamp(300px, 28vw, 460px);flex:none;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;display:flex;flex-direction:column;gap:14px;height:100%;position:sticky;top:80px;
+}
+.search-box{position:relative;display:flex;align-items:center}
+.search-box .icon{position:absolute;left:10px;color:var(--muted-foreground)}
+.search-box input{
+  width:100%;height:34px;padding:0 10px 0 32px;border-radius:8px;border:1px solid var(--input);
+  background:var(--background);color:var(--foreground);font-size:13px;
+}
+.search-box input:focus{outline:none;border-color:var(--primary)}
+.search-box input::placeholder{color:var(--muted-foreground)}
+
+.picker-results{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding-right:2px;align-content:start}
+.picker-card{position:relative}
+.picker-card .cover{position:relative;aspect-ratio:2/3;border-radius:7px;overflow:hidden;background:var(--muted);box-shadow:var(--elevation-sm)}
+.picker-card .cover img{width:100%;height:100%;object-fit:cover;display:block}
+.picker-card .badge{position:absolute;top:5px;right:5px;padding:1px 6px;font-size:9.5px;font-weight:600;border-radius:999px;background:rgba(0,0,0,.6);color:#fff}
+.picker-card .title{margin:6px 0 0;font-size:11.5px;line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.picker-card .assign-btn{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.55);color:#fff;font-size:11px;font-weight:600;border:0;border-radius:7px;
+  opacity:0;transition:opacity .15s;text-align:center;padding:8px;
+}
+.picker-card:hover .assign-btn{opacity:1}
+.picker-card .assign-btn:hover{background:rgba(0,0,0,.72)}
+
+.load-more-sentinel{text-align:center;padding:10px 0 2px;color:var(--muted-foreground);font-size:12px}
+.load-more-sentinel button{background:none;border:1px solid var(--input);border-radius:8px;padding:6px 14px;font-size:12px;color:var(--muted-foreground)}
+.load-more-sentinel button:hover{color:var(--foreground);background:var(--muted)}
+
+@media (max-width:1000px){
+  .collage-layout{flex-direction:column;height:auto}
+  .collage-preview-panel{height:60vh}
+  .item-picker-panel{width:100%;position:static;height:50vh}
+}
+@media (max-width:720px){
+  .sidebar{display:none}
+  .content{padding:14px}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span><span>MediaVault</span></div>
+    <div class="nav-section">
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span>ホーム</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">メディア</div>
+      <a class="nav-item" href="media.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg><span>すべて</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"></rect></svg><span>映画</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>ドラマ</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>アニメ</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>漫画</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg><span>小説</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><span>ゲーム</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">リサーチ</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>学術書・専門書</span></a>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg><span>論文・文献</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">コレクション</div>
+      <a class="nav-item" href="mylist.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg><span>マイリスト</span></a>
+      <a class="nav-item" href="collection.html"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>年別</span></a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">ツール</div>
+      <a class="nav-item active" href="#" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg><span>並べてシェア</span></a>
+    </div>
+    <div class="nav-section" style="margin-top:auto">
+      <div class="nav-section-label">Misc</div>
+      <a class="nav-item" href="#"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span>設定</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="titlebar">
+      <div><h1>並べてシェア</h1></div>
+    </div>
+
+    <div class="content">
+      <div class="filter-toolbar">
+        <div class="toolbar-group">
+          <!-- media type dropdown (filters the item picker on the right) -->
+          <div class="dropdown" id="dd-type">
+            <button type="button" class="chip" aria-haspopup="listbox" aria-expanded="false" data-toggle="dd-type">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              <span data-label>すべて</span>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="dropdown-panel" role="listbox">
+              <button type="button" class="dropdown-item is-selected" data-type="">すべて</button>
+              <button type="button" class="dropdown-item" data-type="Movie">映画</button>
+              <button type="button" class="dropdown-item" data-type="Drama">ドラマ</button>
+              <button type="button" class="dropdown-item" data-type="Anime">アニメ</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="collage-settings">
+        <div class="field-inline">
+          <label for="rows-input">縦（行数）</label>
+          <input type="number" id="rows-input" min="1" max="10" value="3">
+        </div>
+        <div class="field-inline">
+          <label for="cols-input">横（列数）</label>
+          <input type="number" id="cols-input" min="1" max="10" value="3">
+        </div>
+        <div class="field-inline">
+          <label for="width-input">保存画像の幅（px）</label>
+          <input type="number" id="width-input" min="100" step="100" value="1200">
+        </div>
+        <div class="field-inline">
+          <label for="height-input">保存画像の高さ（px）</label>
+          <input type="number" id="height-input" min="100" step="100" value="1200">
+        </div>
+        <div class="field-checkbox">
+          <div class="switch" id="show-titles-switch"></div>
+          <span>作品名を表示する</span>
+        </div>
+      </div>
+
+      <div class="collage-layout">
+        <section class="collage-preview-panel">
+          <div class="collage-preview-heading">
+            <div class="collage-preview-heading-text">
+              <h2>プレビュー</h2>
+              <span class="hint">マスをクリックして選択 → 右の作品で「このマスに反映」</span>
+            </div>
+            <button type="button" class="btn btn-accent" id="save-btn">保存する</button>
+          </div>
+          <div class="collage-preview-body">
+            <div class="collage-grid" id="collage-grid"></div>
+            <ol class="collage-title-list" id="collage-title-list" hidden></ol>
+          </div>
+        </section>
+
+        <aside class="item-picker-panel">
+          <label class="search-box">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input id="picker-search" type="text" placeholder="作品名で検索…">
+          </label>
+          <div class="picker-results" id="picker-results"></div>
+          <div class="load-more-sentinel" id="load-more-sentinel"><button type="button" id="load-more-btn">もっと見る</button></div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ---- sample media catalogue (reused from media.html) ---- */
+const MEDIA = [
+  {id:"864eb3ba",title:"攻殻機動隊ARISE ALTERNATIVE ARCHITECTURE",badge:"Anime",img:"./media_files/ogpImage.png"},
+  {id:"84f9ec29",title:"攻殻機動隊 THE GHOST IN THE SHELL",badge:"Anime",img:"./media_files/158937l.jpg"},
+  {id:"b46ef0c3",title:"攻殻機動隊 STAND ALONE COMPLEX",badge:"Anime",img:"./media_files/og_image.jpg"},
+  {id:"d72a603e",title:"攻殻機動隊 SAC_2045 シーズン2",badge:"Anime",img:"./media_files/ogp_s2.png"},
+  {id:"2dad0d4f",title:"攻殻機動隊 S.A.C. 2nd GIG",badge:"Anime",img:"./media_files/og_image(1).jpg"},
+  {id:"dbb15feb",title:"天幕のジャードゥーガル",badge:"Anime",img:"./media_files/158891l.jpg"},
+  {id:"870ffadd",title:"ヤニねこ",badge:"Anime",img:"./media_files/ogp.jpg"},
+  {id:"61e4d3b8",title:"犯罪者",badge:"Drama",img:"./media_files/hgAzI2A11YDTrsC7FkorYA0t8R2.jpg"},
+  {id:"4f6ee84f",title:"さよならララ",badge:"Anime",img:"./media_files/ogp3.jpg"},
+  {id:"96f73be8",title:"鉄鍋のジャン！",badge:"Anime",img:"./media_files/ogp(1).jpg"},
+  {id:"dea4ddee",title:"009 RE:CYBORG",badge:"Movie",img:"./media_files/eBaUVUNAWSOg70TMl7o9K3qSgYO.jpg"},
+  {id:"4249059e",title:"Heads of State",badge:"Movie",img:"./media_files/lVgE5oLzf7ABmzyASEVcjYyHI41.jpg"},
+  {id:"64763eb9",title:"Straume",badge:"Movie",img:"./media_files/z2sG41PxfL1hnL1mHbxzSREUtOf.jpg"},
+  {id:"87dbbea3",title:"Superman Returns",badge:"Movie",img:"./media_files/385XwTQZDpRX2d3kxtnpiLrjBXw.jpg"},
+  {id:"c928b245",title:"Superman III",badge:"Movie",img:"./media_files/c4oR6qgZW2s5foGkQi2Dd86KuAS.jpg"},
+  {id:"bda5fced",title:"Superman II",badge:"Movie",img:"./media_files/3xk5cno9BHcnwc97XO9k21aI1Zi.jpg"},
+  {id:"0aa8da23",title:"岸辺露伴 ルーヴルへ行く",badge:"Movie",img:"./media_files/3DOjh4LAyHnLkk9oUIylyW2uOCx.jpg"},
+  {id:"b85935a4",title:"岸辺露伴は動かない 懺悔室",badge:"Movie",img:"./media_files/wPv5WxxnLkTDw1G4Fio8odWitdA.jpg"},
+  {id:"0f21b215",title:"違国日記",badge:"Anime",img:"./media_files/ogp-0903.jpg"},
+  {id:"e7f642ff",title:"ONE PIECE HEROINES",badge:"Anime",img:"./media_files/0206_2026001.jpg"},
+  {id:"e02b085d",title:"木挽町のあだ討ち",badge:"Movie",img:"./media_files/ks2xQQw2HMbDzz9TdTMW2PoMYLy.jpg"},
+  {id:"048421cf",title:"劇場版モノノ怪 第二章 火鼠",badge:"Movie",img:"./media_files/tPExtAM958Gx07itJ7nWqSddBQ9.jpg"},
+  {id:"34e75f3b",title:"劇場版モノノ怪 第三章 蛇神",badge:"Movie",img:"./media_files/93zvlPMHQb3xoX40bNL8bck7O00.jpg"},
+  {id:"ba9e43c8",title:"ガス人間",badge:"Drama",img:"./media_files/gSYPd4icODc7QdRA7BK0VqBxBYp.jpg"},
+  {id:"107e3ec1",title:"教場 Reunion",badge:"Movie",img:"./media_files/8SHL2mYaL9vS0ETzoF9SixWRyvw.jpg"},
+  {id:"7557fb60",title:"黒牢城",badge:"Movie",img:"./media_files/1GWVlPM1v6k84LsmDkfDzLlGf0O.jpg"},
+  {id:"a74a957b",title:"Spider-Man: Beyond the Spider-Verse",badge:"Movie",img:"./media_files/9KAe39xqyZnv9J4W3DRGdQqX82h.jpg"}
+];
+const PAGE_SIZE = 12;
+
+/* ---- state ---- */
+let rows = 3, cols = 3;
+let cells = new Array(rows * cols).fill(null);
+let activeCellIndex = 0;
+let showTitles = false;
+let typeFilter = "";
+let searchQuery = "";
+let visibleCount = PAGE_SIZE;
+
+/* ---- generic dropdown open/close ---- */
+const dropdowns = Array.from(document.querySelectorAll(".dropdown"));
+function closeAllDropdowns(except){
+  dropdowns.forEach(dd => {
+    if(dd === except) return;
+    dd.dataset.open = "false";
+    const trig = dd.querySelector("[data-toggle]");
+    if(trig) trig.setAttribute("aria-expanded", "false");
+  });
+}
+dropdowns.forEach(dd => {
+  const trigger = dd.querySelector("[data-toggle]");
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = dd.dataset.open !== "true";
+    closeAllDropdowns(dd);
+    dd.dataset.open = willOpen ? "true" : "false";
+    trigger.setAttribute("aria-expanded", String(willOpen));
+  });
+});
+document.addEventListener("click", () => closeAllDropdowns());
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeAllDropdowns(); });
+
+document.getElementById("dd-type").querySelectorAll("[data-type]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#dd-type [data-type]").forEach(b => b.classList.remove("is-selected"));
+    btn.classList.add("is-selected");
+    document.querySelector('#dd-type [data-label]').textContent = btn.textContent;
+    typeFilter = btn.dataset.type;
+    visibleCount = PAGE_SIZE;
+    renderPicker();
+    closeAllDropdowns();
+  });
+});
+
+/* ---- collage grid preview ---- */
+const collageGrid = document.getElementById("collage-grid");
+const titleList = document.getElementById("collage-title-list");
+
+function rebuildCells(){
+  const next = new Array(rows * cols).fill(null);
+  for(let i = 0; i < Math.min(cells.length, next.length); i++) next[i] = cells[i];
+  cells = next;
+  if(activeCellIndex >= cells.length) activeCellIndex = cells.length - 1;
+}
+
+const collagePreviewBody = document.querySelector(".collage-preview-body");
+
+function sizeGrid(){
+  const bodyRect = collagePreviewBody.getBoundingClientRect();
+  let availW = bodyRect.width;
+  const availH = bodyRect.height;
+  if(!titleList.hidden){ availW -= 220 + 20; } // title-list width + gap
+  availW = Math.max(availW, 0);
+
+  const ratio = cols / rows;
+  let w = availW;
+  let h = w / ratio;
+  if(h > availH){
+    h = availH;
+    w = h * ratio;
+  }
+  collageGrid.style.width = w + "px";
+  collageGrid.style.height = h + "px";
+}
+
+function renderGrid(){
+  collageGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  collageGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  collageGrid.innerHTML = cells.map((cell, i) => `
+    <button type="button" class="collage-cell${i === activeCellIndex ? " is-active" : ""}" data-index="${i}" title="${cell ? cell.title : "クリックして選択"}">
+      ${cell
+        ? `<img src="${cell.img}" alt=""><span class="cell-index">${i + 1}</span><button type="button" class="cell-clear" data-clear="${i}" title="このマスをクリア">×</button>`
+        : `${i + 1}`
+      }
+    </button>
+  `).join("");
+
+  if(showTitles){
+    titleList.hidden = false;
+    titleList.innerHTML = cells.map((cell, i) => `
+      <li><span class="idx">${i + 1}.</span>${cell ? cell.title : `<span class="empty">未設定</span>`}</li>
+    `).join("");
+  } else {
+    titleList.hidden = true;
+  }
+
+  sizeGrid();
+}
+
+if(window.ResizeObserver){
+  new ResizeObserver(() => sizeGrid()).observe(collagePreviewBody);
+} else {
+  window.addEventListener("resize", sizeGrid);
+}
+
+collageGrid.addEventListener("click", (e) => {
+  const clearBtn = e.target.closest("[data-clear]");
+  if(clearBtn){
+    e.stopPropagation();
+    cells[Number(clearBtn.dataset.clear)] = null;
+    renderGrid();
+    return;
+  }
+  const cellBtn = e.target.closest(".collage-cell");
+  if(cellBtn){
+    activeCellIndex = Number(cellBtn.dataset.index);
+    renderGrid();
+  }
+});
+
+document.getElementById("rows-input").addEventListener("input", (e) => {
+  rows = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+  rebuildCells();
+  renderGrid();
+});
+document.getElementById("cols-input").addEventListener("input", (e) => {
+  cols = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+  rebuildCells();
+  renderGrid();
+});
+document.getElementById("show-titles-switch").addEventListener("click", (e) => {
+  showTitles = !showTitles;
+  e.currentTarget.classList.toggle("on", showTitles);
+  renderGrid();
+});
+
+/* ---- item picker ---- */
+const pickerResults = document.getElementById("picker-results");
+const loadMoreSentinel = document.getElementById("load-more-sentinel");
+
+function filteredMedia(){
+  return MEDIA.filter(m =>
+    (!typeFilter || m.badge === typeFilter) &&
+    (!searchQuery || m.title.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+}
+
+function renderPicker(){
+  const all = filteredMedia();
+  const visible = all.slice(0, visibleCount);
+  pickerResults.innerHTML = visible.map(m => `
+    <div class="picker-card" data-id="${m.id}">
+      <div class="cover">
+        <img src="${m.img}" alt="" loading="lazy">
+        <span class="badge">${m.badge}</span>
+        <button type="button" class="assign-btn" data-assign="${m.id}">このマスに反映</button>
+      </div>
+      <p class="title">${m.title}</p>
+    </div>
+  `).join("") || `<p style="grid-column:1/-1;color:var(--muted-foreground);font-size:12.5px;text-align:center;padding:20px 0">該当する作品が見つかりません</p>`;
+
+  loadMoreSentinel.hidden = visible.length >= all.length;
+}
+
+document.getElementById("picker-search").addEventListener("input", (e) => {
+  searchQuery = e.target.value;
+  visibleCount = PAGE_SIZE;
+  renderPicker();
+});
+document.getElementById("load-more-btn").addEventListener("click", () => {
+  visibleCount += PAGE_SIZE;
+  renderPicker();
+});
+
+pickerResults.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-assign]");
+  if(!btn) return;
+  const media = MEDIA.find(m => m.id === btn.dataset.assign);
+  cells[activeCellIndex] = { title: media.title, img: media.img };
+  const nextEmpty = cells.findIndex((c, i) => i > activeCellIndex && c === null);
+  activeCellIndex = nextEmpty !== -1 ? nextEmpty : Math.min(activeCellIndex + 1, cells.length - 1);
+  renderGrid();
+});
+
+/* ---- save (renders the same layout algorithm as the real app's canvas export) ---- */
+document.getElementById("save-btn").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const outputWidth = Number(document.getElementById("width-input").value) || 1200;
+  const outputHeight = Number(document.getElementById("height-input").value) || 1200;
+  btn.disabled = true;
+  btn.textContent = "保存中…";
+  try {
+    const blob = await renderCollageToBlob({ rows, cols, outputWidth, outputHeight, showTitles, cells });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "collage.png";
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch(err) {
+    window.alert("画像の生成に失敗しました");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "保存する";
+  }
+});
+
+function loadImage(url){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("画像の読み込みに失敗しました: " + url));
+    img.src = url;
+  });
+}
+function truncateText(ctx, text, maxWidth){
+  if(ctx.measureText(text).width <= maxWidth) return text;
+  let t = text;
+  while(t.length > 0 && ctx.measureText(t + "…").width > maxWidth) t = t.slice(0, -1);
+  return t + "…";
+}
+async function renderCollageToBlob({ rows, cols, outputWidth, outputHeight, showTitles, cells }){
+  const TITLE_COLUMN_WIDTH = 240;
+  const titleColumnWidth = showTitles ? TITLE_COLUMN_WIDTH : 0;
+  const gridWidth = outputWidth - titleColumnWidth;
+  const cellWidth = gridWidth / cols;
+  const cellHeight = outputHeight / rows;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, outputWidth, outputHeight);
+
+  const images = await Promise.all(cells.map(c => c ? loadImage(c.img).catch(() => null) : Promise.resolve(null)));
+
+  cells.forEach((_cell, index) => {
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    const cellX = col * cellWidth;
+    const cellY = row * cellHeight;
+    const img = images[index];
+    if(img){
+      const scale = Math.min(cellWidth / img.width, cellHeight / img.height);
+      const drawWidth = img.width * scale;
+      const drawHeight = img.height * scale;
+      ctx.drawImage(img, cellX + (cellWidth - drawWidth) / 2, cellY + (cellHeight - drawHeight) / 2, drawWidth, drawHeight);
+    }
+    ctx.strokeStyle = "#e0e0e0";
+    ctx.strokeRect(cellX, cellY, cellWidth, cellHeight);
+  });
+
+  if(showTitles){
+    const titleX = gridWidth + 16;
+    const rowHeight = outputHeight / cells.length;
+    ctx.fillStyle = "#1a1a1a";
+    ctx.font = "14px sans-serif";
+    ctx.textBaseline = "middle";
+    cells.forEach((cell, index) => {
+      if(!cell) return;
+      const y = rowHeight * index + rowHeight / 2;
+      ctx.fillText(truncateText(ctx, cell.title, titleColumnWidth - 32), titleX, y);
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("画像の生成に失敗しました")), "image/png");
+  });
+}
+
+renderGrid();
+renderPicker();
+</script>
+</body>
+</html>

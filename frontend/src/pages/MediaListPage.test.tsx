@@ -74,8 +74,8 @@ describe("MediaListPage", () => {
     expect(screen.getByRole("button", { name: "メディア種別" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "並び順" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "タイトル検索" })).toBeInTheDocument();
-    expect(screen.getByText("Ghost in the Shell")).toBeInTheDocument();
-    expect(screen.getByText("Ring")).toBeInTheDocument();
+    expect(screen.getAllByText("Ghost in the Shell").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Ring").length).toBeGreaterThan(0);
     expect(screen.getByText("All items loaded")).toBeInTheDocument();
     expect(container.querySelector(".card-grid.is-compact")).not.toBeNull();
     expect(screen.getByText("# SF")).toBeInTheDocument();

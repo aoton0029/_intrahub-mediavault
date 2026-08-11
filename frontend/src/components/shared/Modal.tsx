@@ -12,7 +12,7 @@ export function Modal({
   onClose: () => void;
   title: string;
   children: ReactNode;
-  maxWidth?: number;
+  maxWidth?: number | string;
   height?: number | string;
 }) {
   if (!open) {

@@ -101,9 +101,11 @@ type MediaTypeSectionProps = {
   count: number;
   thumbnailOrientation: "vertical" | "horizontal";
   columns?: number;
+  showTitle: boolean;
+  showRating: boolean;
 };
 
-function MediaTypeSection({ filters, year, mediaType, count, thumbnailOrientation, columns }: MediaTypeSectionProps) {
+function MediaTypeSection({ filters, year, mediaType, count, thumbnailOrientation, columns, showTitle, showRating }: MediaTypeSectionProps) {
   const { mediaCards, hasNextPage, fetchNextPage, isFetchingNextPage } = useYearItems(
     { ...filters, mediaType },
     year,
@@ -116,7 +118,14 @@ function MediaTypeSection({ filters, year, mediaType, count, thumbnailOrientatio
         <MediaTypeIcon mediaType={mediaType} />
         {label} <span style={{ fontWeight: "normal", opacity: 0.7 }}>({count})</span>
       </h2>
-      <MediaGrid items={mediaCards} density="compact" thumbnailOrientation={thumbnailOrientation} columns={columns} />
+      <MediaGrid
+        items={mediaCards}
+        density="compact"
+        thumbnailOrientation={thumbnailOrientation}
+        columns={columns}
+        showTitle={showTitle}
+        showRating={showRating}
+      />
       {hasNextPage ? (
         <button
           type="button"
@@ -146,7 +155,7 @@ export function YearlyMediaPage() {
   const dateField = parseDateField(searchParams);
   const sort = searchParams.get("sort") ?? DEFAULT_MEDIA_SORT;
   const { years, isLoading, isError } = useYearlyMediaData({ dateField });
-  const { thumbnailOrientation, columns, setThumbnailOrientation, setColumns } = useDisplaySettings();
+  const { thumbnailOrientation, columns, showTitle, showRating, setThumbnailOrientation, setColumns, setShowTitle, setShowRating } = useDisplaySettings();
 
   const updateSearchParams = (updates: Record<string, string | undefined>) => {
     const next = new URLSearchParams(searchParams);
@@ -202,6 +211,10 @@ export function YearlyMediaPage() {
             onThumbnailOrientationChange={setThumbnailOrientation}
             columns={columns}
             onColumnsChange={setColumns}
+            showTitle={showTitle}
+            onShowTitleChange={setShowTitle}
+            showRating={showRating}
+            onShowRatingChange={setShowRating}
           />
         }
       />
@@ -231,6 +244,8 @@ export function YearlyMediaPage() {
               count={entry.count}
               thumbnailOrientation={thumbnailOrientation}
               columns={columns}
+              showTitle={showTitle}
+              showRating={showRating}
             />
           ))
       )}

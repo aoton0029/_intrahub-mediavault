@@ -6,11 +6,15 @@ export type DisplaySettings = {
   thumbnailOrientation: "horizontal" | "vertical";
   /** undefined = auto (auto-fill grid) */
   columns?: number;
+  showTitle: boolean;
+  showRating: boolean;
 };
 
 const DEFAULT_SETTINGS: DisplaySettings = {
   thumbnailOrientation: "horizontal",
   columns: undefined,
+  showTitle: false,
+  showRating: false,
 };
 
 function loadSettings(): DisplaySettings {
@@ -24,6 +28,8 @@ function loadSettings(): DisplaySettings {
     return {
       thumbnailOrientation: parsed.thumbnailOrientation === "vertical" ? "vertical" : "horizontal",
       columns: Number.isInteger(columns) && columns >= 2 && columns <= 16 ? columns : undefined,
+      showTitle: parsed.showTitle === true,
+      showRating: parsed.showRating === true,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -51,11 +57,17 @@ export function useDisplaySettings() {
     [update],
   );
   const setColumns = useCallback((value: number | undefined) => update({ columns: value }), [update]);
+  const setShowTitle = useCallback((value: boolean) => update({ showTitle: value }), [update]);
+  const setShowRating = useCallback((value: boolean) => update({ showRating: value }), [update]);
 
   return {
     thumbnailOrientation: settings.thumbnailOrientation,
     columns: settings.columns,
+    showTitle: settings.showTitle,
+    showRating: settings.showRating,
     setThumbnailOrientation,
     setColumns,
+    setShowTitle,
+    setShowRating,
   };
 }

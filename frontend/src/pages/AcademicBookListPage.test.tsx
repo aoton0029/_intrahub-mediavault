@@ -73,10 +73,10 @@ describe("AcademicBookListPage", () => {
     expect(screen.queryByRole("combobox", { name: "種別" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "並び順" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "タイトル検索" })).toBeInTheDocument();
-    expect(screen.getByText("分散システム設計の原理")).toBeInTheDocument();
+    expect(screen.getAllByText("分散システム設計の原理").length).toBeGreaterThan(0);
     expect(screen.getByText("すべて読み込みました")).toBeInTheDocument();
     expect(container.querySelector(".card-grid.is-compact")).not.toBeNull();
-    expect(screen.getByText("積読")).toBeInTheDocument();
+    expect(screen.getAllByText("# 積読").length).toBeGreaterThan(0);
   });
 
   it("calls useMediaListData with academic_book fixed", () => {

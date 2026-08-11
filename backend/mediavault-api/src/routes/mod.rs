@@ -57,8 +57,9 @@ use crate::handlers::items::{
     update_item_handler, update_item_status_handler,
 };
 use crate::handlers::mylists::{
-    add_mylist_item_handler, create_mylist_handler, list_item_mylists_handler,
-    list_mylists_handler, remove_mylist_item_handler,
+    add_mylist_item_handler, create_mylist_handler, delete_mylist_handler,
+    list_item_mylists_handler, list_mylists_handler, remove_mylist_item_handler,
+    update_mylist_handler,
 };
 use crate::handlers::settings::{list_api_key_statuses_handler, update_api_key_handler};
 use crate::handlers::staff::{
@@ -135,6 +136,10 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/mylists",
             get(list_mylists_handler).post(create_mylist_handler),
+        )
+        .route(
+            "/mylists/{id}",
+            axum::routing::patch(update_mylist_handler).delete(delete_mylist_handler),
         )
         .route(
             "/mylists/{id}/items",

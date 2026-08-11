@@ -10,18 +10,59 @@ use axum::response::IntoResponse;
 use crate::AppState;
 use crate::models::item::{deserialize_request, parse_item_id};
 use crate::models::mylist::{
-    AddMylistItemRequest, CreateMylistRequest, Mylist, validate_mylist_name,
+    AddMylistItemRequest, CreateMylistRequest, Mylist, MylistWithCovers, UpdateMylistRequest,
+    validate_mylist_name,
 };
 use crate::models::response::{ApiError, ApiErrorCode, ApiOk};
 use crate::repositories::mylist_repository;
 
-/// 【機能概要】: `GET /mylists` ハンドラ。全マイリストを一覧取得する
+/// 【機能概要】: `GET /mylists` ハンドラ。全マイリストをカバー画像候補・所属item数付きで一覧取得する
 /// 🟡 信頼性レベル: handlers::categories::list_categories_handlerと対称
 pub async fn list_mylists_handler(
     State(state): State<AppState>,
-) -> Result<ApiOk<Vec<Mylist>>, ApiError> {
-    let mylists = mylist_repository::list_mylists(&state.db).await?;
+) -> Result<ApiOk<Vec<MylistWithCovers>>, ApiError> {
+    let mylists = mylist_repository::list_mylists_with_covers(&state.db).await?;
     Ok(ApiOk::new(mylists))
+}
+
+/// 【機能概要】: `PATCH /mylists/:id` ハンドラ。マイリスト名を変更する
+/// 🟡 信頼性レベル: category系にrenameが無いため、他ハンドラと対称な形で妥当な推測
+pub async fn update_mylist_handler(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<ApiOk<Mylist>, ApiError> {
+    let mylist_id = parse_item_id(&id)?;
+    let request: UpdateMylistRequest = deserialize_request(body)?;
+    validate_mylist_name(&request.name)?;
+
+    let mylist = mylist_repository::update_mylist_name(&state.db, mylist_id, request.name).await?;
+    match mylist {
+        Some(mylist) => Ok(ApiOk::new(mylist)),
+        None => Err(ApiError::new(
+            ApiErrorCode::MylistNotFound,
+            "指定されたマイリストが見つかりません",
+        )),
+    }
+}
+
+/// 【機能概要】: `DELETE /mylists/:id` ハンドラ。マイリストを削除する
+/// 🔵 信頼性レベル: handlers::categories::delete_category_handlerと完全に対称
+pub async fn delete_mylist_handler(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<axum::response::Response, ApiError> {
+    let mylist_id = parse_item_id(&id)?;
+
+    let deleted = mylist_repository::delete_mylist(&state.db, mylist_id).await?;
+    if !deleted {
+        return Err(ApiError::new(
+            ApiErrorCode::MylistNotFound,
+            "指定されたマイリストが見つかりません",
+        ));
+    }
+
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 /// 【機能概要】: `GET /items/:id/mylists` ハンドラ。指定アイテムが所属するマイリストを一覧取得する

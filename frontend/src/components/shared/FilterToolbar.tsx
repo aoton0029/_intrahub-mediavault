@@ -11,6 +11,8 @@ export type FilterChip = {
   icon?: ReactNode;
   /** Set to render an icon-only chip (label is still used as the accessible name). */
   iconOnly?: boolean;
+  /** Shows a small numeric badge next to the label, e.g. active filter count. */
+  count?: number;
   onClick?: () => void;
   onRemove?: () => void;
 };
@@ -88,6 +90,7 @@ export function FilterToolbar({
               {chip.icon}
               {chip.add ? <FiPlus className="icon" /> : null}
               {chip.label}
+              {chip.count ? <span className="filter-count">{chip.count}</span> : null}
             </button>
           );
         })}

@@ -20,7 +20,11 @@ export function CollageGrid({
     <div className="collage-preview">
       <div
         className="collage-grid"
-        style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)` }}
+        style={{
+          gridTemplateColumns: `repeat(${cols}, 1fr)`,
+          gridTemplateRows: `repeat(${rows}, 1fr)`,
+          aspectRatio: `${cols} / ${rows}`,
+        }}
       >
         {cells.map((cell, index) => (
           <button
@@ -37,7 +41,10 @@ export function CollageGrid({
       {showTitles ? (
         <ol className="collage-title-list">
           {cells.map((cell, index) => (
-            <li key={index}>{cell?.title ?? "―"}</li>
+            <li key={index}>
+              <span className="idx">{index + 1}.</span>
+              {cell ? cell.title : <span className="empty">未設定</span>}
+            </li>
           ))}
         </ol>
       ) : null}

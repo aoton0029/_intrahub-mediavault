@@ -11,6 +11,10 @@ export type DisplaySettingsDropdownProps = {
   onColumnsChange: (value: number | undefined) => void;
   minColumns?: number;
   maxColumns?: number;
+  showTitle: boolean;
+  onShowTitleChange: (value: boolean) => void;
+  showRating: boolean;
+  onShowRatingChange: (value: boolean) => void;
 };
 
 export function DisplaySettingsDropdown({
@@ -20,6 +24,10 @@ export function DisplaySettingsDropdown({
   onColumnsChange,
   minColumns = 2,
   maxColumns = 16,
+  showTitle,
+  onShowTitleChange,
+  showRating,
+  onShowRatingChange,
 }: DisplaySettingsDropdownProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useOutsideClick<HTMLDivElement>(() => setOpen(false), open);
@@ -81,6 +89,17 @@ export function DisplaySettingsDropdown({
             <button type="button" className="btn-auto" disabled={columns == null} onClick={() => onColumnsChange(undefined)}>
               自動
             </button>
+          </div>
+          <div className="settings-section">
+            <div className="settings-label">表示項目</div>
+            <label className="collage-settings-checkbox">
+              <input type="checkbox" checked={showTitle} onChange={(event) => onShowTitleChange(event.target.checked)} />
+              作品名
+            </label>
+            <label className="collage-settings-checkbox">
+              <input type="checkbox" checked={showRating} onChange={(event) => onShowRatingChange(event.target.checked)} />
+              評価
+            </label>
           </div>
         </div>
       ) : null}

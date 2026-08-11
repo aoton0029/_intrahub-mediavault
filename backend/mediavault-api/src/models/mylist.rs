@@ -31,6 +31,23 @@ pub struct AddMylistItemRequest {
     pub item_id: Uuid,
 }
 
+/// `PATCH /mylists/:id` リクエストDTO（名前変更）
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateMylistRequest {
+    pub name: String,
+}
+
+/// マイリスト一覧表示用（`GET /mylists`のレスポンスで返す表現）。
+/// カバー画像候補（最大4件）と所属item数を付与件数として持つ。
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct MylistWithCovers {
+    pub id: Uuid,
+    pub name: String,
+    pub created_at: NaiveDateTime,
+    pub item_count: i64,
+    pub cover_urls: Vec<String>,
+}
+
 /// 【機能概要】: マイリスト名が空白のみでないことを検証する
 /// 【実装方針】: validate_category_name（models/category.rs）と対称な実装
 /// 🟡 信頼性レベル: validate_category_nameと同様の妥当な推測

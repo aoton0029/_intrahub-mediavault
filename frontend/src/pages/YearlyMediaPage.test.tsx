@@ -50,6 +50,7 @@ function renderWithRouter(initialEntry = "/collection/yearly") {
 
 describe("YearlyMediaPage", () => {
   beforeEach(() => {
+    localStorage.setItem("mediavault:display-settings", JSON.stringify({ showTitle: true, showRating: true }));
     mockUseYearlyMediaData.mockReturnValue({
       years: [
         {

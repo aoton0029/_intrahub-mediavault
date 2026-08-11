@@ -26,6 +26,7 @@ export type ItemWithRefs = {
   cover_image_url: string | null;
   release_date: string | null;
   consumed_date: string | null;
+  updated_at?: string | null;
   tags: TagRef[];
   categories: CategoryRef[];
 };
@@ -70,7 +71,7 @@ export type MediaListFilters = {
   status?: string;
 };
 
-const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
+export const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
   anime: "Anime",
   movie: "Movie",
   drama: "Drama",
@@ -147,6 +148,7 @@ async function fetchCategories() {
 
 export function mapItemToMediaCard(item: ItemWithRefs, options?: UseMediaListDataOptions): MediaCardProps {
   return {
+    id: item.id,
     title: item.original_title || item.title,
     badge: options?.getBadgeLabel?.(item) ?? MEDIA_TYPE_LABELS[item.media_type],
     rating: item.rating ?? undefined,

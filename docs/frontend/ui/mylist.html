@@ -54,21 +54,30 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 /* ---------------------------------------------------------------- */
 /* Mylist overview grid                                               */
 /* ---------------------------------------------------------------- */
-.mylist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+.mylist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:26px 18px}
 .mylist-card{
-  position:relative;display:block;border-radius:var(--radius);border:1px solid var(--border);
+  position:relative;display:block;border-radius:8px;
   background:var(--card);overflow:hidden;text-decoration:none;color:inherit;
-  box-shadow:var(--elevation-sm);transition:transform .15s ease, box-shadow .15s ease, border-color .15s;
+  transition:transform .15s ease, box-shadow .15s ease;
 }
-.mylist-card:hover{transform:translateY(-2px);box-shadow:var(--elevation-lg);border-color:var(--input)}
-.mylist-collage{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;aspect-ratio:16/9;background:var(--muted)}
-.mylist-collage img{width:100%;height:100%;object-fit:cover;display:block}
-.mylist-collage.is-single{grid-template-columns:1fr;grid-template-rows:1fr}
-.mylist-collage-empty{display:flex;align-items:center;justify-content:center;color:var(--muted-foreground)}
+.mylist-card:hover{transform:scale(1.02)}
+.mylist-collage{
+  display:grid;gap:2px;aspect-ratio:2/3;background:var(--muted);border-radius:8px;overflow:hidden;
+  box-shadow:var(--elevation-sm);transition:box-shadow .15s ease;
+  grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+}
+.mylist-card:hover .mylist-collage{box-shadow:var(--elevation-lg)}
+.mylist-collage img{width:100%;height:100%;object-fit:cover;display:block;min-width:0;min-height:0}
+/* Always divide the collage evenly across however many covers are shown (1-4), so no cell is ever left blank */
+.mylist-collage.count-1{grid-template-columns:1fr;grid-template-rows:1fr}
+.mylist-collage.count-2{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
+.mylist-collage.count-3{grid-template-columns:1fr;grid-template-rows:1fr 1fr 1fr}
+.mylist-collage-empty{display:flex;align-items:center;justify-content:center;color:var(--muted-foreground);grid-column:1/-1;grid-row:1/-1}
 .mylist-collage-empty .icon{width:28px;height:28px}
-.mylist-card-body{padding:12px 14px}
-.mylist-card-name{margin:0 0 4px;font-size:14px;font-weight:600}
-.mylist-card-meta{margin:0;font-size:12px;color:var(--muted-foreground)}
+.mylist-card-body{padding:8px 2px 0}
+.mylist-card-name{margin:0;font-size:12.5px;line-height:1.4;font-weight:500;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mylist-card-meta{margin:2px 0 0;font-size:11.5px;color:var(--muted-foreground)}
 .mylist-card-menu-btn{
   position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:7px;border:0;
   background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;
@@ -197,9 +206,9 @@ const MYLISTS = [
 function collageHtml(list){
   const covers = list.items.slice(0, 4);
   if(covers.length === 0){
-    return `<div class="mylist-collage"><div class="mylist-collage-empty" style="grid-column:1/-1;grid-row:1/-1">${ICONS.bookmark}</div></div>`;
+    return `<div class="mylist-collage"><div class="mylist-collage-empty">${ICONS.bookmark}</div></div>`;
   }
-  const cls = covers.length === 1 ? "mylist-collage is-single" : "mylist-collage";
+  const cls = covers.length < 4 ? `mylist-collage count-${covers.length}` : "mylist-collage";
   return `<div class="${cls}">${covers.map(c => `<img src="${c.img}" alt="" loading="lazy">`).join("")}</div>`;
 }
 
