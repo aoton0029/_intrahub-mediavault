@@ -1,151 +1,212 @@
 # MediaVault
 
-## docker-compose ファイルの使い分け
+映画・ドラマ・アニメ・漫画・小説・ゲーム・学術書・論文/文献のメタデータを、ひとつのコレクションとして一元管理するセルフホスト型アプリケーションです。
 
-| ファイル | 用途 | 起動コマンド |
+外部メタデータAPI（TMDb / Jikan / Annict / IGDB / Steam / 楽天ブックス / 国立国会図書館 / OpenLibrary / openBD）から作品情報を取り込み、タグ・カテゴリ・マイリストで整理し、手元のファイルや配信リンクと紐づけて管理できます。MCPサーバーを同梱しているので、Claude などの AI クライアントから自然言語でコレクションを操作することもできます。
+
+<!--
+スクリーンショットを docs/images/ に置いたら、以下のコメントを外してください。
+![ホーム画面](docs/images/home.png)
+-->
+
+## 特徴
+
+- **8メディア種別を1つのDBで管理** — 映画・ドラマ・アニメ・漫画・小説・ゲーム・学術書・論文を共通の `items` モデル＋種別ごとの詳細フィールドで扱います
+- **外部API検索から1クリックで登録** — タイトル・ISBN・作者などで横断検索し、取得したメタデータをそのままコレクションへ取り込みます
+- **手動登録にも対応** — APIに存在しない同人誌・自主制作作品なども自由に追加できます
+- **整理機能** — タグ、カテゴリ、お気に入り、任意名のマイリスト、年別ビュー
+- **作品同士の関連付け** — 続編・スピンオフ・DLC・原作/映像化などの関係、および他メディアからの引用を記録できます
+- **シーズン/巻/話数の管理** — アニメ・ドラマのシーズンとエピソード、漫画・小説の巻をグループ単位でまとめられます
+- **リンク・ファイル・トレーラー** — 配信サービスへのリンク、ファイルサーバー上のパス、トレーラーURLをアイテムごとに保持します
+- **視聴/読了記録** — ステータスと視聴日・読了日、評価を記録します
+- **インポート/エクスポート** — ブクログCSV・Steamライブラリのインポート、Obsidian / Notion 向けエクスポート
+- **MCPサーバー同梱** — AIクライアントから検索・登録・整理を実行できます
+- **認証なしの単一ユーザー設計** — LAN内やリバースプロキシ配下での個人利用を前提に、ログイン機構を持たず軽量に動きます
+
+<!--
+![検索から登録までの流れ](docs/images/search-to-add.gif)
+-->
+
+## 構成
+
+```mermaid
+flowchart LR
+    U[ブラウザ] --> W[mediavault-web<br/>React + nginx]
+    W --> A[mediavault-api<br/>Rust / Axum]
+    C[MCPクライアント<br/>Claude など] --> M[mediavault-mcp<br/>Rust / MCP]
+    M --> A
+    A --> D[(PostgreSQL 16)]
+    A --> S[ストレージ / ライブラリ<br/>バインドマウント]
+    A --> E[外部メタデータAPI<br/>TMDb / Jikan / IGDB ほか]
+```
+
+| コンポーネント | 技術 | 役割 |
 |---|---|---|
-| `docker-compose.test.yml` | ローカルでbackend・frontend・dbをまとめてbuildし結合確認するための統合環境（旧 `docker-compose.yml`） | `docker compose -f docker-compose.test.yml --env-file .env.test up -d --build` |
-| `docker-compose.yml` | 本番（ミニPC）向け。自作サービスはソースからローカルbuild。バンドルOSS（Jellyfin/Calibre-Web）を含むフルスタック構成 | `docker compose -p mediavault --env-file .env.production up -d --build` |
+| `mediavault-web` | React 19 + TypeScript + Vite + Tailwind CSS v4 + TanStack Query | UI。nginx で静的配信 |
+| `mediavault-api` | Rust + Axum + sqlx | REST API（公開 `/api/v1`、内部 `/internal`） |
+| `mediavault-mcp` | Rust + MCP (Streamable HTTP) | AIクライアント向けツール群 |
+| `api-client-lib` | Rust | 外部メタデータAPIクライアント（レート制限つき） |
+| `mediavault-postgres` | PostgreSQL 16 | データストア |
 
-イメージ指定はenvに置かない。自作サービス（`mediavault-api`/`mediavault-web`/`mediavault-worker`/`mediavault-mcp`）は`build:`でビルドし、バンドルOSSのタグは`docker-compose.yml`に直接固定する（`:latest`は使わない）。
+## 動作要件
 
-## 環境変数ファイルの構成
+- Docker / Docker Compose
+- 外部メタデータAPIを使う場合は各サービスのAPIキー（未設定のプロバイダーは単に利用できないだけで、起動は可能です）
 
-env ファイルは「**それを読み込むツールごとに1つ**」に分ける。同じ値を複数のファイルに書かない。
-
-| ファイル | 読み込む主体 | 責務 | サンプル |
-|---|---|---|---|
-| `.env.test` | `docker-compose.test.yml` の `${...}` 展開 | ローカル統合環境のPostgres/pgAdmin認証情報 | `.env.test.example` |
-| `.env.production` | `docker-compose.yml` の `${...}` 展開 | 本番の環境依存値と秘密（ホストパス・TZ/PUID・ネットワーク名・DB認証情報・APIキー）。イメージ指定は含まない | `.env.production.example` |
-| `backend/.env` | `cargo run` / `cargo test`（`main.rs` の `dotenvy`）と test compose の `env_file:` | backend単体をホスト上で動かすためのアプリ設定 | `backend/.env.example` |
-| `frontend/.env` | `vite` 開発サーバー（`yarn dev` / `yarn test:e2e`） | 開発サーバーのAPIプロキシ先のみ。未作成でも既定値で動く | `frontend/.env.example` |
-
-原則:
-
-- **compose 経由の起動では compose の `environment:` が唯一の権威**。`backend/.env` の値でも、`environment:` に同名キーがあればそちらが優先される（`docker-compose.test.yml` は `DATABASE_URL` と `*_STORAGE_PATH` をこの方法で上書きしている）。
-- **`env_file:` より `environment:` の明示列挙を優先する。** 何がコンテナに渡るか読めるし、不要な秘密が入り込まない。本番 `docker-compose.yml` は `env_file:` を使わない。
-- **`frontend` には秘密を渡さない。** `VITE_` 付きの変数はビルド時にJSバンドルへ平文で焼き込まれ、ブラウザから誰でも読める。
-- **実ファイル（`.env*`）はコミットしない**（`.gitignore` で `.env.*` を除外し `.env*.example` のみ追跡）。**サンプルは必ずコミットする。**
-- 本番の `.env.production` はリポジトリ外（例: `/srv/mediavault/.env.production`、パーミッション600）に置き `--env-file` の絶対パスで指すのが望ましい。
-
-## 統合環境（frontend + backend + db）の起動（テスト用）
+## セットアップ
 
 ```bash
-# 1. compose用の .env.test を準備する（.env.test.example からコピー）
-cp .env.test.example .env.test
+git clone <このリポジトリのURL> mediavault
+cd mediavault
 
-# 2. backendコンテナへ渡すアプリ設定も準備する（test compose が env_file で読む）
-cp backend/.env.example backend/.env
-
-# 3. 統合環境を起動する
-docker compose -f docker-compose.test.yml --env-file .env.test up -d --build
-
-# 4. 起動状態を確認する（db・backend・frontend が Up なら正常）
-docker compose -f docker-compose.test.yml ps
-```
-
-起動後、ブラウザで [http://localhost](http://localhost) にアクセスする。フロントエンドはnginx経由で配信され、`/api/`宛のリクエストはnginxが自動的にbackend（`http://backend:8080`）へリバースプロキシする。`backend`（8080番、ホストからは開発用に公開）・`db`（5432番）に加え、`frontend`（80番）にアクセスできる。
-
-`backend/mediavault-api/migrations/` 配下のSQLは `backend` 自身が起動時に適用する（[main.rs](backend/mediavault-api/src/main.rs) の `db::run_migrations`）。別途 `sqlx-cli` や `psql` で手動適用する必要はなく、専用の `migrate` サービスも存在しない。
-
-停止するには:
-```bash
-docker compose -f docker-compose.test.yml down
-```
-
-## 本番環境（docker-compose.yml）の起動
-
-ミニPC実機を想定した本番用構成。`mediavault-api`/`mediavault-web`/`mediavault-worker`/`mediavault-mcp`は本リポジトリのソースからローカルビルドし、Jellyfin・Calibre-Webをバンドルする。個々のコンテナはホストへポートを公開せず、外部リバースプロキシ用の`proxy-net`（本グループ外で作成・注入される）経由でのみ公開される。詳細な構成意図は[インフラ設計側のMediaVault/README.md](../homelab/デバイス/ミニPC/サービス/MediaVault/README.md)を参照。
-
-DBマイグレーションは`mediavault-api`が起動時に自ら適用する（[main.rs](backend/mediavault-api/src/main.rs)の`db::run_migrations`）。専用の`migrate`サービスは持たない。
-
-```bash
-# 1. 本番用 .env を準備する（.env.production.example からコピーし値を書き換える）
-cp .env.production.example .env.production
-
-# 2. 起動する（proxy-net は事前に外部で作成されている前提）
-#    worker/mcp は未実装（Dockerfile未作成）のため、ビルド対象から除外して起動する
-docker compose -p mediavault --env-file .env.production up -d --build \
-  postgres mediavault-api mediavault-web jellyfin calibre-web
-
-# 3. 起動状態を確認する
-docker compose -p mediavault --env-file .env.production ps
-```
-
-`mediavault-worker`/`mediavault-mcp`は`build:`（`backend/Dockerfile.worker`・`backend/Dockerfile.mcp`）を指定してあるが、**Dockerfileとソースがまだ無いためビルドできない**。実装が入るまではサービス名を明示して上記のように除外する。設計は[docs/backend/mediavault-worker/PRD.md](docs/backend/mediavault-worker/PRD.md)・[docs/backend/mediavault-mcp/PRD.md](docs/backend/mediavault-mcp/PRD.md)を参照。
-
-環境依存値（`DATA_ROOT`/`ANIME_ROOT`/`LIVE_ACTION_ROOT`/`MANGA_ROOT`/`MEDIAVAULT_ROOT`/`TZ`/`PUID`/`PGID`/Postgres認証情報/`INTERNAL_API_KEY`/`CORS_ALLOWED_ORIGIN`/外部メタデータAPIキー/検索バックエンド/LLMエンドポイント等）はすべて`.env.production`に外だししてある。`.env.production`はコミットしない（`.gitignore`で除外済み）。
-
-`INTERNAL_API_KEY` と各GHCRイメージタグ・Postgres認証情報は `${VAR:?}` で必須指定してあるため、未設定なら起動前にエラーになる。起動前に次のコマンドで全変数が解決することを確認できる。
-
-```bash
-docker compose -p mediavault --env-file .env.production config >/dev/null
-```
-
-## backend
-```
-cd backend
-cargo init --name backend
-cargo add tokio --features full
-cargo add axum
-cargo add serde --features derive
-cargo add serde_json
-cargo add tower
-cargo add tower-http --features cors
-```
-
-### backend単体の起動（ホスト上で cargo run）
-
-`backend/.env.example` を `backend/.env` にコピーし、必要に応じて値を変更する（`DATABASE_URL` は `localhost` のPostgresを指している）。
-
-```bash
-# Postgresだけコンテナで用意する
-docker compose -f docker-compose.test.yml --env-file .env.test up -d db
-
-cd backend
 cp .env.example .env
-cargo run -p mediavault-api      # main.rs が dotenvy で backend/.env を読む
+# .env を編集する（最低限、以下の2つは必須）
+#   MEDIAVAULT_DB_PASSWORD : DBパスワード
+#   MCP_AUTH_TOKEN         : openssl rand -base64 48 で生成した値
+
+docker compose up -d --build
 ```
 
-`.env` はリポジトリにコミットしない（`.gitignore` で除外済み）。backend単体用の compose ファイルは存在しない（統合環境は `docker-compose.test.yml`）。
+起動後:
 
-## frontend
+| URL | 内容 |
+|---|---|
+| http://127.0.0.1:8080 | Web UI |
+| http://127.0.0.1:8080/api/v1/health | API ヘルスチェック |
+| http://localhost:8081/healthz | MCP ヘルスチェック |
+
+`docker compose ps` で全サービスが `healthy` になれば完了です。
+
+## 設定
+
+主な環境変数（すべて `.env`。詳細は [.env.example](.env.example) を参照）。
+
+### 基本
+
+| 変数 | 既定値 | 説明 |
+|---|---|---|
+| `TZ` | `Asia/Tokyo` | タイムゾーン |
+| `BIND_ADDRESS` | `127.0.0.1` | Web UI の公開先。LANに開くなら `0.0.0.0` |
+| `MEDIAVAULT_WEB_PORT` | `8080` | Web UI のホスト側ポート |
+| `MEDIAVAULT_ALLOWED_ORIGIN` | `http://127.0.0.1:8080` | CORS 許可オリジン。公開URLを変えたら合わせて変更する |
+| `MEDIAVAULT_DB_PASSWORD` | （必須） | PostgreSQL のパスワード |
+
+### ストレージ
+
+| 変数 | 既定値 | 説明 |
+|---|---|---|
+| `MEDIAVAULT_DB_SOURCE` | `mediavault-db` | DBデータの保存先。名前付きボリュームかホストの絶対パス |
+| `MEDIAVAULT_STORAGE_SOURCE` | `mediavault-storage` | アップロードファイルの保存先（コンテナ内 `/srv/mediavault`） |
+| `LIBRARY_SOURCE` | `shares` | 既存の作品ファイル置き場。読み取り用にマウントされる（コンテナ内 `/library`） |
+
+### 外部メタデータAPI
+
+`TMDB_API_KEY` / `STEAM_API_KEY` / `STEAM_USER_ID` / `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` / `ANNICT_ACCESS_TOKEN` / `RAKUTEN_APPLICATION_ID` / `RAKUTEN_ACCESS_KEY`
+
+いずれも任意です。設定したプロバイダーだけが検索・インポートで使えるようになります。国立国会図書館 / OpenLibrary / openBD / Jikan はキー不要です。
+
+### MCP
+
+| 変数 | 既定値 | 説明 |
+|---|---|---|
+| `MCP_AUTH_TOKEN` | （必須） | MCP エンドポイントの Bearer トークン |
+| `MCP_BIND_ADDRESS` | `0.0.0.0` | MCP の公開先インターフェース |
+| `MEDIAVAULT_MCP_PORT` | `8081` | MCP のホスト側ポート |
+| `INTERNAL_API_KEY` | 空 | 内部API (`/internal`) 用キー。未設定でも起動する |
+
+## MCP からの利用
+
+エンドポイントは `http://<ホスト>:8081/mcp`（Streamable HTTP）。`/healthz` を除き `Authorization: Bearer <MCP_AUTH_TOKEN>` が必須です。
+
+Claude Code の場合:
+
+```bash
+claude mcp add --transport http mediavault http://<ホスト>:8081/mcp \
+  --header "Authorization: Bearer <MCP_AUTH_TOKEN の値>"
 ```
+
+設定ファイルで指定する場合:
+
+```json
+{
+  "mcpServers": {
+    "mediavault": {
+      "type": "http",
+      "url": "http://<ホスト>:8081/mcp",
+      "headers": { "Authorization": "Bearer <MCP_AUTH_TOKEN の値>" }
+    }
+  }
+}
+```
+
+提供ツール:
+
+| ツール | 内容 |
+|---|---|
+| `search_library` | コレクション内の検索 |
+| `search_external_catalog` | 外部メタデータAPIの横断検索 |
+| `import_external_item` | 外部検索結果をコレクションへ取り込み |
+| `create_item` | 手動でのアイテム作成 |
+| `get_item_context` | アイテムの詳細・関連情報の取得 |
+| `update_consumption` | 視聴/読了ステータス・日付・評価の更新 |
+| `organize_item` | タグ・カテゴリ・マイリストの整理 |
+| `relate_items` | アイテム間の関連付け |
+| `add_access_link` | リンク・ファイル・配信URLの追加 |
+| `collection_overview` | コレクション全体のサマリー |
+| `health` | 稼働確認 |
+
+詳細は [docs/backend/mediavault-mcp/README.md](docs/backend/mediavault-mcp/README.md) を参照してください。
+
+## インポート
+
+- **ブクログ (CSV)** — 設定画面からエクスポート済みCSVをアップロードします。書式は [docs/booklog-import-sample/README.md](docs/booklog-import-sample/README.md) を参照
+- **Steam ライブラリ** — `STEAM_API_KEY` と `STEAM_USER_ID` を設定すると、所有ゲームを一括で取り込めます
+
+<!--
+![インポート画面](docs/images/import.png)
+-->
+
+## 開発
+
+### フロントエンド
+
+```bash
 cd frontend
-yarn create vite . --template react-ts
 yarn install
+yarn dev          # 開発サーバー
+yarn test         # Vitest（ユニット）
+yarn test:e2e     # Playwright（E2E）
+yarn lint
+yarn storybook    # コンポーネントカタログ
 ```
 
-採用パッケージ: react-router-dom v7, @tanstack/react-query v5, react-hook-form, zod, sonner, Tailwind CSS v4 + shadcn/ui（`components.json`、`@/`エイリアス）, Vitest + Testing Library, Playwright。
+### バックエンド
 
-### 開発コマンド
 ```bash
-cd frontend
-yarn dev        # 開発サーバー起動
-yarn build      # 型チェック+ビルド
-yarn lint       # ESLint
-yarn test       # Vitestユニットテスト
-yarn test:watch # Vitestウォッチモード
-yarn test:e2e   # Playwright E2Eテスト（初回は npx playwright install が必要）
+cd backend
+cargo fmt
+cargo clippy --all-targets -- -D warnings
+cargo test --include-ignored   # DB接続を伴う統合テストを含む
+cargo build -p mediavault-api
 ```
 
-### shadcn/uiコンポーネント追加
-```bash
-cd frontend
-npx shadcn@latest add <component-name>
-```
+DBマイグレーションは `backend/mediavault-api/migrations/` に置かれ、sqlx で管理されています。
 
-### トラブルシューティング: shadcn CLIの「Could not load the workspace config」エラー
+## ドキュメント
 
-`package.json`が`"type": "module"`のESM環境のため、`vite.config.ts`・`vitest.config.ts`で`__dirname`を直接使うとshadcn CLIのワークスペース設定読み込みに失敗する。`path.dirname(fileURLToPath(import.meta.url))`で算出すること。また`tsconfig.json`（ルート）にも`compilerOptions.paths`（`@/*` → `./src/*`）を設定する必要がある（`tsconfig.app.json`のみでは`tsconfig-paths`が解決できない）。
+| 資料 | 内容 |
+|---|---|
+| [docs/PRD.md](docs/PRD.md) | 全体要件 |
+| [docs/backend/mediavault-api/index.md](docs/backend/mediavault-api/index.md) | REST API 仕様（共通形式・エラーコード） |
+| [docs/backend/mediavault-api/data-model.md](docs/backend/mediavault-api/data-model.md) | データモデル |
+| [docs/backend/mediavault-mcp/](docs/backend/mediavault-mcp/) | MCPサーバーの設計・ツール仕様 |
+| [docs/frontend/design/](docs/frontend/design/) | 画面設計 |
+| [docs/api-client-lib/](docs/api-client-lib/) | 外部API調査メモ |
 
-## 詳細
-- バックエンドの詳細草案は[docs/backend/PRD.md](docs/backend/PRD.md)を参照。
-- フロントエンドの詳細草案は[docs/frontend/PRD.md](docs/frontend/PRD.md)を参照。
+## セキュリティについて
 
-- 映画・アニメ・漫画・小説・ドラマ・ゲーム・論文/文献・書籍等のメタデータを一元管理するセルフホスト型アプリケーション。
-- API/Webは`proxy-net`、API/PostgreSQLは`db-net`で接続し、ホストへ直接ポートを公開しない。
-- アップロードファイルはMediaVault専用領域へ保存する。
-  - 保存先ルートは`STORAGE_ROOT`（ホスト側`MEDIAVAULT_ROOT`と同じ`/srv/mediavault`）で、その配下のアップロード領域`files/`（`STORAGE_SUBDIR_FILES`で上書き可）に**アイテムIDごとのフォルダ**を切って保存する（`files/{item_id}/{uuid}.{ext}`）。
-  - `/srv/anime`・`/srv/live-action`・`/srv/manga`は読み取り専用で参照する。既存ファイルは`POST /items/:id/files`で絶対パスを登録してリンクし、コピー・移動しない。
-  - 詳細は [docs/backend/mediavault-api/item-files.md](./docs/backend/mediavault-api/item-files.md) を参照。
+MediaVault は**単一ユーザー・セルフホスト前提**の設計で、公開API (`/api/v1`) に認証がありません。インターネットに直接公開せず、LAN内で運用するか、リバースプロキシ（Caddy / nginx など）で HTTPS 終端と認証をかけてください。MCP エンドポイントは Bearer トークンで保護されています。
+
+## ライセンス
+
+（未設定）

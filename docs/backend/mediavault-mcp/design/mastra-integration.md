@@ -2,7 +2,7 @@
 
 **作成日**: 2026-08-11
 **関連設計**: [architecture.md](architecture.md) / [mcp-tools.md](mcp-tools.md) / [interfaces.rs](interfaces.rs)
-**関連PRD**: [MediaVault-mcp PRD](../PRD.md) §7.2・§8 / [intrahub-mastra PRD](../../../../../intrahub-mastra/docs/PRD.md)
+**関連PRD**: [MediaVault-mcp PRD](../PRD.md) §7.2・§8 / [intrahub-mastra PRD](../../../../../intrahub-mastra/docs/草案PRD.md)
 
 > **注**: 本書は `intrahub-mastra`（Knowledge Vault生成Agent群）が MediaVault-mcp をMCPクライアントとして利用するために必要な、第2段階ツール `get_item_text` の詳細設計と、既存MVPツールの利用範囲を定義する。`mcp-tools.md` §「第2段階で追加するツール」を具体化するものであり、MVPツール（`search_library`, `get_item_context` 等）の仕様はそのまま流用する。
 
@@ -15,7 +15,7 @@
 
 ## 1. 前提: intrahub-mastraが必要とする操作 🔵
 
-**信頼性**: 🔵 *intrahub-mastra PRD §7・§8・§10 より*
+**信頼性**: 🔵 *intrahub-mastra PRD §9・§11・§13・§15 より*
 
 `mediaResearchAgent`（Read Only）が `generateItemKnowledgeWorkflow` の中で呼び出すツールは以下の3つに限定される。
 
@@ -25,7 +25,7 @@
 | 2 | `get_item_context` | Item本体・関連作品・スタッフ・ファイル一覧などを取得する |
 | 3 | `get_item_text` | ファイルの抽出済み全文を取得し、`ResearchResult` 生成の材料にする（**本書で新設**） |
 
-書き込み系ツール（`create_item` / `update_consumption` / `organize_item` / `relate_items` / `add_access_link`）は `mediaResearchAgent` には一切公開しない。これはMediaVault-mcp側の権限制御ではなく、Mastra側でAgentに渡すツール集合を絞ることで実現する（intrahub-mastra PRD §6原則5・§10）。MediaVault-mcp側は将来的にトークンのスコープ分離（read-onlyトークン）を検討可能だが、MVPでは同一トークンで運用する。
+書き込み系ツール（`create_item` / `update_consumption` / `organize_item` / `relate_items` / `add_access_link`）は `mediaResearchAgent` には一切公開しない。これはMediaVault-mcp側の権限制御ではなく、Mastra側でAgentに渡すツール集合を絞ることで実現する（intrahub-mastra PRD §8原則6・§15）。MediaVault-mcp側は将来的にトークンのスコープ分離（read-onlyトークン）を検討可能だが、MVPでは同一トークンで運用する。
 
 ## 2. get_item_text 🔵
 
@@ -89,7 +89,7 @@ Itemに紐づくファイルの抽出済み全文を、ページまたはチャ�
 **信頼性**: 🔵 *PRD §11 より*
 
 - 1回のレスポンスに全文を詰め込まない。`total_chunks` を返し、Agent側がループで取得する。
-- `mediaResearchAgent` は取得したチャンクを `ResearchResult.sources[].fileId` / `extractedAt` に記録し、出典追跡を維持する（intrahub-mastra PRD §8）。
+- `mediaResearchAgent` は取得したチャンクを `ResearchResult.sources[].fileId` / `chunks[].extractedAt` に記録し、出典追跡を維持する（intrahub-mastra PRD §13）。
 
 ### annotations 🔵
 
@@ -116,7 +116,7 @@ Itemに紐づくファイルの抽出済み全文を、ページまたはチャ�
 
 ## 5. 対象外（本書のスコープ外） 🔵
 
-**信頼性**: 🔵 *intrahub-mastra PRD §15・MediaVault-mcp PRD §13 より*
+**信頼性**: 🔵 *intrahub-mastra PRD §5・MediaVault-mcp PRD §13 より*
 
 - `enqueue_job` / `get_job` / `list_jobs` / `cancel_job` の詳細設計（PRD §7.2に別途記載、必要になった時点で設計する）
 - Knowledge Vault側の `vault-mcp`（`search_notes` / `create_note` 等）の設計。これは `intrahub-mastra` 側のリポジトリ・別ドキュメントで扱う。
@@ -126,4 +126,4 @@ Itemに紐づくファイルの抽出済み全文を、ページまたはチャ�
 
 - [MediaVault-mcp PRD](../PRD.md)
 - [mcp-tools.md](mcp-tools.md) — 既存MVPツール（`search_library` / `get_item_context` 等）の詳細仕様
-- [intrahub-mastra PRD](../../../../../intrahub-mastra/docs/PRD.md) — 本連携を利用するAgent/Workflow設計
+- [intrahub-mastra PRD](../../../../../intrahub-mastra/docs/草案PRD.md) — 本連携を利用するAgent/Workflow設計
