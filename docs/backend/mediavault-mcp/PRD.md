@@ -351,7 +351,7 @@ stdioトランスポートの提供もこの段階に含める（§14）。
 
 | 項目 | 決定 | ステータス | 反映先 |
 |---|---|---|---|
-| ナレッジの正本 | KnowledgeHub Vault（`/srv/knowledge/vault/10_Knowledge`）を正本とし、MediaVaultはナレッジ本文を所有しない | 確定 | §4.2、§5 US-10、§6、§7.2、§8、§9.3、§13 |
+| ナレッジの正本 | KnowledgeHub Vault（`/srv/knowledge/second-brain`）を正本とし、MediaVaultはナレッジ本文を所有しない | 確定 | §4.2、§5 US-10、§6、§7.2、§8、§9.3、§13 |
 | embeddingの保存場所 | KnowledgeHub側に置く。MediaVaultへは保存しない | 確定 | §6、§13 |
 | 関係種別 | 固定の一覧とする。値を `adaptation` / `sequel` / `prequel` / `spinoff` / `dlc` / `reference` へ拡張するようMediaVault-apiへ要求する。利用者定義は将来候補 | 確定 | §5 US-07、§7.3、§8 |
 | stdio／Streamable HTTPの提供順序 | MVPはStreamable HTTPのみ。stdioは第2段階 | 確定 | §7.2、§11、§14 |
