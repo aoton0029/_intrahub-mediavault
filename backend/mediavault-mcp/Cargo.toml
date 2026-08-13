@@ -5,6 +5,9 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8.9"
+# 🔵 設計決定 D-10: rmcp が `RequestContext::extensions` へ注入する
+#    `http::request::Parts` を読むために直接依存する
+http = "1"
 tokio = { version = "1.52.3", features = ["full"] }
 tower = "0.5.3"
 tower-http = { version = "0.7.0", features = ["trace"] }

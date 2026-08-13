@@ -185,6 +185,13 @@ pub struct ItemGroup {
     pub group_type: String,
     pub group_name: String,
     pub number: Option<f64>,
+    /// 親作品（シリーズ本体）の item_id。
+    ///
+    /// 🔵 Intent: 設計決定 D-07 より。`mediavault-api/src/models/item_group.rs` の
+    ///    `parent_item_id: Option<Uuid>` に対応する。シリーズ名解決の**唯一の一次情報**であり、
+    ///    `group_name`（"Season 1" 等）を代用してはならない。
+    #[serde(default)]
+    pub parent_item_id: Option<Uuid>,
 }
 
 /// `GET /items/{id}/staff` が返す `ItemStaff`。
@@ -324,4 +331,61 @@ pub struct ItemDetail {
     pub categories: Vec<ApiNamedRef>,
     #[serde(default)]
     pub streaming_links: Vec<ApiStreamingLink>,
+}
+
+/// 引用の位置情報の種別。
+///
+/// 🔵 Intent: `mediavault-api/src/models/citation.rs` の `LocatorType`・`citations.md` より。
+///    api への送信（Serialize）と受信（Deserialize）の両方で使う。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LocatorType {
+    /// ページ番号（書籍・論文）
+    Page,
+    /// 再生秒数（映像作品）
+    Timestamp,
+    /// 電子書籍の位置No.
+    Location,
+    /// 章
+    Chapter,
+    /// 位置情報なし
+    None,
+}
+
+/// `GET /items/{id}/citations` が返す `Citation`。
+///
+/// 🔵 Intent: `mediavault-api/src/models/citation.rs` の `Citation` より。位置情報は
+///    api の値をそのまま保持し、「p.128」のような表示文字列へ整形しない（REQ-146）。
+#[derive(Debug, Clone, Deserialize)]
+pub struct Citation {
+    pub id: Uuid,
+    pub quote_text: String,
+    pub note: Option<String>,
+    pub locator_type: LocatorType,
+    pub page_number: Option<i32>,
+    pub timestamp_seconds: Option<i32>,
+    pub location_number: Option<i32>,
+    pub chapter: Option<String>,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+/// `POST /items/{id}/citations` のリクエストボディ。
+///
+/// 🔵 Intent: `citations.md` `CreateCitationRequest` より。api 側は `locator_type` と
+///    位置フィールドの整合を**必須バリデーションしない**ため、送信前に MCP 側で検証する
+///    （設計決定 D-11 / REQ-904）。
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateCitationRequest {
+    pub quote_text: String,
+    pub locator_type: LocatorType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page_number: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp_seconds: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location_number: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chapter: Option<String>,
 }

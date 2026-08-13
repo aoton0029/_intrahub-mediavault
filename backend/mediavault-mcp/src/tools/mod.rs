@@ -1,6 +1,7 @@
 //! Tool層: スキーマ定義と引数検証。各ツールは後続タスクで実装する
 
 pub mod add_access_link;
+pub mod citations;
 pub mod collection_overview;
 pub mod create_item;
 pub mod get_item_context;

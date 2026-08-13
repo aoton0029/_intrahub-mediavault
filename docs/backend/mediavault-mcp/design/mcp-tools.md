@@ -117,6 +117,8 @@ Authorization: Bearer {MCP_AUTH_TOKEN}
 
 ## ツール一覧
 
+> MediaVault-api の**どのエンドポイントを露出し、どれを露出しないか**の全体像は [api-tool-mapping.md](api-tool-mapping.md) を参照。本節は公開するツールの仕様のみを扱う。
+
 | # | ツール名 | 種別 | 関連US | 関連要件 |
 |---|---|---|---|---|
 | 1 | [`search_library`](#1-search_library) | 読み取り | US-01, US-09 | REQ-010 ~ REQ-014 |
@@ -226,6 +228,7 @@ Authorization: Bearer {MCP_AUTH_TOKEN}
     "streaming_links": [{ "link_id": "...", "platform": "netflix", "url": "https://..." }],
     "detail": { "episodes": 12, "studios": ["..."] }
   },
+  "series":    { "state": "loaded", "item_id": "a1b2c3d4-...", "title": "作品Aシリーズ" },
   "relations": { "state": "loaded", "items": [ /* RelationView */ ] },
   "mylists":   { "state": "empty" },
   "groups":    { "state": "empty" },
@@ -234,6 +237,7 @@ Authorization: Bearer {MCP_AUTH_TOKEN}
   "files":     { "state": "failed", "error": { "code": "INTERNAL_ERROR", "message": "...", "retriable": true } },
   "links":     { "state": "loaded", "items": [] },
   "trailers":  { "state": "empty" },
+  "citations": { "state": "loaded", "count": 12 },
   "error": null
 }
 ```
@@ -247,6 +251,25 @@ Authorization: Bearer {MCP_AUTH_TOKEN}
 | `failed` | **取得失敗**（未登録とは異なる） |
 
 1つでも `failed` があれば全体の `outcome` は `partial` になる。
+
+`items` を持つのが通常のセクションだが、次の2つは形が異なる。
+
+| セクション | 形 | 理由 |
+|---|---|---|
+| `series` | `{state, item_id, title}` | 単一の値であり配列ではない |
+| `citations` | `{state, count}` | **本文を含めない**。`quote_text` は長さ・件数とも上限がなく、含めるとレスポンスサイズが Item 依存で予測不能になる（NFR-002）。本文は `list_citations` で取得する |
+
+**`series` の解決規則**（D-07 / mastra REQ-016a）🔵
+
+**信頼性**: 🔵 *[intrahub-mastra requirements.md](../../../../../intrahub-mastra/docs/spec/knowledge-vault-generation/requirements.md) REQ-016a より*
+
+`GET /items/{id}/groups` の `parent_item_id` が非 null のとき、その ID で親 Item を引き `title` をシリーズ名とする。解決できない場合は `state: "empty"` を返す。
+
+**`group_name`（"Season 1" 等）をシリーズ名に流用してはならない。また `relations` の `sequel` / `prequel` から推測してはならない。** 利用側（intrahub-mastra）は Knowledge Note の配置先をこの値から決定し、LLM による推測を禁止しているため、規則が一意でない値を返すと配置が不安定になる。「分からない」を正確に返すことが本セクションの責務である。
+
+`series` は `groups` の結果を見てから親 Item を引くため、**取得は2段構成**になる（既存決定 D-05「`futures::join!` で並列合成」の例外）。第1ラウンドで `GET /items/{id}` と各セクション（`citations` の件数を含む）を並列取得し、`parent_item_id` が非 null のときのみ第2ラウンドで親 Item を1回引く。親 Item の取得失敗は `series` を `failed` にするだけで、他セクションには影響させない。
+
+詳細は [api-tool-mapping.md](api-tool-mapping.md) §4 D-07。
 
 **主なエラー**:
 
@@ -661,40 +684,51 @@ Authorization: Bearer {MCP_AUTH_TOKEN}
 
 **信頼性**: 🔵 *REQ-141・PRD §10 / §13 / §15.1 より*
 
-以下は `tools/list` に**含めない**:
+エンドポイント単位の全リストと根拠は [api-tool-mapping.md](api-tool-mapping.md) §2 の **N 区分**（全76本中35本）を参照。要約すると、以下は `tools/list` に**含めない**:
 
-- Item 削除、ファイル削除、関連解除、タグ・カテゴリ・マイリストの削除
-- 物理ファイルの移動・リネーム
-- APIキーの参照・更新
-- 一括タグ付与、一括ステータス更新、重複統合
+- Item 削除、ファイル削除、関連解除、タグ・カテゴリ・マイリストの削除（DELETE 15本すべて）
+- 物理ファイルの登録・アップロード・Calibre連携IDの書き換え
+- APIキーの参照・更新（`PUT /settings/api-keys/{provider}` は**レスポンスに `api_key` を平文で含む**ため特に危険）
+- 一括インポート（Booklog CSV / Steam ライブラリ）、一括タグ付与、一括ステータス更新、重複統合
+- 人物マスタ・グループ・エピソード・画像の登録
+- 内部API（公開API に同一目的のものがあり二重露出になる）
+
+**`PATCH /citations/{citation_id}` も N とする**。`quote_text` はユーザーが書いた本文であり、上書きは実質的に破壊的である。`update_consumption` が扱う `status` / `rating` のような機械的フィールドとは性質が異なる（[api-tool-mapping.md](api-tool-mapping.md) §3 D-11）。
 
 ## 第2段階で追加するツール 🔵
 
-**信頼性**: 🔵 *PRD §7.2・REQ-900 ~ REQ-902 より*
+**信頼性**: 🔵 *PRD §7.2・REQ-900 ~ REQ-904 より*
 
-| ツール | 対応US | 前提 |
-|---|---|---|
-| `get_item_text` | US-10 | `GET /items/{id}/text` の新設 + 全文抽出の実装 |
-| `enqueue_job` / `get_job` / `list_jobs` / `cancel_job` | US-11 | 汎用 jobs API の実装 |
+| ツール | 対応US | 前提 | 状況 |
+|---|---|---|---|
+| `list_citations` / `add_citation` | US-12 | **既存APIのみで実装可能**。詳細は [api-tool-mapping.md](api-tool-mapping.md) §3 | ✅ **実装済み** |
+| `get_item_text` | US-10 | `GET /items/{id}/text` の新設（[item-text.md](../../mediavault-api/item-text.md)）+ 全文抽出の実装。**実装されるまで `tools/list` に出さない**（D-09。「ツール不在」と「抽出未了」を利用側が区別できるようにするため） | ⛔ api 待ち |
+| `enqueue_job` / `get_job` / `list_jobs` / `cancel_job` | US-11 | 汎用 jobs API の実装 | ⛔ api 待ち |
+
+`list_citations` / `add_citation` の実装により、**公開ツールは11個から13個**（読み取り専用6・書き込み7）になった。
 
 stdio トランスポートも第2段階。Tool層・Service層は変更せず、`main.rs` / `server.rs` のみで対応する（REQ-902）。
+
+read-only トークンスコープ（D-10）は ✅ **実装済み**。`MCP_READONLY_TOKEN` を設定すると、そのトークンで接続したセッションでは `tools/list` が `readOnlyHint: true` のツールのみを返し、書き込みツールの呼び出しも「ツールが存在しない」として拒否される。
 
 ---
 
 ## 関連文書
 
+- **API対応表**: [api-tool-mapping.md](api-tool-mapping.md) — 全エンドポイントの露出可否と決定事項 D-07〜D-12
 - **アーキテクチャ**: [architecture.md](architecture.md)
 - **データフロー**: [dataflow.md](dataflow.md)
 - **型定義**: [interfaces.rs](interfaces.rs)
 - **設計ヒアリング**: [design-interview.md](design-interview.md)
+- **mastra連携**: [mastra-integration.md](mastra-integration.md)
 - **要件定義**: [requirements.md](../spec/requirements.md)
 - **受け入れ基準**: [acceptance-criteria.md](../spec/acceptance-criteria.md)
 - **MediaVault-api 仕様**: [docs/backend/mediavault-api/](../../mediavault-api/)
 
 ## 信頼性レベルサマリー
 
-- 🔵 青信号: 47件 (85%)
-- 🟡 黄信号: 8件 (15%)
+- 🔵 青信号: 49件 (86%)
+- 🟡 黄信号: 8件 (14%)
 - 🔴 赤信号: 0件 (0%)
 
 **品質評価**: ✅ **高品質**

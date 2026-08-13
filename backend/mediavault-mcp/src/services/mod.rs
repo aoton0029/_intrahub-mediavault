@@ -2,6 +2,7 @@
 
 pub mod add_access_link;
 pub mod attach;
+pub mod citations;
 pub mod collection_overview;
 pub mod context;
 pub mod create_item;

@@ -1336,6 +1336,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "futures",
+ "http",
  "reqwest",
  "rmcp",
  "schemars",

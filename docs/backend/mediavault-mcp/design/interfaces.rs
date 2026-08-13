@@ -35,6 +35,12 @@ pub enum Outcome {
     Ambiguous,
     /// 指定された対象が存在しなかった（REQ-110）
     NotFound,
+    /// 対象は存在するが、全文抽出が未実行のため内容を返せなかった。
+    /// `NotFound`（材料が無い）と区別する必要がある。前者は抽出を依頼すれば
+    /// 解決し、後者は解決しない。
+    /// 🔵 第2段階（`get_item_text`）でのみ使用。設計決定 D-08・
+    ///    intrahub-mastra NFR-031 より
+    NotExtracted,
 }
 
 /// ツール結果に埋め込むエラー情報。
@@ -295,6 +301,33 @@ pub enum Section<T> {
     Failed { error: ToolError },
 }
 
+/// 件数だけを返すセクション。本文を含めるとレスポンスサイズが
+/// Item 依存で予測不能になる対象に使う。
+/// 🟡 設計決定 D-12（api-tool-mapping.md §3）・NFR-002 より
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum CountSection {
+    /// 取得に成功し、1件以上ある
+    Loaded { count: u32 },
+    /// 取得に成功したが、1件もない
+    Empty,
+    /// 取得に失敗した
+    Failed { error: ToolError },
+}
+
+/// シリーズ（親作品）を表すセクション。配列ではなく単一の値を持つ。
+/// 🔵 設計決定 D-07・intrahub-mastra REQ-016a より
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum SeriesSection {
+    /// 親 Item が解決できた
+    Loaded { item_id: Uuid, title: String },
+    /// シリーズを持たない（`parent_item_id` がすべて null）
+    Empty,
+    /// 取得に失敗した
+    Failed { error: ToolError },
+}
+
 /// 🔵 REQ-020 / REQ-021 / REQ-022・PRD §8「追加呼び出しは関連・マイリスト・
 /// グループ・キャスト・ファイル・リンク・トレーラーに限られる」より
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
@@ -303,6 +336,11 @@ pub struct ItemContextResult {
     /// `GET /items/{id}` から取得した本体。これが取得できなければ outcome は NotFound
     pub item: Option<ItemDetailView>,
     // --- 以下は追加の並列取得分 ---
+    /// シリーズ名。`GET /items/{id}/groups` の `parent_item_id` から親 Item を引いて解決する。
+    /// `group_name` や sequel/prequel 関係から**推測してはならない**（利用側が
+    /// Knowledge Note の配置先をこの値から決定し、LLM の推測を禁じているため）。
+    /// 🔵 設計決定 D-07・intrahub-mastra REQ-016a / EDGE-006 より
+    pub series: SeriesSection,
     pub relations: Section<RelationView>,
     pub mylists: Section<NamedRef>,
     pub groups: Section<GroupView>,
@@ -311,6 +349,9 @@ pub struct ItemContextResult {
     pub files: Section<FileView>,
     pub links: Section<LinkView>,
     pub trailers: Section<LinkView>,
+    /// 引用は**件数のみ**。本文は `list_citations` で取得する。
+    /// 🟡 設計決定 D-12・NFR-002 より
+    pub citations: CountSection,
     pub error: Option<ToolError>,
 }
 
@@ -368,6 +409,10 @@ pub struct GroupView {
     pub name: String,
     /// season / volume 等 🟡 api の group_type に対応
     pub group_type: String,
+    /// MVP では常に None。件数を得るにはグループごとに
+    /// `GET /groups/{group_id}/episodes` を呼ぶ必要があり（N+1）、
+    /// NFR-002 / NFR-005 に抵触するため取得しない。
+    /// 🔵 api-tool-mapping.md §2.5（`GET /groups/{id}/episodes` を F 区分とする判断）より
     pub episode_count: Option<u32>,
 }
 
@@ -806,6 +851,100 @@ pub struct ApiPagination {
 }
 
 // ============================================================
+// ツール12・13: list_citations / add_citation（第2段階）
+// ============================================================
+
+/// 引用の位置情報の種別。
+/// 🔵 `citations.md` の locator_type・`index.md` 主要Enum より
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LocatorType {
+    /// ページ番号（書籍・論文）
+    Page,
+    /// 再生秒数（映像作品）
+    Timestamp,
+    /// 電子書籍の位置No.
+    Location,
+    /// 章
+    Chapter,
+    /// 位置情報なし
+    None,
+}
+
+/// 🟡 REQ-903・`GET /items/{id}/citations` より
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+pub struct ListCitationsParams {
+    pub item_id: Uuid,
+    /// 1..=50、既定 20 🔵 REQ-130 / REQ-143（共通のページネーション規約）
+    pub limit: Option<u8>,
+    /// 前回レスポンスの `next_cursor` 🟡 api にページネーションが無いため
+    /// MCP 側でオフセットを不透明化した文字列
+    pub cursor: Option<String>,
+}
+
+/// 🟡 REQ-903 より
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+pub struct ListCitationsResult {
+    pub outcome: Outcome,
+    pub item_id: Uuid,
+    /// api が全件を返すため常に確定する 🟡
+    pub total_count: u32,
+    pub citations: Vec<CitationView>,
+    pub next_cursor: Option<String>,
+    pub error: Option<ToolError>,
+}
+
+/// 位置情報は api の値をそのまま透過する。
+/// 「p.128」のような表示文字列へ整形しない（REQ-146 の趣旨）。
+/// 🔵 `citations.md` の Citation より
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+pub struct CitationView {
+    pub citation_id: Uuid,
+    pub quote_text: String,
+    pub note: Option<String>,
+    pub locator_type: LocatorType,
+    pub page_number: Option<i32>,
+    pub timestamp_seconds: Option<i32>,
+    pub location_number: Option<i32>,
+    pub chapter: Option<String>,
+    pub created_at: NaiveDateTime,
+}
+
+/// 🟡 REQ-904・`POST /items/{id}/citations` より
+///
+/// ⚠️ `locator_type` と位置フィールドの整合は **MCP 側で検証する**。
+/// api は「対応する値の指定を推奨するが必須バリデーションはしない」ため、
+/// `Page` なのに `page_number` が無い引用が黙って保存されうる。
+/// AI からの入力を受ける MCP でこれを緩くすると出典不明の引用が蓄積し、
+/// 利用側の出典追跡が成立しなくなる。不整合は api を呼ばずに
+/// `MCP_INVALID_ARGUMENT` で弾く。`None` のときのみ全位置フィールドの
+/// 未指定を要求する。
+/// 🟡 設計決定 D-11（api-tool-mapping.md §3）より
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+pub struct AddCitationParams {
+    pub item_id: Uuid,
+    pub quote_text: String,
+    pub locator_type: LocatorType,
+    pub note: Option<String>,
+    pub page_number: Option<i32>,
+    pub timestamp_seconds: Option<i32>,
+    pub location_number: Option<i32>,
+    pub chapter: Option<String>,
+}
+
+/// 🟡 REQ-904 より
+///
+/// ⚠️ **冪等ではない**。api に重複検出がなく、同一 `quote_text` の
+/// 二重登録を防げない。PRD §6 原則6「冪等にできる操作は冪等に」の
+/// 適用外であり、ツール説明で重複登録を戒める。
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+pub struct AddCitationResult {
+    pub outcome: Outcome,
+    pub citation: Option<CitationView>,
+    pub error: Option<ToolError>,
+}
+
+// ============================================================
 // 設定 (src/config.rs)
 // ============================================================
 
@@ -842,13 +981,14 @@ impl std::fmt::Debug for SecretString {
 // 信頼性レベルサマリー
 // ============================================================
 //
-// - 🔵 青信号: 78件 (83%)
-// - 🟡 黄信号: 16件 (17%)
+// - 🔵 青信号: 82件 (79%)
+// - 🟡 黄信号: 22件 (21%)
 // - 🔴 赤信号: 0件 (0%)
 //
 // 品質評価: 高品質
 //
 // 🟡 の内訳: レスポンス整形（release_year / tags名のみ）、
 // タイムアウト値、`retriable` フラグ、`SecretString`、
-// `RelationDirection` など、要件から導出した実装レベルの具体化。
+// `RelationDirection`、および citations 関連（D-11 / D-12。
+// 対応する US-12 / REQ-903 / REQ-904 を本設計と同時に新設したため）。
 // 要件の解釈に曖昧さは残っていない。

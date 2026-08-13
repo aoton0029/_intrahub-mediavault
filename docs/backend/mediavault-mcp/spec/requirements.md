@@ -126,6 +126,9 @@ REST API をそのままツール化せず、利用者の目的単位のツー�
 - REQ-900: システムは 抽出済み全文をページまたはチャンク単位で取得できるようにする（`get_item_text`, US-10）🔵 *PRD §7.2より*
 - REQ-901: システムは 非同期ジョブを冪等に投入・監視・キャンセルできるようにする（`enqueue_job` / `get_job` / `list_jobs` / `cancel_job`, US-11）🔵 *PRD §7.2より*
 - REQ-902: システムは stdio トランスポートを、Streamable HTTP とツールの意味・入出力を同一にしたうえで追加する 🔵 *PRD §11・§15.1より*
+- REQ-903: システムは 作品に記録済みの引用を、出典位置（`locator_type` と対応する位置フィールド）を保ったまま一覧できるようにする（`list_citations`, US-12）🟡 *PRD §7.2・設計決定 D-11（ヒアリング2026-08-13）より*
+- REQ-904: システムは 引用を追記できるようにする（`add_citation`, US-12）。**`locator_type` と位置フィールドが整合しない場合は MediaVault-api を呼ばずに拒否する** 🟡 *設計決定 D-11 より。api 側は整合を必須バリデーションしないため（[citations.md](../../mediavault-api/citations.md)）、MCP 側で担保しないと出典不明の引用が蓄積する*
+- REQ-905: システムは 引用の更新・削除ツールを提供してはならない 🟡 *設計決定 D-11 より。`quote_text` は利用者が書いた本文であり、上書きは実質的に破壊的であるため*
 
 ## 非機能要件
 
@@ -181,12 +184,16 @@ REST API をそのままツール化せず、利用者の目的単位のツー�
 
 以下は本要件の一部を成立させるために mediavault-api 側で必要な改修である。詳細と優先度は [prep.md](prep.md) を参照。
 
-| 改修 | 関連要件 | 理由 |
-|---|---|---|
-| `relation_type` ENUM の拡張 | REQ-071 | 現行は `reference` / `dlc` の2値のみ |
-| `GET /items` の別名・原題検索対応 | REQ-011 | 現行は本題の部分一致のみ |
-| 検索結果の該当件数返却 | REQ-013 | 現行は `total` を返さない |
-| `GET /collection/overview` の新設 | REQ-090 | status別・お気に入り別の件数を取得する手段がない |
+> **2026-08-13 更新**: 全エンドポイントの棚卸しの結果、**4件すべてが実装済み**であることを確認した。MVP の要件は既存APIのみで成立する。確認結果は [design/api-tool-mapping.md](../design/api-tool-mapping.md) §6 を参照。
+
+| 改修 | 関連要件 | 理由 | 状況 |
+|---|---|---|---|
+| `relation_type` ENUM の拡張 | REQ-071 | 現行は `reference` / `dlc` の2値のみ | ✅ **実装済み**。6値すべて対応し、向きの意味も定義済み（[item-relations.md](../../mediavault-api/item-relations.md)） |
+| `GET /items` の別名・原題検索対応 | REQ-011 | 現行は本題の部分一致のみ | ✅ **実装済み**。`title` が title / original_title / `details.alternative_titles` を横断ORで部分一致（[items.md](../../mediavault-api/items.md)） |
+| 検索結果の該当件数返却 | REQ-013 | 現行は `total` を返さない | ✅ **実装済み**。`include_total=true` で `pagination.total`（オプトイン方式） |
+| `GET /collection/overview` の新設 | REQ-090 | status別・お気に入り別の件数を取得する手段がない | ✅ **実装済み**（[collection.md](../../mediavault-api/collection.md)） |
+
+第2段階の要件（REQ-900 / REQ-901）が依存する `GET /items/{id}/text` と jobs API は依然として未実装である。
 
 ## 品質評価
 

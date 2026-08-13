@@ -5,9 +5,9 @@
 use uuid::Uuid;
 
 use crate::api::models::{ItemStatus, MediaType, RelationType, StreamingPlatform};
-use crate::result::Section;
 use crate::result::outcome::{Outcome, ToolError};
 use crate::result::summary::NamedRef;
+use crate::result::{CountSection, Section, SeriesSection};
 
 /// `get_item_context` ツールの引数。
 ///
@@ -122,6 +122,11 @@ pub struct ItemContextResult {
     pub outcome: Outcome,
     /// `GET /items/{id}` から取得した本体。取得できなければ outcome は NotFound
     pub item: Option<ItemDetailView>,
+    /// シリーズ（親作品）。`groups` の `parent_item_id` から解決する。
+    ///
+    /// 🔵 Intent: 設計決定 D-07・intrahub-mastra REQ-016a より。**推測で埋めない**。
+    ///    解決できない場合は `empty` を返し、利用側の未分類処理に委ねる。
+    pub series: SeriesSection,
     pub relations: Section<RelationView>,
     pub mylists: Section<NamedRef>,
     pub groups: Section<GroupView>,
@@ -130,6 +135,11 @@ pub struct ItemContextResult {
     pub files: Section<FileView>,
     pub links: Section<LinkView>,
     pub trailers: Section<LinkView>,
+    /// 引用は**件数のみ**。本文は `list_citations` で取得する。
+    ///
+    /// 🟡 Intent: 設計決定 D-12・NFR-002 より。`quote_text` は長さ・件数とも上限がなく、
+    ///    本文を含めると 1回あたりのレスポンスサイズが Item 依存で予測不能になる。
+    pub citations: CountSection,
     pub error: Option<ToolError>,
 }
 
@@ -143,6 +153,7 @@ impl ItemContextResult {
         ItemContextResult {
             outcome,
             item: None,
+            series: SeriesSection::Empty,
             relations: Section::Empty,
             mylists: Section::Empty,
             groups: Section::Empty,
@@ -151,6 +162,7 @@ impl ItemContextResult {
             files: Section::Empty,
             links: Section::Empty,
             trailers: Section::Empty,
+            citations: CountSection::Empty,
             error,
         }
     }

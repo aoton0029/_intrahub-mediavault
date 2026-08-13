@@ -168,6 +168,16 @@ KnowledgeHubまたは自動化エージェントとして、全文抽出、索�
 - 状態、進捗、失敗理由、結果を取得できる。
 - 実行前または実行中のジョブを安全にキャンセルできる。
 
+### US-12: 印象に残った箇所を引用として残す
+
+コレクション作品を読んで印象に残った箇所を、会話の流れのまま引用として記録し、後から参照したい。読書メモを別のツールへ書き写す手間をなくし、作品と引用を同じ場所で管理するためである。
+
+期待する体験:
+
+- 引用本文に加えて、ページ番号、再生秒数、電子書籍の位置No.、章など、**出典位置を種別付きで記録できる**。
+- 作品について語る前に、既に記録済みの引用を参照できる。
+- 記録済みの引用がAIによって書き換えられない。訂正は利用者自身が画面から行う。
+
 ## 6. プロダクト原則
 
 1. **目的単位のツールにする**: REST APIの各エンドポイントをそのままツール化せず、利用者の目的を1回または少数回の呼び出しで達成する。
@@ -209,11 +219,15 @@ MVPの完了条件:
 
 | MCPツール候補 | 対応ユーザーストーリー | 概要 | APIの現状 |
 |---|---|---|---|
-| `get_item_text` | US-10 | 抽出済み全文をページ／チャンク単位で取得 | 新設が必要 |
+| `get_item_text` | US-10 | 抽出済み全文をページ／チャンク単位で取得 | 新設が必要（[item-text.md](../mediavault-api/item-text.md) に仕様確定済み・未実装） |
+| `list_citations` | US-12 | 作品に記録済みの引用を一覧 | **既存APIで可能**（`GET /items/{id}/citations`） |
+| `add_citation` | US-12 | 引用を出典位置付きで追記 | **既存APIで可能**（`POST /items/{id}/citations`） |
 | `enqueue_job` | US-11 | 非同期ジョブを冪等に投入 | 設計済み・未実装 |
 | `get_job` | US-11 | ジョブ状態・進捗・結果を取得 | 設計済み・未実装 |
 | `list_jobs` | US-11 | Item、種別、状態でジョブを検索 | 設計済み・未実装 |
 | `cancel_job` | US-11 | ジョブをキャンセル | 設計済み・未実装 |
+
+引用の**更新・削除ツールは提供しない**。`quote_text` は利用者が書いた本文であり、AIによる上書きは実質的に破壊的だからである（§13）。
 
 ナレッジの取得・保存ツールは提供しない。ナレッジ本文の正本はKnowledgeHub Vaultであり、MediaVault-mcpは材料提供に限定する（§6 原則7、§13）。
 
@@ -228,25 +242,32 @@ stdioトランスポートの提供もこの段階に含める（§14）。
 - MCP ResourcesによるItemコンテキストの読み取り専用公開
 - 利用者が明示的に許可した範囲での削除・関連解除
 - 利用者定義の関係種別
+- 引用の更新（`update_citation`）。実運用で訂正需要が確認された場合に再検討する
+- エピソード単位の読み取り（`list_episodes`）
+- read-onlyトークンによるスコープ分離。現状は書き込みツールからの保護がMCPクライアント側の設定に依存している
 - MediaVaultからKnowledgeHub VaultノートへのHTTP到達手段が用意された場合の、逆引き参照の保持
 
 ## 8. MediaVault-apiへの要求候補
 
 本節はAPI設計ではなく、上記ユーザーストーリーを実現するために必要になり得るAPI能力の草案である。パス、HTTPメソッド、レスポンス形式は設計時に確定する。
 
-| API候補 | 目的 | 主な要求 |
-|---|---|---|
-| `relation_type` の値拡張 | US-07 | `adaptation`（原作⇔映像化）、`sequel`、`prequel`、`spinoff`、`dlc`、`reference` を扱う。`item_id` → `related_item_id` の向きが種別ごとに何を意味するかを定義する。現行は `reference` / `dlc` の2値のみ |
-| 別名・原題を含む検索 | US-01 | `GET /api/v1/items` の `title` は本題の部分一致のみで、別名（`details.alternative_titles`）と `original_title` が検索対象外。別名でも所蔵を確認できるようにする |
-| 検索結果の該当件数 | US-09 | `GET /api/v1/items` は総件数を返さない（keysetページネーション）。選定条件に対する該当件数を返す手段を用意する |
-| `GET /api/v1/items/{id}/context` | US-02 | Item、タグ、カテゴリ、マイリスト、ファイル、リンク、関連、スタッフ、キャスト、グループを集約して返す |
-| `GET /api/v1/collection/overview` | US-09 | media_type、status、お気に入り等の件数と最近追加・更新されたItemを返す。`GET /api/v1/items` が総件数を返さないため、status別・お気に入り別の件数はこの集計APIでのみ提供できる |
-| `GET /api/v1/items/{id}/text` | US-10 | file_id指定、チャンク取得、抽出元と抽出日時の追跡に対応する |
-| `POST /internal/jobs` | US-11 | 型付きpayload、dedup_key、対象Item、最大試行回数を受け取る |
-| `GET /api/v1/jobs` | US-11 | Item、状態、ジョブ種別で一覧取得する |
-| `GET /api/v1/jobs/{id}` | US-11 | 状態、進捗、結果、失敗理由を返す |
-| `POST /api/v1/jobs/{id}/cancel` | US-11 | queued/runningの状態に応じてキャンセルを要求する |
-| 重複候補検索API | US-03、将来候補 | external_id、ISBN、DOI、正規化タイトル等から候補と一致根拠を返す |
+> **2026-08-13 更新**: 本節の要求の多くは**すでに実装済み**であることが判明した。エンドポイント単位の網羅的な確認結果は [design/api-tool-mapping.md](./design/api-tool-mapping.md) §6 を参照。
+
+| API候補 | 目的 | 主な要求 | 状況 |
+|---|---|---|---|
+| `relation_type` の値拡張 | US-07 | `adaptation`（原作⇔映像化）、`sequel`、`prequel`、`spinoff`、`dlc`、`reference` を扱う。`item_id` → `related_item_id` の向きが種別ごとに何を意味するかを定義する | ✅ **実装済み**（[item-relations.md](../mediavault-api/item-relations.md)。6値すべて対応） |
+| 別名・原題を含む検索 | US-01 | 別名（`details.alternative_titles`）と `original_title` でも所蔵を確認できるようにする | ✅ **実装済み**（[items.md](../mediavault-api/items.md)。`title` が3項目を横断ORで部分一致） |
+| 検索結果の該当件数 | US-09 | 選定条件に対する該当件数を返す手段を用意する | ✅ **実装済み**（`include_total=true` で `pagination.total`） |
+| `GET /api/v1/collection/overview` | US-09 | media_type、status、お気に入り等の件数と最近追加・更新されたItemを返す | ✅ **実装済み**（[collection.md](../mediavault-api/collection.md)） |
+| `GET /api/v1/items/{id}/context` | US-02 | Item、タグ、カテゴリ、マイリスト、ファイル、リンク、関連、スタッフ、キャスト、グループを集約して返す | ⏸ **保留**。§15.2 の決定どおりMCP側の複数API合成で進める。性能・レスポンスサイズに問題が出た時点で再検討 |
+| `GET /api/v1/items/{id}/text` | US-10 | file_id指定、チャンク取得、抽出元と抽出日時の追跡に対応する。チャンクは**形式に依らず0起点の連番**とし、ページ・章の差はAPI側で吸収する | ⛔ **新設が必要**。REST仕様は [item-text.md](../mediavault-api/item-text.md) に確定済み・未実装 |
+| `POST /internal/jobs` | US-11 | 型付きpayload、dedup_key、対象Item、最大試行回数を受け取る | ⛔ 設計済み（[jobs.md](../mediavault-api/jobs.md)）・**未実装** |
+| `GET /api/v1/jobs` | US-11 | Item、状態、ジョブ種別で一覧取得する | ⛔ 同上 |
+| `GET /api/v1/jobs/{id}` | US-11 | 状態、進捗、結果、失敗理由を返す | ⛔ 同上 |
+| `POST /api/v1/jobs/{id}/cancel` | US-11 | queued/runningの状態に応じてキャンセルを要求する | ⛔ 同上 |
+| 重複候補検索API | US-03、将来候補 | external_id、ISBN、DOI、正規化タイトル等から候補と一致根拠を返す | ⛔ 未着手（将来候補） |
+
+**残る真の欠落は `text` と `jobs` の2領域のみ。** US-12（引用）は既存APIのみで実現でき、API側の追加実装を必要としない。
 
 ナレッジの取得・保存APIは要求しない。ナレッジ本文はKnowledgeHub Vaultが正本であり、MediaVaultは所有しない（§6 原則7）。
 
@@ -353,7 +374,7 @@ stdioトランスポートの提供もこの段階に含める（§14）。
 |---|---|---|---|
 | ナレッジの正本 | KnowledgeHub Vault（`/srv/knowledge/second-brain`）を正本とし、MediaVaultはナレッジ本文を所有しない | 確定 | §4.2、§5 US-10、§6、§7.2、§8、§9.3、§13 |
 | embeddingの保存場所 | KnowledgeHub側に置く。MediaVaultへは保存しない | 確定 | §6、§13 |
-| 関係種別 | 固定の一覧とする。値を `adaptation` / `sequel` / `prequel` / `spinoff` / `dlc` / `reference` へ拡張するようMediaVault-apiへ要求する。利用者定義は将来候補 | 確定 | §5 US-07、§7.3、§8 |
+| 関係種別 | 固定の一覧とする。値は `adaptation` / `sequel` / `prequel` / `spinoff` / `dlc` / `reference`（api側で実装済み）。利用者定義は将来候補 | 確定 | §5 US-07、§7.3、§8 |
 | stdio／Streamable HTTPの提供順序 | MVPはStreamable HTTPのみ。stdioは第2段階 | 確定 | §7.2、§11、§14 |
 | 外部・内部経路の認証 | Streamable HTTPのエンドポイントは認証必須。無認証の接続からツールを実行できない | 確定 | §7.1、§10 |
 | `collection_overview` のMVP採否 | MVPに含める。`GET /api/v1/collection/overview` を新設し、media_type別・status別・お気に入り別の件数と最近追加・更新されたItemを提供する | 確定 | §7.1、§8、[spec/interview-record.md](./spec/interview-record.md) Q3 |
@@ -361,6 +382,19 @@ stdioトランスポートの提供もこの段階に含める（§14）。
 | `update_consumption` の対象項目 | `status`、`consumed_date`、`rating`、`is_favorite` を1回の呼び出しで扱う。いずれも `items` の項目であり分割する理由がない | 確定 | §5 US-05、§7.1 |
 | 書き込み前の利用者確認 | MCPの責務は「一意に確定しない対象へ書き込まない」まで。確認UI・ポリシーはMCPクライアントに委ねる | 確定 | §6 原則3、§10 |
 | 削除・統合・一括更新の提供時期 | MVP対象外。対象を明示的に確定する手段と監査可能な結果返却が揃ってから検討する | 確定 | §7.3、§10、§13 |
+
+### 15.1.1 設計フェーズの決定（D-07〜D-12）
+
+2026-08-13 の全エンドポイント棚卸しと intrahub-mastra 側要件の反映で確定した事項。詳細は [design/api-tool-mapping.md](./design/api-tool-mapping.md)。
+
+| ID | 決定 | ステータス | 反映先 |
+|---|---|---|---|
+| D-07 | `get_item_context` は `series`（シリーズ名）を返す。`GET /items/{id}/groups` の `parent_item_id` から親Itemを引いて解決し、`group_name` や続編関係から**推測しない**。解決不能は `empty` を正確に返す | 確定 | [mcp-tools.md](./design/mcp-tools.md) §2、[mastra-integration.md](./design/mastra-integration.md) |
+| D-08 | `get_item_text` のチャンクは形式に依らず**0起点の連番**。ページ・章は表示用 `label` にのみ現れる。再抽出による出典参照の失効を検出するため `extraction_version` を返す | 確定 | [item-text.md](../mediavault-api/item-text.md)、[mastra-integration.md](./design/mastra-integration.md) |
+| D-09 | 全文抽出が未実装の間、`get_item_text` を `tools/list` に**出さない**。「ツール不在」と「抽出未了」を利用側が区別できるようにするため | 確定 | [mcp-tools.md](./design/mcp-tools.md) |
+| D-10 | read-onlyトークン（`MCP_READONLY_TOKEN`）によるスコープ分離を第2段階で導入する。MVPは単一トークン | 仮決定 | §7.3、[mastra-integration.md](./design/mastra-integration.md) §4.1 |
+| D-11 | 引用は**参照と追記のみ**公開する（`list_citations` / `add_citation`）。`PATCH` / `DELETE` は公開しない。`locator_type` と位置フィールドの整合はMCP側で検証する。`add_citation` は冪等にできない（§6 原則6の適用外） | 確定 | §5 US-12、§7.2、§13 |
+| D-12 | `get_item_context` の `citations` は**件数のみ**返す。本文は `list_citations` で取得する | 確定 | [mcp-tools.md](./design/mcp-tools.md) §2 |
 
 ### 15.2 残課題
 

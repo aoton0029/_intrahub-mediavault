@@ -13,12 +13,31 @@ use subtle::ConstantTimeEq;
 
 use crate::config::Config;
 
+/// 接続に使われたトークンの権限スコープ。
+///
+/// 🔵 Intent: 設計決定 D-10 より。認証ミドルウェアがリクエスト拡張へ挿入し、
+///    `ServerHandler` 側が `http::request::Parts` 経由で読み取る。
+///    `StreamableHttpService` の service factory はリクエスト文脈を受け取らないため、
+///    サーバインスタンス単位ではスコープを判別できない。リクエスト拡張が唯一の経路である。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenScope {
+    /// 全ツールを利用できる
+    Full,
+    /// `readOnlyHint: true` のツールのみ利用できる
+    ReadOnly,
+}
+
 /// 🔵 Intent: タスクファイルで指定された定数時間比較によるトークン検証。
 ///    `Bearer ` プレフィックス必須（既存 api とは異なりMCPクライアントの標準に合わせる）。
 ///    401時はパスのみをログに残し、トークン値は一切出力しない（REQ-145）。
+///
+///    設計決定 D-10 により、`MCP_READONLY_TOKEN` が設定されている場合はそれとも照合し、
+///    一致した接続を [`TokenScope::ReadOnly`] としてリクエスト拡張へ記録する。
+///    **両方のトークンを常に比較する**（`Full` が一致した時点で打ち切らない）ことで、
+///    どちらのトークンが使われたかによる応答時間差を作らない（NFR-102）。
 pub async fn bearer_auth(
     State(config): State<Arc<Config>>,
-    req: Request,
+    mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
     let provided = req
@@ -27,15 +46,28 @@ pub async fn bearer_auth(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "));
 
-    match provided {
-        Some(token) if constant_time_eq(token, config.auth_token.expose()) => {
-            Ok(next.run(req).await)
-        }
-        _ => {
+    let Some(token) = provided else {
+        tracing::warn!(path = %req.uri().path(), "unauthorized request");
+        return Err(StatusCode::UNAUTHORIZED);
+    };
+
+    let matches_full = constant_time_eq(token, config.auth_token.expose());
+    let matches_readonly = config
+        .readonly_token
+        .as_ref()
+        .is_some_and(|readonly| constant_time_eq(token, readonly.expose()));
+
+    let scope = match (matches_full, matches_readonly) {
+        (true, _) => TokenScope::Full,
+        (false, true) => TokenScope::ReadOnly,
+        (false, false) => {
             tracing::warn!(path = %req.uri().path(), "unauthorized request");
-            Err(StatusCode::UNAUTHORIZED)
+            return Err(StatusCode::UNAUTHORIZED);
         }
-    }
+    };
+
+    req.extensions_mut().insert(scope);
+    Ok(next.run(req).await)
 }
 
 /// 🔵 Intent: `subtle::ConstantTimeEq` によりタイミング攻撃を防ぐ（NFR-102）。

@@ -27,7 +27,7 @@ mod common;
 const ITEM_ID: &str = "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0001";
 const RELATED_ITEM_ID: &str = "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0002";
 const AUTH_TOKEN: &str = "test-auth-token-with-sufficient-length-000000";
-const CONTEXT_SECTIONS: [&str; 8] = [
+const CONTEXT_SECTIONS: [&str; 9] = [
     "relations",
     "mylists",
     "groups",
@@ -36,7 +36,23 @@ const CONTEXT_SECTIONS: [&str; 8] = [
     "files",
     "links",
     "trailers",
+    "citations",
 ];
+
+/// 公開ツールの内訳。**ツールを増減させたら必ずここを更新する**。
+///
+/// これらを定数として明示しているのは、ツールが意図せず増えること自体を検知するため。
+/// 特に書き込みツールの増加は「AI に委ねてよい操作」の拡大を意味するので、
+/// 数の変化がレビューで必ず目に入るようにしておく（REQ-141・NFR-301）。
+///
+/// 内訳（第2段階の `list_citations` / `add_citation` を含む）:
+/// - 読み取り専用6: health / search_library / search_external_catalog /
+///   get_item_context / collection_overview / list_citations
+/// - 書き込み7: import_external_item / create_item / update_consumption /
+///   organize_item / relate_items / add_access_link / add_citation
+const READ_ONLY_TOOL_COUNT: usize = 6;
+const WRITE_TOOL_COUNT: usize = 7;
+const TOTAL_TOOL_COUNT: usize = READ_ONLY_TOOL_COUNT + WRITE_TOOL_COUNT;
 
 // ---------------------------------------------------------------------------
 // JSON-RPC / rmcp サーバー起動の共通ヘルパ（tests/mcp_server.rs のパターンを踏襲）
@@ -185,6 +201,15 @@ fn success_arguments_for(name: &str) -> Value {
             "url": "https://example.com",
             "kind": "link",
             "label": "公式サイト"
+        }),
+        "list_citations" => json!({"item_id": ITEM_ID}),
+        // `locator_type` と位置フィールドは整合させる（REQ-904）。
+        // 不整合だと MCP 側のバリデーションで弾かれ、成功パスにならない。
+        "add_citation" => json!({
+            "item_id": ITEM_ID,
+            "quote_text": "安全性テスト用の引用",
+            "locator_type": "page",
+            "page_number": 1
         }),
         other => panic!("unknown tool in success_arguments_for: {other}"),
     }
@@ -364,6 +389,27 @@ async fn mount_success_backend(mock_server: &MockServer) {
         })))
         .mount(mock_server)
         .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/api/v1/items/{ITEM_ID}/citations")))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+            "success": true,
+            "data": {
+                "id": "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0005",
+                "item_id": ITEM_ID,
+                "quote_text": "安全性テスト用の引用",
+                "note": null,
+                "locator_type": "page",
+                "page_number": 1,
+                "timestamp_seconds": null,
+                "location_number": null,
+                "chapter": null,
+                "created_at": "2026-07-01T12:00:00",
+                "updated_at": "2026-07-01T12:00:00"
+            }
+        })))
+        .mount(mock_server)
+        .await;
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +509,11 @@ async fn write_tools_have_uuid_only_target_arguments() {
         .filter(|tool| tool["annotations"]["readOnlyHint"] == json!(false))
         .collect();
 
-    assert_eq!(write_tools.len(), 6, "書き込みツールは6個のはず");
+    assert_eq!(
+        write_tools.len(),
+        WRITE_TOOL_COUNT,
+        "書き込みツールは{WRITE_TOOL_COUNT}個のはず"
+    );
 
     let mut errors = Vec::new();
     for tool in write_tools {
@@ -495,13 +545,17 @@ fn looks_destructive(name: &str) -> bool {
 
 /// 統合テスト2: tools/list の内容検証（ツール数・削除系不在・destructiveHint 不在）
 #[tokio::test]
-async fn tools_list_has_eleven_tools_and_no_destructive_ones() {
+async fn tools_list_has_the_expected_inventory_and_no_destructive_ones() {
     let mock_server = common::start_mock_server().await;
     let api = Arc::new(common::build_client(&mock_server, "internal-key"));
     let (client, url, ct) = spawn_service(api).await;
 
     let tools = fetch_tools_list(&client, &url).await;
-    assert_eq!(tools.len(), 11, "ツール数は11のはず");
+    assert_eq!(
+        tools.len(),
+        TOTAL_TOOL_COUNT,
+        "ツール数は{TOTAL_TOOL_COUNT}のはず"
+    );
 
     let read_only_count = tools
         .iter()
@@ -511,8 +565,14 @@ async fn tools_list_has_eleven_tools_and_no_destructive_ones() {
         .iter()
         .filter(|t| t["annotations"]["readOnlyHint"] == json!(false))
         .count();
-    assert_eq!(read_only_count, 5, "読み取り専用ツールは5個のはず");
-    assert_eq!(write_count, 6, "書き込みツールは6個のはず");
+    assert_eq!(
+        read_only_count, READ_ONLY_TOOL_COUNT,
+        "読み取り専用ツールは{READ_ONLY_TOOL_COUNT}個のはず"
+    );
+    assert_eq!(
+        write_count, WRITE_TOOL_COUNT,
+        "書き込みツールは{WRITE_TOOL_COUNT}個のはず"
+    );
 
     for tool in &tools {
         let name = tool["name"].as_str().unwrap();
@@ -800,7 +860,7 @@ async fn all_tools_reject_unauthenticated_requests_without_reaching_api() {
         .iter()
         .map(|t| t["name"].as_str().unwrap().to_string())
         .collect();
-    assert_eq!(tool_names.len(), 11);
+    assert_eq!(tool_names.len(), TOTAL_TOOL_COUNT);
     ct.cancel();
 
     for name in &tool_names {

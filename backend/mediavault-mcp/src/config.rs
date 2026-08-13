@@ -54,6 +54,14 @@ pub struct Config {
     pub bind_addr: String,
     /// Bearer 認証トークン。未設定・空文字・空白のみは起動失敗（REQ-122）
     pub auth_token: SecretString,
+    /// 読み取り専用トークン（任意）。
+    ///
+    /// 🔵 Intent: 設計決定 D-10 より。設定すると、このトークンで接続したセッションでは
+    ///    `tools/list` が `readOnlyHint: true` のツールのみを返し、書き込みツールの
+    ///    呼び出しも拒否される。未設定（None）なら従来どおり単一トークン運用。
+    ///    利用側（intrahub-mastra）の防御はクライアント側のツール選別のみに依存しており、
+    ///    MCP 側の設定ミスや別クライアントの接続では防げないため、二重の防御線を用意する。
+    pub readonly_token: Option<SecretString>,
     /// api のベースURL
     pub api_base_url: String,
     /// 内部API用キー。MVPでは未使用ツールのみのため必須にしない
@@ -90,6 +98,26 @@ impl Config {
                 "MCP_AUTH_TOKEN が {} 文字未満です。総当たり耐性のため十分な長さを推奨します",
                 MIN_TOKEN_LEN
             );
+        }
+
+        // 🔵 Intent: 設計決定 D-10 より。read-only トークンが書き込みトークンと同値だと
+        //    スコープ分離が成立しない（read-only のつもりが全権になる）ため起動失敗にする。
+        //    設定ミスを起動時に検出できないと、気づかないまま無防備に運用される。
+        let readonly_token = env
+            .get("MCP_READONLY_TOKEN")
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        if let Some(token) = &readonly_token {
+            if token == auth_token.trim() {
+                return Err(ConfigError::Invalid("MCP_READONLY_TOKEN"));
+            }
+            if token.len() < MIN_TOKEN_LEN {
+                tracing::warn!(
+                    "MCP_READONLY_TOKEN が {} 文字未満です。総当たり耐性のため十分な長さを推奨します",
+                    MIN_TOKEN_LEN
+                );
+            }
         }
 
         let api_base_url = Self::require_non_blank(env, "MEDIAVAULT_API_BASE_URL")?;
@@ -131,6 +159,7 @@ impl Config {
         Ok(Config {
             bind_addr,
             auth_token: auth_token.into(),
+            readonly_token: readonly_token.map(SecretString::from),
             api_base_url,
             internal_api_key,
             connect_timeout_secs,

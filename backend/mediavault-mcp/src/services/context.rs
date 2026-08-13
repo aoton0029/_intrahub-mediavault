@@ -7,12 +7,12 @@ use uuid::Uuid;
 use crate::api::client::ApiClient;
 use crate::api::error::ApiClientError;
 use crate::api::models::{
-    ItemCast, ItemDetail, ItemFile, ItemGroup, ItemLink, ItemRelation, ItemStaff, ItemTrailer,
-    Mylist,
+    Citation, ItemCast, ItemDetail, ItemFile, ItemGroup, ItemLink, ItemRelation, ItemStaff,
+    ItemTrailer, Mylist,
 };
-use crate::result::Section;
 use crate::result::outcome::{Outcome, classify_api_error};
 use crate::result::summary::NamedRef;
+use crate::result::{CountSection, Section, SeriesSection};
 use crate::tools::get_item_context::{
     CreditView, FileView, GroupView, ItemContextResult, ItemDetailView, LinkView,
     RelationDirection, RelationView, StreamingLinkView,
@@ -41,8 +41,9 @@ pub async fn get_context(api: &ApiClient, item_id: Uuid) -> ItemContextResult {
     let files_path = format!("{item_path}/files");
     let links_path = format!("{item_path}/links");
     let trailers_path = format!("{item_path}/trailers");
+    let citations_path = format!("{item_path}/citations");
 
-    let (relations, mylists, groups, cast, staff, files, links, trailers) = futures::join!(
+    let (relations, mylists, groups, cast, staff, files, links, trailers, citations) = futures::join!(
         api.get::<Vec<ItemRelation>>(&relations_path, &[]),
         api.get::<Vec<Mylist>>(&mylists_path, &[]),
         api.get::<Vec<ItemGroup>>(&groups_path, &[]),
@@ -51,7 +52,16 @@ pub async fn get_context(api: &ApiClient, item_id: Uuid) -> ItemContextResult {
         api.get::<Vec<ItemFile>>(&files_path, &[]),
         api.get::<Vec<ItemLink>>(&links_path, &[]),
         api.get::<Vec<ItemTrailer>>(&trailers_path, &[]),
+        api.get::<Vec<Citation>>(&citations_path, &[]),
     );
+
+    // 🔵 Intent: 設計決定 D-12 より。引用は件数のみを返し、本文は `list_citations` に委ねる。
+    let citations_section = CountSection::from_result(unwrap_data(citations));
+
+    // 🔵 Intent: 設計決定 D-07 より。シリーズ名の解決は `groups` の結果に依存するため、
+    //    第1ラウンドの `join!` には入れられない（D-05 の並列合成方針に対する明示的な例外）。
+    //    `parent_item_id` が非 null のときだけ第2ラウンドを1回実行する。
+    let series_section = resolve_series(api, groups.as_ref()).await;
 
     let relations_section = Section::from_result(unwrap_data(relations).map(|items| {
         items
@@ -135,12 +145,15 @@ pub async fn get_context(api: &ApiClient, item_id: Uuid) -> ItemContextResult {
         || is_failed(&staff_section)
         || is_failed(&files_section)
         || is_failed(&links_section)
-        || is_failed(&trailers_section);
+        || is_failed(&trailers_section)
+        || citations_section.is_failed()
+        || series_section.is_failed();
     let outcome = determine_outcome(has_failure);
 
     ItemContextResult {
         outcome,
         item: Some(to_item_detail_view(item_detail)),
+        series: series_section,
         relations: relations_section,
         mylists: mylists_section,
         groups: groups_section,
@@ -149,7 +162,51 @@ pub async fn get_context(api: &ApiClient, item_id: Uuid) -> ItemContextResult {
         files: files_section,
         links: links_section,
         trailers: trailers_section,
+        citations: citations_section,
         error: None,
+    }
+}
+
+/// `groups` の `parent_item_id` から親 Item を引き、シリーズ名を解決する。
+///
+/// 🔵 Intent: 設計決定 D-07・intrahub-mastra REQ-016a より。利用側は Knowledge Note の
+///    配置先をこの値から決定し、LLM による推測を禁じている。したがって解決規則は
+///    **一意でなければならず**、次を厳守する。
+///
+///    - `parent_item_id` が非 null の場合のみ、その Item の `title` をシリーズ名とする
+///    - `group_name`（"Season 1" 等）をシリーズ名に流用しない
+///    - `relations` の `sequel` / `prequel` から推測しない
+///    - 解決できなければ `Empty` を返す。埋め合わせをしない（利用側が未分類へ落とす）
+///
+///    `groups` の取得自体が失敗した場合は「シリーズが無い」と誤って伝えないよう `Failed` にする。
+async fn resolve_series(
+    api: &ApiClient,
+    groups: Result<&crate::api::client::ApiResponse<Vec<ItemGroup>>, &ApiClientError>,
+) -> SeriesSection {
+    let groups = match groups {
+        Ok(response) => &response.data,
+        Err(err) => {
+            let (_, error) = classify_api_error(err);
+            return SeriesSection::Failed { error };
+        }
+    };
+
+    let Some(parent_item_id) = groups.iter().find_map(|group| group.parent_item_id) else {
+        return SeriesSection::Empty;
+    };
+
+    match api
+        .get::<ItemDetail>(&format!("/api/v1/items/{parent_item_id}"), &[])
+        .await
+    {
+        Ok(response) => SeriesSection::Loaded {
+            item_id: parent_item_id,
+            title: response.data.title,
+        },
+        Err(err) => {
+            let (_, error) = classify_api_error(&err);
+            SeriesSection::Failed { error }
+        }
     }
 }
 

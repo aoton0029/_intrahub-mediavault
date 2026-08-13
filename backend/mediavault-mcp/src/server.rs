@@ -13,8 +13,10 @@ use rmcp::tool_handler;
 use rmcp::tool_router;
 
 use crate::api::client::ApiClient;
+use crate::auth::TokenScope;
 use crate::result::outcome::Outcome;
 use crate::services::add_access_link;
+use crate::services::citations;
 use crate::services::collection_overview;
 use crate::services::context;
 use crate::services::create_item;
@@ -26,6 +28,9 @@ use crate::services::search_external_catalog;
 use crate::services::search_library;
 use crate::services::update_consumption;
 use crate::tools::add_access_link::{AddAccessLinkParams, AddAccessLinkResult};
+use crate::tools::citations::{
+    AddCitationParams, AddCitationResult, ListCitationsParams, ListCitationsResult,
+};
 use crate::tools::collection_overview::{CollectionOverviewParams, CollectionOverviewResult};
 use crate::tools::create_item::{CreateItemParams, CreateItemResult};
 use crate::tools::get_item_context::{GetItemContextParams, ItemContextResult};
@@ -219,8 +224,69 @@ impl MediaVaultServer {
     ) -> rmcp::Json<AddAccessLinkResult> {
         rmcp::Json(add_access_link::add_access_link(&self.api, params).await)
     }
+
+    /// 🟡 Intent: 設計決定 D-11・REQ-903 より。`get_item_context` は引用の件数しか返さない
+    ///    （D-12）ため、本文を読むにはこのツールを呼ぶ必要がある。説明文でその導線を示す。
+    #[tool(
+        description = "作品に記録済みの引用を一覧する。作品の内容について語る前に、利用者自身が残した引用があるか確認すること。get_item_context は引用の件数しか返さないため、本文が必要な場合はこのツールを使う。",
+        annotations(read_only_hint = true)
+    )]
+    async fn list_citations(
+        &self,
+        Parameters(params): Parameters<ListCitationsParams>,
+    ) -> rmcp::Json<ListCitationsResult> {
+        rmcp::Json(citations::list_citations(&self.api, params).await)
+    }
+
+    /// 🟡 Intent: 設計決定 D-11・REQ-904 より。**冪等ではない**（api に重複検出が無い）ため、
+    ///    説明文で重複登録を明示的に戒める。加えて `locator_type` と位置フィールドの整合を
+    ///    MCP 側で検証し、出典不明の引用が蓄積するのを防ぐ。
+    ///    引用の更新・削除は提供しない（REQ-905）: 引用本文は利用者が書いたものであり、
+    ///    AI による上書きは実質的に破壊的だからである。
+    #[tool(
+        description = "作品から引用を記録する。同じ引用を繰り返し登録しないこと: 重複は検出されず、2回呼ぶと引用が2件登録される。引用元の位置が分かる場合は locator_type と対応する位置フィールドを必ず指定すること（page なら page_number、timestamp なら timestamp_seconds、location なら location_number、chapter なら chapter）。位置が分からない場合のみ locator_type: \"none\" を使う。登録した引用は MCP からは修正・削除できない。",
+        annotations(read_only_hint = false, destructive_hint = false)
+    )]
+    async fn add_citation(
+        &self,
+        Parameters(params): Parameters<AddCitationParams>,
+    ) -> rmcp::Json<AddCitationResult> {
+        rmcp::Json(citations::add_citation(&self.api, params).await)
+    }
 }
 
+/// ツールが読み取り専用か（`readOnlyHint: true`）を判定する。
+///
+/// 🔵 Intent: 設計決定 D-10 より。annotation を単一の判断基準にすることで、
+///    ツール定義側の `read_only_hint` と実際の権限判定がずれないようにする。
+///    annotation 未設定のツールは**書き込みとみなす**（安全側に倒す）。
+fn is_read_only(tool: &rmcp::model::Tool) -> bool {
+    tool.annotations
+        .as_ref()
+        .and_then(|annotations| annotations.read_only_hint)
+        .unwrap_or(false)
+}
+
+/// リクエスト拡張から接続のトークンスコープを取り出す。
+///
+/// 🔵 Intent: 設計決定 D-10 より。rmcp は HTTP の `http::request::Parts` を
+///    `RequestContext::extensions` へ注入するため、認証ミドルウェアが挿入した
+///    [`TokenScope`] をここで読み取れる。
+///
+///    取り出せない場合は `Full` を返す。stdio 等の HTTP を経由しないトランスポートでは
+///    Parts が存在しないため。**HTTP 経路では認証ミドルウェアが必ず挿入する**ので、
+///    ここへ到達して None になることはない（認証を通らないリクエストは 401 で弾かれる）。
+fn scope_of(context: &rmcp::service::RequestContext<rmcp::RoleServer>) -> TokenScope {
+    context
+        .extensions
+        .get::<http::request::Parts>()
+        .and_then(|parts| parts.extensions.get::<TokenScope>().copied())
+        .unwrap_or(TokenScope::Full)
+}
+
+// 🔵 Intent: `#[tool_handler]` は `has_method` により手書きのメソッドを検出して
+//    生成をスキップする。したがって `list_tools` / `call_tool` を手書きしても
+//    `get_tool` などの残りはマクロ生成のまま利用できる。
 #[tool_handler]
 impl ServerHandler for MediaVaultServer {
     fn get_info(&self) -> ServerInfo {
@@ -230,5 +296,66 @@ impl ServerHandler for MediaVaultServer {
                 env!("CARGO_PKG_VERSION"),
             ))
             .with_instructions("MediaVault のライブラリを検索・参照・更新するためのMCPサーバー")
+    }
+
+    /// 🔵 Intent: 設計決定 D-10 より。read-only トークンで接続したセッションには
+    ///    `readOnlyHint: true` のツールのみを見せる。
+    async fn list_tools(
+        &self,
+        _request: Option<rmcp::model::PaginatedRequestParams>,
+        context: rmcp::service::RequestContext<rmcp::RoleServer>,
+    ) -> Result<rmcp::model::ListToolsResult, rmcp::ErrorData> {
+        let supports_cache_hints = context
+            .protocol_version()
+            .is_some_and(|version| version >= rmcp::model::ProtocolVersion::V_2026_07_28);
+
+        let mut tools = Self::tool_router().list_all();
+        if scope_of(&context) == TokenScope::ReadOnly {
+            tools.retain(is_read_only);
+        }
+
+        Ok(rmcp::model::ListToolsResult {
+            result_type: Some(rmcp::model::ResultType::COMPLETE),
+            tools,
+            meta: None,
+            next_cursor: None,
+            // 🔵 Intent: スコープごとに `tools/list` の内容が変わるため、
+            //    共有キャッシュ（`CacheScope::Public`）を許可してはならない。全権セッションの
+            //    一覧が read-only セッションへ配られると、隠したはずの書き込みツールが見える。
+            //    マクロ生成の既定は `Public` なので、ここは意図的に上書きしている。
+            ttl_ms: supports_cache_hints.then_some(0),
+            cache_scope: supports_cache_hints.then_some(rmcp::model::CacheScope::Private),
+        })
+    }
+
+    /// 🔵 Intent: 設計決定 D-10 より。`tools/list` に出していないツールを
+    ///    直接呼ばれても実行しない。一覧の絞り込みだけでは防御にならない。
+    ///
+    ///    拒否時は**「ツールが存在しない」と同じエラー**を返す。存在するが権限が無い、
+    ///    という応答をすると書き込みツールの存在自体が read-only 側へ漏れるため、
+    ///    不在は不在として扱う（`get_item_text` の可視性方針 D-09 と同じ考え方）。
+    async fn call_tool(
+        &self,
+        request: rmcp::model::CallToolRequestParams,
+        context: rmcp::service::RequestContext<rmcp::RoleServer>,
+    ) -> Result<rmcp::model::CallToolResponse, rmcp::ErrorData> {
+        if scope_of(&context) == TokenScope::ReadOnly {
+            let allowed = Self::tool_router()
+                .get(request.name.as_ref())
+                .is_some_and(is_read_only);
+            if !allowed {
+                tracing::warn!(
+                    tool = %request.name,
+                    "read-only セッションからの書き込みツール呼び出しを拒否しました"
+                );
+                return Err(rmcp::ErrorData::invalid_params(
+                    format!("tool not found: {}", request.name),
+                    None,
+                ));
+            }
+        }
+
+        let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
+        Self::tool_router().call(tcc).await
     }
 }
