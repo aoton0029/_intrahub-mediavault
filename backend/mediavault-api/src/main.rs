@@ -49,9 +49,8 @@ async fn main() {
         internal_api_key,
     };
 
-    // REQ-007/REQ-009・architecture.md「API設計: /api/v1 配下」に対応するため、
-    // 公開APIのみ /api/v1 配下にnestする。/internal/* は内部プロセス直結用のため
-    // バージョンプレフィックスを付与しない（REQ-402の境界を維持）。
+    // REQ-029・architecture.md D-6に対応し、公開APIと内部APIをともに
+    // /api/v1 配下へ配置する。内部APIのapi_key_authレイヤーはmerge後も維持される。
     let cors = CorsLayer::new()
         .allow_origin(
             cors_allowed_origin
@@ -62,8 +61,11 @@ async fn main() {
         .allow_headers(Any);
 
     let app = axum::Router::new()
-        .nest("/api/v1", routes::build_router(state.clone()))
-        .merge(routes::internal::build_internal_router(state))
+        .nest(
+            "/api/v1",
+            routes::build_router(state.clone())
+                .merge(routes::internal::build_internal_router(state)),
+        )
         .layer(cors);
     let app = logging::with_http_tracing(app);
 

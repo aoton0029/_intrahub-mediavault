@@ -2,9 +2,9 @@
 //!
 //! TASK-0029: 内部REST APIルート群実装（/internal/items等）
 //!
-//! 巡回バッチ・ファイルサーバー監視プロセス向けの`/internal/*`ルート群。
-//! 利用者向けルーター（`build_router`、`/api/v1/*`想定）とは別のRouterとし、
-//! バージョンプレフィックスを持たず、`api_key_auth`ミドルウェアのみを適用する。
+//! 本ルーターは`build_router`へmergeされた後、`/api/v1`配下へnestされるため、
+//! 公開パスは`/api/v1/internal/*`となる。`api_key_auth`ミドルウェアはこのRouterだけに
+//! 適用され、merge後も利用者向けルートには波及しない。
 //! Phase2/Phase4で実装済みのitems/groups/episodes/filesハンドラ・サービス層を
 //! 再利用し、内部API固有のロジック（groups/episodesのupsert）のみ薄いラッパーで追加する。
 
@@ -51,7 +51,15 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::AppState;
-    use crate::routes::internal::build_internal_router;
+    use crate::routes::{build_router, internal::build_internal_router};
+
+    /// main.rsと同じ構成で公開・内部ルーターをマージし、`/api/v1`へnestする。
+    fn build_test_router(state: AppState) -> Router {
+        Router::new().nest(
+            "/api/v1",
+            build_router(state.clone()).merge(build_internal_router(state)),
+        )
+    }
 
     /// 【テスト用ヘルパー】: `/internal` ルーティング統合テスト用にAppStateを構築する。
     /// DATABASE_URL環境変数（テスト用Postgres）への接続が必要なため、本ヘルパーを使う
@@ -63,6 +71,17 @@ mod tests {
         let db = sqlx::PgPool::connect(&database_url)
             .await
             .expect("テスト用DBへの接続に失敗しました");
+        AppState {
+            db,
+            internal_api_key: String::new(),
+        }
+    }
+
+    /// DBアクセスを行わないルーティング境界テスト用の遅延接続Stateを構築する。
+    fn test_app_state_without_db() -> AppState {
+        let db = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgresql://postgres:postgres@localhost/mediavault_test")
+            .expect("テスト用DATABASE_URLが正しいこと");
         AppState {
             db,
             internal_api_key: String::new(),
@@ -86,6 +105,74 @@ mod tests {
 
     const TEST_KEY: &str = "secret-internal-key";
 
+    /// TASK-0006: 新パスには内部API認証が適用される。
+    #[tokio::test]
+    async fn post_versioned_internal_items_without_auth_returns_401() {
+        set_internal_api_key(TEST_KEY);
+        let app = build_test_router(test_app_state_without_db());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/internal/items")
+                    .header("content-type", "application/json")
+                    .body(Body::from(valid_create_item_body()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    /// TASK-0006: 旧パスの互換aliasは提供しない。
+    #[tokio::test]
+    async fn post_legacy_internal_items_without_auth_returns_404() {
+        set_internal_api_key(TEST_KEY);
+        let app = build_test_router(test_app_state_without_db());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/internal/items")
+                    .header("content-type", "application/json")
+                    .body(Body::from(valid_create_item_body()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    /// TASK-0006: internal Routerの認証レイヤーが同階層の公開ルートへ波及しない。
+    #[tokio::test]
+    async fn public_route_without_auth_returns_200() {
+        set_internal_api_key(TEST_KEY);
+        let public_router = Router::new().route(
+            "/public-probe",
+            axum::routing::get(|| async { StatusCode::OK }),
+        );
+        let app = Router::new().nest(
+            "/api/v1",
+            public_router.merge(build_internal_router(test_app_state_without_db())),
+        );
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/public-probe")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
     // ===================== 1. 正常系テストケース =====================
 
     /// TC-018-01: 正しいAPIキー付きのPOST /internal/items でアイテムが新規作成され201が返る
@@ -101,7 +188,7 @@ mod tests {
         // 【初期条件設定】: build_internal_router（未実装）で/internalルーターを構築する
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: oneshotでPOST /internal/itemsをルーター経由実行する
         // 【処理内容】: ミドルウェア → create_item_handler → repository INSERT の一連を起動
@@ -109,7 +196,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_item_body()))
@@ -134,7 +221,7 @@ mod tests {
         // 【テストデータ準備】: 事前に作成した既存itemのIDを得るため、まずPOSTで作成する
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【前提条件確認】: 事前作成のため、まず作成リクエストを送る
         let create_response = app
@@ -142,7 +229,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_item_body()))
@@ -163,7 +250,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/internal/items/{item_id}"))
+                    .uri(format!("/api/v1/internal/items/{item_id}"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"title":"更新後タイトル"}"#))
@@ -186,13 +273,13 @@ mod tests {
     async fn get_internal_items_search_with_filters_returns_200_with_pagination() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: 条件付き検索クエリでGET /internal/items/searchを実行する
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/internal/items/search?title=テスト&media_type=anime")
+                    .uri("/api/v1/internal/items/search?title=テスト&media_type=anime")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .body(Body::empty())
                     .unwrap(),
@@ -220,13 +307,13 @@ mod tests {
     async fn get_internal_items_search_without_query_returns_200_with_default_pagination() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: クエリパラメータなしでGET /internal/items/searchを実行する
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/internal/items/search")
+                    .uri("/api/v1/internal/items/search")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .body(Body::empty())
                     .unwrap(),
@@ -256,7 +343,7 @@ mod tests {
     async fn groups_then_episodes_upsert_chain_succeeds() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【前提条件確認】: 親itemを作成する
         let create_response = app
@@ -264,7 +351,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_item_body()))
@@ -285,7 +372,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/internal/items/{item_id}/groups"))
+                    .uri(format!("/api/v1/internal/items/{item_id}/groups"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -307,7 +394,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/internal/groups/{group_id}/episodes"))
+                    .uri(format!("/api/v1/internal/groups/{group_id}/episodes"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"episode_number":1,"title":"第1話"}"#))
@@ -330,14 +417,14 @@ mod tests {
     async fn posting_same_group_twice_upserts_instead_of_duplicating() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         let create_response = app
             .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_item_body()))
@@ -357,7 +444,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/internal/items/{item_id}/groups"))
+                    .uri(format!("/api/v1/internal/items/{item_id}/groups"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -374,7 +461,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/internal/items/{item_id}/groups"))
+                    .uri(format!("/api/v1/internal/items/{item_id}/groups"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -404,14 +491,14 @@ mod tests {
     async fn post_internal_items_id_files_with_valid_path_returns_201() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         let create_response = app
             .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_item_body()))
@@ -430,7 +517,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/internal/items/{item_id}/files"))
+                    .uri(format!("/api/v1/internal/items/{item_id}/files"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -455,7 +542,7 @@ mod tests {
     async fn created_item_is_searchable_via_internal_search() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         let unique_title = format!("一意タイトル-{}", uuid::Uuid::new_v4());
         let create_body = serde_json::json!({
@@ -469,7 +556,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(create_body))
@@ -488,7 +575,9 @@ mod tests {
         let search_response = app
             .oneshot(
                 Request::builder()
-                    .uri(format!("/internal/items/search?title={unique_title}"))
+                    .uri(format!(
+                        "/api/v1/internal/items/search?title={unique_title}"
+                    ))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .body(Body::empty())
                     .unwrap(),
@@ -520,14 +609,14 @@ mod tests {
         // 【テストデータ準備】: 認証ヘッダーを設定しないことで無認証アクセスを再現する
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: Authorizationヘッダーなしでリクエストする
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_item_body()))
                     .unwrap(),
@@ -549,14 +638,14 @@ mod tests {
     async fn post_internal_items_with_wrong_key_returns_401() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: 不一致のAPIキーでリクエストする
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("authorization", "Bearer wrong-key")
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_item_body()))
@@ -573,35 +662,35 @@ mod tests {
     /// 【テスト目的】: ミドルウェアがルーター全体（個別ルートではなくルーターlayer）に適用されていることを確認する
     /// 【テスト内容】: 認証ヘッダーなしで/internal配下の各エンドポイント（search/PATCH/groups/episodes/files）を順に呼ぶ
     /// 【期待される動作】: すべて401 Unauthorizedになる
-    /// 🔵 信頼性レベル: 要件定義3.1・4.2「/internal/* 配下の任意のエンドポイント」、TASK-0029.md完了条件「全ルートで401」に対応
+    /// 🔵 信頼性レベル: REQ-029「/api/v1/internal/* 配下の任意のエンドポイント」、TASK-0029.md完了条件「全ルートで401」に対応
     #[tokio::test]
     #[ignore]
     async fn all_internal_routes_return_401_without_auth() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
         let dummy_uuid = uuid::Uuid::new_v4();
 
         let targets: Vec<(&str, String, Option<&str>)> = vec![
-            ("GET", "/internal/items/search".to_string(), None),
+            ("GET", "/api/v1/internal/items/search".to_string(), None),
             (
                 "PATCH",
-                format!("/internal/items/{dummy_uuid}"),
+                format!("/api/v1/internal/items/{dummy_uuid}"),
                 Some(r#"{"title":"x"}"#),
             ),
             (
                 "POST",
-                format!("/internal/items/{dummy_uuid}/groups"),
+                format!("/api/v1/internal/items/{dummy_uuid}/groups"),
                 Some(r#"{"group_type":"season","group_number":1}"#),
             ),
             (
                 "POST",
-                format!("/internal/groups/{dummy_uuid}/episodes"),
+                format!("/api/v1/internal/groups/{dummy_uuid}/episodes"),
                 Some(r#"{"episode_number":1}"#),
             ),
             (
                 "POST",
-                format!("/internal/items/{dummy_uuid}/files"),
+                format!("/api/v1/internal/items/{dummy_uuid}/files"),
                 Some(r#"{"relative_path":"x.mkv"}"#),
             ),
         ];
@@ -637,7 +726,7 @@ mod tests {
     async fn patch_internal_items_id_with_nonexistent_id_returns_404() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
         let nonexistent_id = uuid::Uuid::new_v4();
 
         // 【実際の処理実行】: 存在しないitem_idへPATCHする
@@ -645,7 +734,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/internal/items/{nonexistent_id}"))
+                    .uri(format!("/api/v1/internal/items/{nonexistent_id}"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"title":"更新後タイトル"}"#))
@@ -668,7 +757,7 @@ mod tests {
     async fn post_internal_items_id_groups_with_nonexistent_item_returns_404() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
         let nonexistent_id = uuid::Uuid::new_v4();
 
         // 【実際の処理実行】: 存在しないitem_idへグループ登録する
@@ -676,7 +765,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/internal/items/{nonexistent_id}/groups"))
+                    .uri(format!("/api/v1/internal/items/{nonexistent_id}/groups"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -701,7 +790,7 @@ mod tests {
     async fn post_internal_groups_group_id_episodes_with_nonexistent_group_returns_404() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
         let nonexistent_group_id = uuid::Uuid::new_v4();
 
         // 【実際の処理実行】: 存在しないgroup_idへエピソード登録する
@@ -709,7 +798,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/internal/groups/{nonexistent_group_id}/episodes"))
+                    .uri(format!(
+                        "/api/v1/internal/groups/{nonexistent_group_id}/episodes"
+                    ))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"episode_number":1,"title":"第1話"}"#))
@@ -732,7 +823,7 @@ mod tests {
     async fn post_internal_items_id_files_with_nonexistent_item_returns_404() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
         let nonexistent_id = uuid::Uuid::new_v4();
 
         // 【実際の処理実行】: 存在しないitem_idへファイル登録する
@@ -740,7 +831,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/internal/items/{nonexistent_id}/files"))
+                    .uri(format!("/api/v1/internal/items/{nonexistent_id}/files"))
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"relative_path":"anime/x/episode01.mkv"}"#))
@@ -763,14 +854,14 @@ mod tests {
     async fn post_internal_items_with_invalid_media_type_returns_400() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: 不正なmedia_typeでPOSTする
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/internal/items")
+                    .uri("/api/v1/internal/items")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"title":"x","media_type":"invalid"}"#))
@@ -785,24 +876,24 @@ mod tests {
 
     // ===================== 3. 境界値テストケース =====================
 
-    /// TC-018-B01: バージョンプレフィックスなしの確認（/api/v1/internal/items は404）
-    /// 【テスト目的】: マウントパスがバージョンプレフィックスなしで正しいことを確認する
-    /// 【テスト内容】: 正しいAPIキー付きでPOST /api/v1/internal/items（誤ったプレフィックス）を呼び出す
+    /// TC-029-02: 旧パス（/internal/items）は404
+    /// 【テスト目的】: 旧パスの互換aliasを残さず、即時切替されていることを確認する
+    /// 【テスト内容】: 正しいAPIキー付きでPOST /internal/itemsを呼び出す
     /// 【期待される動作】: 404 Not Found（ルート未登録）
     /// 🔵 信頼性レベル: 要件定義3.2「バージョンプレフィックスなし」、note.md「URLプレフィックス間違い注意」に対応
     #[tokio::test]
     #[ignore]
-    async fn post_api_v1_internal_items_returns_404_not_found() {
+    async fn post_legacy_internal_items_returns_404_not_found() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
-        // 【実際の処理実行】: 誤ったプレフィックス付きパスでリクエストする
+        // 【実際の処理実行】: 旧パスでリクエストする
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/internal/items")
+                    .uri("/internal/items")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_item_body()))
@@ -812,7 +903,7 @@ mod tests {
             .unwrap();
 
         // 【結果検証】: ルート未登録のため404になることを確認する
-        assert_eq!(response.status(), StatusCode::NOT_FOUND); // 【確認内容】: /api/v1/internal/itemsというパスが存在せず404になることを確認 🔵
+        assert_eq!(response.status(), StatusCode::NOT_FOUND); // 【確認内容】: 旧パスが存在せず404になることを確認 🔵
     }
 
     /// TC-018-B02: ルート誤マッチ防止 — /internal/items/search が /internal/items/{id} に吸われない
@@ -825,13 +916,13 @@ mod tests {
     async fn get_internal_items_search_does_not_fall_through_to_item_id_route() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: /internal/items/searchへGETする
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/internal/items/search")
+                    .uri("/api/v1/internal/items/search")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .body(Body::empty())
                     .unwrap(),
@@ -853,13 +944,13 @@ mod tests {
     async fn get_internal_items_search_with_limit_over_100_clamps_to_100() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: limit=1000で検索を実行する
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/internal/items/search?limit=1000")
+                    .uri("/api/v1/internal/items/search?limit=1000")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .body(Body::empty())
                     .unwrap(),
@@ -886,13 +977,13 @@ mod tests {
     async fn get_internal_items_search_with_non_datetime_after_created_at_returns_400() {
         set_internal_api_key(TEST_KEY);
         let state = test_app_state().await;
-        let app: Router = build_internal_router(state);
+        let app: Router = build_test_router(state);
 
         // 【実際の処理実行】: after_created_at=abcで検索を実行する
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/internal/items/search?after_created_at=abc")
+                    .uri("/api/v1/internal/items/search?after_created_at=abc")
                     .header("authorization", format!("Bearer {TEST_KEY}"))
                     .body(Body::empty())
                     .unwrap(),

@@ -1011,6 +1011,10 @@ mod tests {
             consumed_date: None,
             rating: None,
             is_favorite: None,
+            authors: None,
+            publication_year: None,
+            journal: None,
+            doi: None,
         };
         f(&mut request);
         request
@@ -2366,6 +2370,10 @@ mod tests {
             homepage_url: None,
             rating: None,
             is_favorite: None,
+            authors: None,
+            publication_year: None,
+            journal: None,
+            doi: None,
             details: None,
             // 【TASK-0030拡張】: consumed_date追加に伴いテストヘルパーを更新（TC-REG-01の前提） 🔵
             consumed_date: None,

@@ -118,6 +118,18 @@ pub enum ApiErrorCode {
     ImportJobNotFound,
     /// 指定されたcitationが見つからない（PATCH/DELETE /citations/:id時404）
     CitationNotFound,
+    /// 指定ファイルに抽出ジョブが存在しない。
+    ExtractionNotFound,
+    /// 終端状態の抽出ジョブに対する操作。
+    ExtractionAlreadyFinished,
+    /// 文字抽出に対応していないファイル種別。
+    UnsupportedFileType,
+    /// lease tokenが不一致、または失効している。
+    InvalidLeaseToken,
+    /// ファイルに抽出済み本文が存在しない。
+    TextNotExtracted,
+    /// file_idを一意に解決できない。
+    AmbiguousFile,
 }
 
 impl ApiErrorCode {
@@ -169,6 +181,18 @@ impl ApiErrorCode {
             }
             ApiErrorCode::ImportJobNotFound => ("IMPORT_JOB_NOT_FOUND", StatusCode::NOT_FOUND),
             ApiErrorCode::CitationNotFound => ("CITATION_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::ExtractionNotFound => ("EXTRACTION_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::ExtractionAlreadyFinished => {
+                ("EXTRACTION_ALREADY_FINISHED", StatusCode::CONFLICT)
+            }
+            ApiErrorCode::UnsupportedFileType => {
+                ("UNSUPPORTED_FILE_TYPE", StatusCode::UNPROCESSABLE_ENTITY)
+            }
+            ApiErrorCode::InvalidLeaseToken => ("INVALID_LEASE_TOKEN", StatusCode::CONFLICT),
+            ApiErrorCode::TextNotExtracted => {
+                ("TEXT_NOT_EXTRACTED", StatusCode::UNPROCESSABLE_ENTITY)
+            }
+            ApiErrorCode::AmbiguousFile => ("AMBIGUOUS_FILE", StatusCode::CONFLICT),
         }
     }
 

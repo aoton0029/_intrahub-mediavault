@@ -22,6 +22,10 @@ CREATE TYPE relation_type AS ENUM ('adaptation', 'sequel', 'prequel', 'spinoff',
 
 CREATE TYPE file_type AS ENUM ('pdf', 'image', 'video', 'audio', 'archive', 'other');
 
+CREATE TYPE extraction_state AS ENUM (
+    'queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled'
+);
+
 CREATE TYPE api_provider AS ENUM ('tmdb', 'igdb', 'ndl', 'steam', 'openlibrary', 'anilist', 'annict', 'rakuten');
 
 -- ========================================
@@ -131,6 +135,62 @@ CREATE TABLE item_files (
 );
 
 CREATE INDEX idx_item_files_item_id ON item_files(item_id);
+
+CREATE TABLE item_file_extractions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_file_id UUID NOT NULL REFERENCES item_files(id) ON DELETE CASCADE,
+    state extraction_state NOT NULL DEFAULT 'queued',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    progress_current INTEGER NOT NULL DEFAULT 0,
+    progress_total INTEGER,
+    claimed_by VARCHAR(255),
+    lease_token UUID,
+    lease_expires_at TIMESTAMP,
+    error JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_item_file_extractions_progress
+        CHECK (progress_current >= 0 AND (progress_total IS NULL OR progress_total >= 0)),
+    CONSTRAINT chk_item_file_extractions_attempts
+        CHECK (attempts >= 0 AND attempts <= max_attempts),
+    CONSTRAINT chk_item_file_extractions_lease
+        CHECK (
+            (state IN ('running', 'cancelling')
+                AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)
+            OR state NOT IN ('running', 'cancelling')
+        )
+);
+
+CREATE UNIQUE INDEX uq_item_file_extractions_active
+    ON item_file_extractions (item_file_id)
+    WHERE state IN ('queued', 'running', 'cancelling');
+
+CREATE INDEX idx_item_file_extractions_file_created
+    ON item_file_extractions (item_file_id, created_at DESC);
+
+CREATE INDEX idx_item_file_extractions_claimable
+    ON item_file_extractions (created_at)
+    WHERE state IN ('queued', 'running', 'cancelling');
+
+CREATE INDEX idx_item_file_extractions_state
+    ON item_file_extractions (state);
+
+CREATE TABLE item_file_texts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_file_id UUID NOT NULL UNIQUE REFERENCES item_files(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    boundaries JSONB NOT NULL DEFAULT '[]'::jsonb,
+    extraction_version VARCHAR(64) NOT NULL,
+    extractor JSONB NOT NULL,
+    extracted_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_item_file_texts_boundaries_is_array
+        CHECK (jsonb_typeof(boundaries) = 'array'),
+    CONSTRAINT chk_item_file_texts_extractor_is_object
+        CHECK (jsonb_typeof(extractor) = 'object')
+);
 
 CREATE TABLE item_trailers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -318,6 +378,10 @@ CREATE TRIGGER trg_item_groups_updated_at BEFORE UPDATE ON item_groups
 CREATE TRIGGER trg_item_episodes_updated_at BEFORE UPDATE ON item_episodes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_item_files_updated_at BEFORE UPDATE ON item_files
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_item_file_extractions_updated_at BEFORE UPDATE ON item_file_extractions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_item_file_texts_updated_at BEFORE UPDATE ON item_file_texts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_api_credentials_updated_at BEFORE UPDATE ON api_credentials
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -26,12 +26,14 @@ pub async fn test_app_state() -> AppState {
 }
 
 /// 【テスト用ヘルパー】: 公開ルーター（`build_router`）と内部ルーター（`build_internal_router`）を
-/// `main.rs`同様にマージしたフルAxum Routerを構築する。`tower::ServiceExt::oneshot`での
+/// `main.rs`同様にマージして`/api/v1`へnestしたフルAxum Routerを構築する。`tower::ServiceExt::oneshot`での
 /// E2E検証に利用する。
-/// 🔵 信頼性レベル: backend/mediavault-api/src/main.rs L48「routes::build_router(state.clone())
-/// .merge(routes::internal::build_internal_router(state))」に直接対応
+/// 🔵 信頼性レベル: backend/mediavault-api/src/main.rsのルーター構成に直接対応
 pub fn build_full_router(state: AppState) -> axum::Router {
-    build_router(state.clone()).merge(build_internal_router(state))
+    axum::Router::new().nest(
+        "/api/v1",
+        build_router(state.clone()).merge(build_internal_router(state)),
+    )
 }
 
 /// 【テスト用ヘルパー】: `INTERNAL_API_KEY`環境変数を既知値に設定する。

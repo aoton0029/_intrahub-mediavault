@@ -1,6 +1,6 @@
 //! TASK-0032: 主要フロー統合テスト — 内部APIキー認証（IT-006, IT-008, IT-009）
 //!
-//! 正しいキー／キーなし／誤りキーの3パターンで`/internal/*`エンドポイントへのアクセス結果
+//! 正しいキー／キーなし／誤りキーの3パターンで`/api/v1/internal/*`エンドポイントへのアクセス結果
 //! （201系 vs 401）を検証する。
 //! 🔵 信頼性レベル: main-flow-integration-test-testcases.md IT-006/IT-008/IT-009
 //! （acceptance-criteria.md TC-018-01、middleware/api_key_auth.rsベース）
@@ -21,8 +21,8 @@ fn valid_create_item_body() -> String {
 
 /// IT-006: 内部APIキー認証（正しいキー）
 /// 【テスト目的】: 正しい`INTERNAL_API_KEY`を`Authorization: Bearer <key>`で送信し、
-/// `/internal/items`へのPOSTが成功することを確認する
-/// 【テスト内容】: 正しいAPIキー、POST /internal/itemsの有効なボディを送信する
+/// `/api/v1/internal/items`へのPOSTが成功することを確認する
+/// 【テスト内容】: 正しいAPIキー、POST /api/v1/internal/itemsの有効なボディを送信する
 /// 【期待される動作】: 201
 /// 🔵 信頼性レベル: main-flow-integration-test-testcases.md IT-006
 /// （acceptance-criteria.md TC-018-01、middleware/api_key_auth.rsベース）
@@ -34,12 +34,12 @@ async fn it_006_internal_items_post_with_valid_key_succeeds() {
     let state = test_app_state().await;
     let app = build_full_router(state);
 
-    // 【実際の処理実行】: 正しいAuthorizationヘッダー付きでPOST /internal/itemsを実行する 🔵
+    // 【実際の処理実行】: 正しいAuthorizationヘッダー付きでPOST /api/v1/internal/itemsを実行する 🔵
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/internal/items")
+                .uri("/api/v1/internal/items")
                 .header("authorization", format!("Bearer {TEST_INTERNAL_API_KEY}"))
                 .header("content-type", "application/json")
                 .body(Body::from(valid_create_item_body()))
@@ -54,7 +54,7 @@ async fn it_006_internal_items_post_with_valid_key_succeeds() {
 
 /// IT-008: 内部APIキー認証（キーなし）
 /// 【エラーケースの概要】: `Authorization`ヘッダーなしで内部エンドポイントへアクセスする
-/// 【テスト内容】: ヘッダーなしでPOST /internal/itemsを実行する
+/// 【テスト内容】: ヘッダーなしでPOST /api/v1/internal/itemsを実行する
 /// 【期待される結果】: 401 Unauthorized
 /// 🟡 信頼性レベル: main-flow-integration-test-testcases.md IT-008（TC-018-E01相当。
 /// acceptance-criteria.mdに直接の項番記載はないが、タスクファイル完了条件およびmiddleware/
@@ -71,7 +71,7 @@ async fn it_008_internal_items_post_without_auth_header_returns_401() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/internal/items")
+                .uri("/api/v1/internal/items")
                 .header("content-type", "application/json")
                 .body(Body::from(valid_create_item_body()))
                 .unwrap(),
@@ -85,7 +85,7 @@ async fn it_008_internal_items_post_without_auth_header_returns_401() {
 
 /// IT-009: 内部APIキー認証（誤ったキー）
 /// 【エラーケースの概要】: 誤った値を`Authorization: Bearer wrong-key`として送信する
-/// 【テスト内容】: 誤ったAPIキー文字列でPOST /internal/itemsを実行する
+/// 【テスト内容】: 誤ったAPIキー文字列でPOST /api/v1/internal/itemsを実行する
 /// 【期待される結果】: 401 Unauthorized
 /// 🟡 信頼性レベル: main-flow-integration-test-testcases.md IT-009（TC-018-E02相当。
 /// middleware実装の比較ロジックから妥当に推測）
@@ -101,7 +101,7 @@ async fn it_009_internal_items_post_with_wrong_key_returns_401() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/internal/items")
+                .uri("/api/v1/internal/items")
                 .header("authorization", "Bearer wrong-key")
                 .header("content-type", "application/json")
                 .body(Body::from(valid_create_item_body()))
