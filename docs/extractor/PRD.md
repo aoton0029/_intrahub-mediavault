@@ -29,8 +29,8 @@ mediavault-extractor（Python worker）
 関連文書:
 
 - [Extraction API](../backend/mediavault-api/extraction.md)
-- [Item Text API](../mediavault-api/item-text.md)
-- [MediaVault-mcpとMastraの連携設計](../mediavault-mcp/design/mastra-integration.md)
+- [Item Text API](../backend/mediavault-api/item-text.md)
+- [MediaVault-mcpとMastraの連携設計](../backend/mediavault-mcp/design/mastra-integration.md)
 
 ## 2. 背景と課題
 
@@ -260,7 +260,7 @@ running ──cancel要求──> cancelling ──worker確認──> cancelled
 
 ### 8.6 Item Text API
 
-[Item Text API](../mediavault-api/item-text.md)に従い、`GET /api/v1/items/{id}/text`を実装する。
+[Item Text API](../backend/mediavault-api/item-text.md)に従い、`GET /api/v1/items/{id}/text`を実装する。
 
 - `file_id`を明示して対象ファイルを選択できる。
 - `chunk_index`は形式によらない0起点の連番とする。

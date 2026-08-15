@@ -57,7 +57,7 @@
 
 - [ ] **PREP-07: docker-compose への `mediavault-mcp` サービス追加** 🔵 *[tech-stack.md](../tech-stack.md) より*
   - 別コンテナ構成のため、`docker-compose.yml` にサービス定義と環境変数、api への依存を追加する
-  - 公開ポートとリバースプロキシ経路は [06_deployment-routing.md](../../../basic-design/06_deployment-routing.md) と整合させる
+  - 公開ポートとリバースプロキシ経路はインフラ側のデプロイ・ルーティング設計と整合させる
   - 必要になるフェーズ: Phase 1（サーバー基盤）
   - 関連要件: REQ-001
 

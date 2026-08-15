@@ -110,4 +110,4 @@ docker compose start mediavault-api
 
 - ヘルスチェックは `/healthz` を使う。これは `mediavault-api` の状態に依存しないため、api 障害時に mcp コンテナが unhealthy 判定され再起動ループに陥ることを防ぐ（REQ-121, TASK-0007）。
 - リバースプロキシ経由の外部公開は未確定のため、本構成では LAN 内公開（ポート `8081`）までを対象とする。
-- `get_item_text` と jobs 系ツールは MediaVault-api 側が未実装のため提供していない（[design/api-tool-mapping.md](design/api-tool-mapping.md) §6）。
+- `get_item_text` と抽出系3ツール（`request_extraction` / `get_extraction_status` / `cancel_extraction`）を提供している。抽出操作は MediaVault-api の公開APIを利用する（[design/api-tool-mapping.md](design/api-tool-mapping.md) §2.10）。

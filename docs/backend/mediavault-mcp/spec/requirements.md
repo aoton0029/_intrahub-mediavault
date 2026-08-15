@@ -124,7 +124,7 @@ REST API をそのままツール化せず、利用者の目的単位のツー�
 ### 将来要件（第2段階・本要件定義のスコープ外）
 
 - REQ-900: システムは 抽出済み全文をページまたはチャンク単位で取得できるようにする（`get_item_text`, US-10）🔵 *PRD §7.2より*
-- REQ-901: システムは 非同期ジョブを冪等に投入・監視・キャンセルできるようにする（`enqueue_job` / `get_job` / `list_jobs` / `cancel_job`, US-11）🔵 *PRD §7.2より*
+- REQ-901: システムは ファイルのテキスト抽出を冪等に依頼・監視・キャンセルできるようにする（`request_extraction` / `get_extraction_status` / `cancel_extraction`, US-11）🔵 *PRD §7.2より*
 - REQ-902: システムは stdio トランスポートを、Streamable HTTP とツールの意味・入出力を同一にしたうえで追加する 🔵 *PRD §11・§15.1より*
 - REQ-903: システムは 作品に記録済みの引用を、出典位置（`locator_type` と対応する位置フィールド）を保ったまま一覧できるようにする（`list_citations`, US-12）🟡 *PRD §7.2・設計決定 D-11（ヒアリング2026-08-13）より*
 - REQ-904: システムは 引用を追記できるようにする（`add_citation`, US-12）。**`locator_type` と位置フィールドが整合しない場合は MediaVault-api を呼ばずに拒否する** 🟡 *設計決定 D-11 より。api 側は整合を必須バリデーションしないため（[citations.md](../../mediavault-api/citations.md)）、MCP 側で担保しないと出典不明の引用が蓄積する*
@@ -193,7 +193,7 @@ REST API をそのままツール化せず、利用者の目的単位のツー�
 | 検索結果の該当件数返却 | REQ-013 | 現行は `total` を返さない | ✅ **実装済み**。`include_total=true` で `pagination.total`（オプトイン方式） |
 | `GET /collection/overview` の新設 | REQ-090 | status別・お気に入り別の件数を取得する手段がない | ✅ **実装済み**（[collection.md](../../mediavault-api/collection.md)） |
 
-第2段階の要件（REQ-900 / REQ-901）が依存する `GET /items/{id}/text` と jobs API は依然として未実装である。
+第2段階の要件 REQ-900 / REQ-901 が依存する Item Text API と抽出リソースは実装済みである。MCP はこれらの公開APIのみを利用する。
 
 ## 品質評価
 

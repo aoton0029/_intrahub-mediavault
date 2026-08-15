@@ -160,16 +160,16 @@ MediaVault-mcp は REST API をそのまま複製せず、利用者の目的に�
 | PATCH | `/citations/{citation_id}` | **N** | — | 既存の引用文の上書きは実質的に破壊的（§3 D-11） |
 | DELETE | `/citations/{citation_id}` | **N** | — | REQ-141 |
 
-### 2.10 jobs 🔵
+### 2.10 text / extraction 🔵
 
-第2段階（REQ-900・PRD §7.2）。api 側は仕様のみで**未実装**（[jobs.md](../../mediavault-api/jobs.md)）。
+第2段階（REQ-900・REQ-901・PRD §7.2）。全文取得と抽出操作は実装済みであり、すべて公開APIを使う。
 
 | Method | Path | 区分 | 対応MCPツール | 根拠・備考 |
 |---|---|---|---|---|
-| POST | `/internal/jobs` | E | `enqueue_job` | 投入は内部APIのみ。MCP は `INTERNAL_API_KEY` を保持しており呼べる（[internal-api.md](../../mediavault-api/internal-api.md)）。`dedup_key` により冪等（PRD §6 原則6） |
-| GET | `/api/v1/jobs` | E | `list_jobs` | REQ-900 |
-| GET | `/api/v1/jobs/{id}` | E | `get_job` | REQ-900 |
-| POST | `/api/v1/jobs/{id}/cancel` | E | `cancel_job` | REQ-900。**キャンセルは削除ではなく状態遷移**のため N にしない |
+| GET | `/api/v1/items/{id}/text` | E | `get_item_text` | REQ-900。抽出済み本文を0起点のチャンク単位で取得する |
+| POST | `/api/v1/items/{id}/files/{file_id}/extraction` | E | `request_extraction` | REQ-901。未完了の抽出はDB制約により冪等に1件へ収束する |
+| GET | `/api/v1/items/{id}/files/{file_id}/extraction` | E | `get_extraction_status` | REQ-901。状態・進捗・試行回数を取得する |
+| POST | `/api/v1/items/{id}/files/{file_id}/extraction/cancel` | E | `cancel_extraction` | REQ-901。**キャンセルは削除ではなく状態遷移**のため N にしない |
 
 ### 2.11 settings / import 🔵
 
@@ -190,7 +190,7 @@ MediaVault-mcp は REST API をそのまま複製せず、利用者の目的に�
 | POST | `/internal/groups/{group_id}/episodes` | **N** | — | 同上 |
 | POST | `/internal/items/{id}/files` | **N** | — | 公開API版と同じく N（§2.7） |
 
-> 内部APIのうち MCP が実際に使うのは `POST /internal/jobs` のみ（§2.10）。それ以外は公開API側を使う。
+> **MCP は内部APIを使わない。** 抽出の依頼・状態確認・キャンセルを含め、MCP が呼ぶのは公開APIのみである。worker 専用の内部APIと `INTERNAL_API_KEY` は MCP の責務外である。
 
 ---
 
@@ -421,10 +421,10 @@ PRD §8「MediaVault-apiへの要求候補」のうち、**大半はすでに実
 | `relation_type` の値拡張 | ✅ **実装済み**。6値すべて対応 | [item-relations.md](../../mediavault-api/item-relations.md) |
 | `GET /collection/overview` | ✅ **実装済み** | [collection.md](../../mediavault-api/collection.md) |
 | `GET /items/{id}/context` 集約API | ⏸ **保留**。PRD §8 の「初期実装ではMCPが複数API呼び出しでよい」判断を維持する。性能・レスポンスサイズに問題が出た時点で再検討 | — |
-| `GET /items/{id}/text` | ⛔ **新設が必要** | [item-text.md](../../mediavault-api/item-text.md) |
-| jobs 系4本 | ⛔ **仕様のみ・未実装** | [jobs.md](../../mediavault-api/jobs.md) |
+| `GET /items/{id}/text` | ✅ **実装済み** | [item-text.md](../../mediavault-api/item-text.md) |
+| 抽出リソース3本 | ✅ **実装済み** | [extraction.md](../../mediavault-api/extraction.md) |
 
-**残る真の欠落は `text` と `jobs` の2領域のみ。**
+**MCP が必要とする api 側機能に真の欠落はない。**
 
 その他、本調査で判明した api 側ドキュメントの不整合（設計への影響はないが記録する）:
 
@@ -450,13 +450,10 @@ PRD §8「MediaVault-apiへの要求候補」のうち、**大半はすでに実
 | `list_citations` / `add_citation` | `src/services/citations.rs` / `src/tools/citations.rs` |
 | D-10 read-only トークン | `MCP_READONLY_TOKEN`。`src/auth.rs` の `TokenScope` と `src/server.rs` の `list_tools` / `call_tool` |
 
-**未実装（api 側の実装待ち）**:
+**未実装**:
 
 | 項目 | 前提 |
 |---|---|
-| `get_item_text` | `GET /items/{id}/text` の実装 + 全文抽出ジョブ |
-| D-09 フィーチャーフラグ | `get_item_text` と同時 |
-| `enqueue_job` / `get_job` / `list_jobs` / `cancel_job` | jobs API の実装 |
 | stdio トランスポート | REQ-902（api 側には依存しない） |
 
 ---
@@ -472,7 +469,7 @@ PRD §8「MediaVault-apiへの要求候補」のうち、**大半はすでに実
 | 連番インデックス（REQ-006） | D-08 で合意。`chunk.index` は0起点連番、ページ・章は `chunk.label` の任意情報 |
 | `extraction_version` | MediaVault 側から**新規提案**。再抽出による `sourceRefs` 失効を検出するために mastra 側でも保持を検討されたい |
 | シリーズ名（REQ-016a） | D-07 で `get_item_context` の `series` として提供。解決不能時は `state: "empty"` を返すため、EDGE-006 の未分類階層で受けること |
-| `get_item_text` の可視性（TC-004-E02） | D-09。抽出未実装の間はツール自体が `tools/list` に現れない |
+| `get_item_text` の可視性（TC-004-E02） | D-09。抽出機能の実装完了に伴い `tools/list` へ公開済み |
 | `list_citations` | 第2段階で MediaVault-mcp に実装するが、REQ-401 の許可リストが3ツール限定のため渡さない。必要なら mastra 側で許可リストを拡張されたい |
 
 ---

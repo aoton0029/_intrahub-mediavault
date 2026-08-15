@@ -48,7 +48,7 @@ Itemに紐づくファイルの抽出済み全文を、ページまたはチャ�
 ### 前提条件
 
 - MediaVault-apiに `GET /api/v1/items/{item_id}/text` を新設する。**REST仕様は [item-text.md](../../mediavault-api/item-text.md) に確定済み**。
-- 全文抽出処理（PDF/EPUB等からのテキスト抽出）は `extract_text` ジョブ（[jobs.md](../../mediavault-api/jobs.md)）が担う。payload `{ item_file_id, path }` は既に定義済みで、本連携のための job_type 追加は不要。抽出未実行のファイルは `not_extracted` を返す。
+- 全文抽出処理（PDF・画像からのテキスト抽出）は抽出リソース（[extraction.md](../../mediavault-api/extraction.md)）と Extractor worker が担う。抽出未実行のファイルは `not_extracted` を返す。
 
 ### D-08: チャンクは0起点の連番のみ 🔵
 
@@ -100,13 +100,13 @@ mastra は `sourceRefs` を `(itemId, fileId, chunkIndex)` の連番インデッ
 }
 ```
 
-`label` は形式固有の区切りに対応づけられる場合のみ設定され、それ以外は `null`。api 側の初期実装では常に `null` を返す（[item-text.md](../../mediavault-api/item-text.md)）。
+`label` は形式固有の区切りに対応づけられる場合に `"p.1-3"` のような範囲表記を返し、それ以外は `null`（[item-text.md](../../mediavault-api/item-text.md)）。
 
 | `outcome` | 意味 | api 側の対応 |
 |---|---|---|
 | `success` | 指定チャンクを返した | 200 |
 | `not_found` | `item_id` / `file_id` が存在しない | 404 `ITEM_NOT_FOUND` / `FILE_NOT_FOUND` |
-| `not_extracted` | ファイルは存在するが全文抽出が未実行（`enqueue_job` での抽出依頼を促すメッセージを含む） | 422 `TEXT_NOT_EXTRACTED` |
+| `not_extracted` | ファイルは存在するが全文抽出が未実行（`request_extraction` での抽出依頼を促すメッセージを含む） | 422 `TEXT_NOT_EXTRACTED` |
 | `ambiguous` | `file_id` が未指定でItemに抽出済みファイルが複数ある | 409 `AMBIGUOUS_FILE` |
 | `error` | MediaVault-api接続エラー、`chunk.index` 範囲外等 | `MCP_API_UNREACHABLE` / 400 `VALIDATION_ERROR` |
 
@@ -116,7 +116,7 @@ mastra は `sourceRefs` を `(itemId, fileId, chunkIndex)` の連番インデッ
 
 **信頼性**: 🔵 *[acceptance-criteria.md](../../../../../intrahub-mastra/docs/spec/knowledge-vault-generation/acceptance-criteria.md) TC-004-E02 より*
 
-mastra の受け入れ基準 TC-004-E02 は「`get_item_text` 未実装時に、**MCPツール不在**として `errors` に記録され、`metadata_only` へ暗黙にフォールバックしない」ことを求める。
+mastra の受け入れ基準 TC-004-E02 は、実装前には `get_item_text` を**MCPツール不在**として扱うことを求めていた。現在は抽出機能が実装済みのためツールを常時公開するが、接続先の不整合でツールが見つからない場合も `errors` に記録し、`metadata_only` へ暗黙にフォールバックしない。
 
 したがって全文抽出が未実装の間、`get_item_text` を **`tools/list` に出さない**（環境変数によるフィーチャーフラグで制御）。公開したうえで常に `not_extracted` を返す方式では、mastra 側が「ツールが無い」と「このファイルは未抽出」を区別できず、`mode: metadata_only` へのフォールバック判断（REQ-101）を誤る。
 
@@ -153,12 +153,12 @@ mastra は Knowledge Note の配置先 `topic` を「MediaVault Item の作品�
 
 | API | 要求 | 状況 |
 |---|---|---|
-| `GET /api/v1/items/{id}/text` | `file_id` 省略時の主ファイル解決、`chunk.index`/`chunk.size` によるオフセット取得、`extracted_at` / `extraction_version` の返却、0起点連番インデックスの保証 | **REST仕様確定済み**（[item-text.md](../../mediavault-api/item-text.md)）。実装は未着手 |
-| 全文抽出ジョブ | `job_type: "extract_text"`（payload `{ item_file_id, path }`）が対象ファイルを抽出し、完了後に `get_item_text` が `not_extracted` を返さなくなること | **仕様は既存**（[jobs.md](../../mediavault-api/jobs.md)）。jobs API 全体が未実装 |
+| `GET /api/v1/items/{id}/text` | `file_id` 省略時の対象解決、`chunk.index`/`chunk.size` による取得、`extracted_at` / `extraction_version` の返却、0起点連番インデックスの保証 | ✅ **実装済み**（[item-text.md](../../mediavault-api/item-text.md)） |
+| 抽出リソース | 公開APIで依頼・状態確認・キャンセルし、Extractor worker の完了後に `get_item_text` で本文を取得できること | ✅ **実装済み**（[extraction.md](../../mediavault-api/extraction.md)） |
 | `GET /items/{id}/groups` | シリーズ名解決のため `parent_item_id` を返すこと（D-07） | ✅ **実装済み**（[item-groups.md](../../mediavault-api/item-groups.md)） |
 | 別名・原題を含む検索 | `search_library` が別名でも所蔵を解決できること | ✅ **実装済み**。`title` は本題・原題・`details.alternative_titles` を横断OR部分一致（[items.md](../../mediavault-api/items.md)） |
 
-PRD §8 の要求のうち本連携に関わるものの多くは既に実装済みである。残る欠落は `text` と `jobs` の2領域のみ（[api-tool-mapping.md](api-tool-mapping.md) §6）。
+PRD §8 の要求のうち本連携に関わる api 機能は実装済みである（[api-tool-mapping.md](api-tool-mapping.md) §6）。
 
 ## 4. 認証・接続経路 🔵
 
@@ -182,7 +182,7 @@ MVP では現行どおり単一トークンで運用する。
 
 **信頼性**: 🔵 *intrahub-mastra PRD §5・MediaVault-mcp PRD §13 より*
 
-- `enqueue_job` / `get_job` / `list_jobs` / `cancel_job` の詳細設計（PRD §7.2に別途記載、必要になった時点で設計する）
+- `request_extraction` / `get_extraction_status` / `cancel_extraction` の詳細設計（実装済み。[mcp-tools.md](mcp-tools.md)・[extraction.md](../../mediavault-api/extraction.md) を参照）
 - Knowledge Vault側の `vault-mcp`（`search_notes` / `create_note` 等）の設計。これは `intrahub-mastra` 側のリポジトリ・別ドキュメントで扱う。
 - MediaVault-mcpからのナレッジ取得・保存ツールの追加（両PRDの原則により提供しない）
 - **`list_citations` / `add_citation`**: 第2段階で MediaVault-mcp に実装するが（[api-tool-mapping.md](api-tool-mapping.md) §3）、mastra 側 REQ-401 の許可リストが3ツール限定のため `mediaResearchAgent` には**渡さない**。`list_citations` は `readOnlyHint: true` であり REQ-402 にも抵触しないため、mastra 側が許可リストを拡張すれば追加できる。MediaVault-mcp 側からは要求しない

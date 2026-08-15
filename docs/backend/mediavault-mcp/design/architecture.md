@@ -99,7 +99,7 @@ MCPサーバーはステートレスである。DB もキャッシュストア�
 
 ## システム構成図 🔵
 
-**信頼性**: 🔵 *[tech-stack.md](../tech-stack.md)（別コンテナ構成）・[06_deployment-routing.md](../../../basic-design/06_deployment-routing.md) より*
+**信頼性**: 🔵 *[tech-stack.md](../tech-stack.md)（別コンテナ構成）・インフラ側のデプロイ・ルーティング設計より*
 
 ```mermaid
 graph TB

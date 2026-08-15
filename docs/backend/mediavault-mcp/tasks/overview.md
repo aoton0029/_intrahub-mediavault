@@ -38,7 +38,9 @@
 ## タスク番号管理
 
 **使用済みタスク番号**: TASK-0001 ~ TASK-0026
-**次回開始番号**: TASK-0027（第2段階: `get_item_text` / jobs / stdio 用）
+**次回開始番号**: TASK-0027（第2段階: stdio 用）
+
+抽出関連のタスクは `docs/extractor/tasks/` の別番号空間で管理する。同ディレクトリの TASK-0024 / TASK-0025 で `get_item_text` と抽出系3ツールは実装済みであり、本タスク群の TASK-0027 以降では stdio のみを扱う。
 
 ## 全体進捗
 
@@ -251,12 +253,10 @@ Phase 0 を Phase 1 と並行させれば、実質22日程度まで短縮でき�
 
 ## 第2段階（MVP範囲外）
 
-PRD §7.2 の以下は本タスク群に含まない。TASK-0027 以降で扱う。
+PRD §7.2 のうち、本タスク群の TASK-0027 以降で扱う未実装項目は stdio のみである。全文・抽出ツールは `docs/extractor/tasks/` の別番号空間で実装済み。
 
 | 機能 | 対応要件 | 前提 |
 |---|---|---|
-| `get_item_text` | REQ-900 | api の全文抽出と `GET /items/{id}/text` |
-| `enqueue_job` / `get_job` / `list_jobs` / `cancel_job` | REQ-901 | 汎用 jobs API |
 | stdio トランスポート | REQ-902 | Tool層・Service層は変更不要 |
 
 ## 次のステップ

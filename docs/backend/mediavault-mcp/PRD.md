@@ -15,8 +15,6 @@ MediaVault-mcp自身はMediaVaultのデータを所有しない。データの�
 
 - [MediaVault全体PRD](../../PRD.md)
 - [Backend PRD](../PRD.md)
-- [基本設計概要](../../basic-design/00_overview.md)
-- [ジョブ／エージェント連携](../../basic-design/04_jobs-and-agent-integration.md)
 
 ## 2. 背景と課題
 
@@ -47,7 +45,7 @@ MediaVault-mcpはREST APIをそのまま複製するのではなく、利用者�
 
 ### 4.2 KnowledgeHub常駐エージェント
 
-MediaVaultの作品情報や抽出済みテキストを材料として調査・要約するエージェント。生成物はKnowledgeHub Vaultへ保存し、MediaVaultへは書き戻さない（§7.2、[ジョブ／エージェント連携](../../basic-design/04_jobs-and-agent-integration.md)）。
+MediaVaultの作品情報や抽出済みテキストを材料として調査・要約するエージェント。生成物はKnowledgeHub Vaultへ保存し、MediaVaultへは書き戻さない（§7.2）。
 
 ### 4.3 自動化エージェント
 
@@ -215,17 +213,16 @@ MVPの完了条件:
 - 削除ツールと物理ファイル変更ツールを公開しない。
 - MediaVault-apiのエラーコードとメッセージを失わず利用者へ返す。
 
-### 7.2 第2段階: 全文・ジョブ・stdio
+### 7.2 第2段階: 全文・抽出・stdio
 
 | MCPツール候補 | 対応ユーザーストーリー | 概要 | APIの現状 |
 |---|---|---|---|
-| `get_item_text` | US-10 | 抽出済み全文をページ／チャンク単位で取得 | 新設が必要（[item-text.md](../mediavault-api/item-text.md) に仕様確定済み・未実装） |
+| `get_item_text` | US-10 | 抽出済み全文を0起点のチャンク単位で取得 | ✅ **実装済み**（[item-text.md](../mediavault-api/item-text.md)） |
 | `list_citations` | US-12 | 作品に記録済みの引用を一覧 | **既存APIで可能**（`GET /items/{id}/citations`） |
 | `add_citation` | US-12 | 引用を出典位置付きで追記 | **既存APIで可能**（`POST /items/{id}/citations`） |
-| `enqueue_job` | US-11 | 非同期ジョブを冪等に投入 | 設計済み・未実装 |
-| `get_job` | US-11 | ジョブ状態・進捗・結果を取得 | 設計済み・未実装 |
-| `list_jobs` | US-11 | Item、種別、状態でジョブを検索 | 設計済み・未実装 |
-| `cancel_job` | US-11 | ジョブをキャンセル | 設計済み・未実装 |
+| `request_extraction` | US-11 | ファイルのテキスト抽出を冪等に依頼 | ✅ **実装済み**（公開API） |
+| `get_extraction_status` | US-11 | 抽出状態・進捗・試行回数を取得 | ✅ **実装済み**（公開API） |
+| `cancel_extraction` | US-11 | ファイルの抽出をキャンセル | ✅ **実装済み**（公開API） |
 
 引用の**更新・削除ツールは提供しない**。`quote_text` は利用者が書いた本文であり、AIによる上書きは実質的に破壊的だからである（§13）。
 
@@ -260,14 +257,13 @@ stdioトランスポートの提供もこの段階に含める（§14）。
 | 検索結果の該当件数 | US-09 | 選定条件に対する該当件数を返す手段を用意する | ✅ **実装済み**（`include_total=true` で `pagination.total`） |
 | `GET /api/v1/collection/overview` | US-09 | media_type、status、お気に入り等の件数と最近追加・更新されたItemを返す | ✅ **実装済み**（[collection.md](../mediavault-api/collection.md)） |
 | `GET /api/v1/items/{id}/context` | US-02 | Item、タグ、カテゴリ、マイリスト、ファイル、リンク、関連、スタッフ、キャスト、グループを集約して返す | ⏸ **保留**。§15.2 の決定どおりMCP側の複数API合成で進める。性能・レスポンスサイズに問題が出た時点で再検討 |
-| `GET /api/v1/items/{id}/text` | US-10 | file_id指定、チャンク取得、抽出元と抽出日時の追跡に対応する。チャンクは**形式に依らず0起点の連番**とし、ページ・章の差はAPI側で吸収する | ⛔ **新設が必要**。REST仕様は [item-text.md](../mediavault-api/item-text.md) に確定済み・未実装 |
-| `POST /internal/jobs` | US-11 | 型付きpayload、dedup_key、対象Item、最大試行回数を受け取る | ⛔ 設計済み（[jobs.md](../mediavault-api/jobs.md)）・**未実装** |
-| `GET /api/v1/jobs` | US-11 | Item、状態、ジョブ種別で一覧取得する | ⛔ 同上 |
-| `GET /api/v1/jobs/{id}` | US-11 | 状態、進捗、結果、失敗理由を返す | ⛔ 同上 |
-| `POST /api/v1/jobs/{id}/cancel` | US-11 | queued/runningの状態に応じてキャンセルを要求する | ⛔ 同上 |
+| `GET /api/v1/items/{id}/text` | US-10 | file_id指定、チャンク取得、抽出元と抽出日時の追跡に対応する。チャンクは**形式に依らず0起点の連番**とし、形式固有の範囲は `label` で返す | ✅ **実装済み**（[item-text.md](../mediavault-api/item-text.md)） |
+| `POST /api/v1/items/{id}/files/{file_id}/extraction` | US-11 | 対象ファイルの抽出を冪等に依頼する | ✅ **実装済み**（[extraction.md](../mediavault-api/extraction.md)） |
+| `GET /api/v1/items/{id}/files/{file_id}/extraction` | US-11 | 状態、進捗、試行回数、失敗理由を返す | ✅ **実装済み**（同上） |
+| `POST /api/v1/items/{id}/files/{file_id}/extraction/cancel` | US-11 | queued/runningの状態に応じてキャンセルを要求する | ✅ **実装済み**（同上） |
 | 重複候補検索API | US-03、将来候補 | external_id、ISBN、DOI、正規化タイトル等から候補と一致根拠を返す | ⛔ 未着手（将来候補） |
 
-**残る真の欠落は `text` と `jobs` の2領域のみ。** US-12（引用）は既存APIのみで実現でき、API側の追加実装を必要としない。
+MCP が必要とする全文・抽出・引用の api 機能はすべて実装済みである。
 
 ナレッジの取得・保存APIは要求しない。ナレッジ本文はKnowledgeHub Vaultが正本であり、MediaVaultは所有しない（§6 原則7）。
 
@@ -301,7 +297,7 @@ stdioトランスポートの提供もこの段階に含める（§14）。
 1. AIが `get_item_context` と `get_item_text` で材料を取得する。
 2. 呼び出し元AIが要約またはWikiを生成する。
 3. AIがKnowledgeHub側の `vault-mcp` でVaultへ保存し、出典としてMediaVaultのItem IDを記録する。MediaVault-mcpはこの段階に関与しない。
-4. 大量の抽出・索引処理が必要な場合は `enqueue_job` を利用し、`get_job` で進捗を確認する。
+4. 未抽出なら `request_extraction` を利用し、`get_extraction_status` で `succeeded` を確認してから `get_item_text` を再試行する。
 
 ## 10. 安全性と権限に関する要求
 

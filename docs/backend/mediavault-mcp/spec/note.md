@@ -24,9 +24,7 @@
 | 文書 | 内容 |
 |---|---|
 | [PRD.md](../PRD.md) | MediaVault-mcp PRD（§15に決定事項） |
-| [docs/backend/mediavault-api/](../../mediavault-api/) | 既存REST API仕様（items, tags, categories, mylists, item-relations, item-links, item-streaming-links, item-trailers, item-files, jobs ほか） |
-| [docs/basic-design/04_jobs-and-agent-integration.md](../../../basic-design/04_jobs-and-agent-integration.md) | ジョブ／エージェント連携 |
-| [docs/basic-design/06_deployment-routing.md](../../../basic-design/06_deployment-routing.md) | デプロイ・ルーティング |
+| [docs/backend/mediavault-api/](../../mediavault-api/) | 既存REST API仕様（items, tags, categories, mylists, item-relations, item-links, item-streaming-links, item-trailers, item-files, extraction ほか） |
 | `backend/mediavault-api/src/routes/mod.rs` | 実装済みエンドポイント一覧 |
 | `backend/mediavault-api/migrations/20260623000001_init_schema.up.sql` | `relation_type` / `item_status` の PostgreSQL ENUM 定義 |
 
@@ -54,8 +52,8 @@
 | 検索結果の総件数 | `GET /items` は `total` を返さない（COUNT回避のため意図的） |
 | `GET /items/{id}/context` | 未実装 |
 | `GET /collection/overview` | 未実装（`counts-by-media-type` のみ） |
-| `GET /items/{id}/text` | 未実装（全文抽出そのものが未実装） |
-| 汎用 jobs API | 未実装。存在するのは `/import/booklog/jobs/*` のみ |
+| `GET /items/{id}/text` | 実装済み。抽出済み本文をチャンク単位で返す |
+| 抽出リソース | 公開API 3本（依頼・状態確認・キャンセル）と worker 内部APIを実装済み |
 | `item_status` ENUM | `not_started` / `in_progress` / `completed` の3値 |
 | `streaming_links.platform` | `netflix` / `amazon_prime` / `disney_plus` / `dmm_tv` / `apple_tv` の5種固定 |
 | 公開API の認証 | `/api/v1/*` は認証なし（単一ユーザー前提） |

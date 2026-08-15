@@ -702,10 +702,12 @@ Authorization: Bearer {MCP_AUTH_TOKEN}
 | ツール | 対応US | 前提 | 状況 |
 |---|---|---|---|
 | `list_citations` / `add_citation` | US-12 | **既存APIのみで実装可能**。詳細は [api-tool-mapping.md](api-tool-mapping.md) §3 | ✅ **実装済み** |
-| `get_item_text` | US-10 | `GET /items/{id}/text` の新設（[item-text.md](../../mediavault-api/item-text.md)）+ 全文抽出の実装。**実装されるまで `tools/list` に出さない**（D-09。「ツール不在」と「抽出未了」を利用側が区別できるようにするため） | ⛔ api 待ち |
-| `enqueue_job` / `get_job` / `list_jobs` / `cancel_job` | US-11 | 汎用 jobs API の実装 | ⛔ api 待ち |
+| `get_item_text` | US-10 | `item_id`、任意の `file_id` / `chunk_index` / `chunk_size` を受け取り、本文チャンク、範囲 `label`、抽出日時・バージョン・抽出器情報を返す | ✅ **実装済み** |
+| `request_extraction` | US-11 | `item_id`、`file_id` を受け取り、公開APIへ冪等に抽出を依頼する。状態、進捗、次の行動を返す | ✅ **実装済み** |
+| `get_extraction_status` | US-11 | `item_id`、`file_id` を受け取り、状態、進捗、試行回数、抽出エラー、次の行動を返す | ✅ **実装済み** |
+| `cancel_extraction` | US-11 | `item_id`、`file_id` を受け取り、公開APIへキャンセルを依頼し、現在の状態と次の行動を返す | ✅ **実装済み** |
 
-`list_citations` / `add_citation` の実装により、**公開ツールは11個から13個**（読み取り専用6・書き込み7）になった。
+`get_item_text` と抽出系3ツールを含め、**公開ツールは17個**（読み取り専用8・書き込み9）である。
 
 stdio トランスポートも第2段階。Tool層・Service層は変更せず、`main.rs` / `server.rs` のみで対応する（REQ-902）。
 
