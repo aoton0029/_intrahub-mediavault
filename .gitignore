@@ -12,6 +12,11 @@ backend/.local/
 docker/pgadmin/pgpass
 booklog*.csv
 
+# Python (extractor)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 docs/frontend/ui/*/*.jpg
 docs/frontend/ui/*/*.png
 docs/frontend/ui/*/*.webp
