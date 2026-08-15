@@ -130,6 +130,24 @@ pub async fn list_item_files(pool: &PgPool, item_id: Uuid) -> Result<Vec<ItemFil
     .map_err(db_error)
 }
 
+/// 🔵 Intent: 抽出要求で他Itemのファイルを参照できないよう、IDと所有Itemを同時に照合する。
+pub async fn find_item_file(
+    pool: &PgPool,
+    item_id: Uuid,
+    file_id: Uuid,
+) -> Result<Option<ItemFile>, ApiError> {
+    sqlx::query_as::<_, ItemFile>(
+        "SELECT id, item_id, path, label, file_type, calibre_book_id, created_at
+         FROM item_files
+         WHERE id = $1 AND item_id = $2",
+    )
+    .bind(file_id)
+    .bind(item_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_error)
+}
+
 /// 【機能概要】: 対象のitem_files行（id+item_id一致）をDELETEし、削除された行を返す
 /// （呼び出し元がfile_type/pathから物理ファイルのクリーンアップを行えるようにするため）
 /// 🟡 信頼性レベル: item_link_repository::delete_item_linkと対称のDELETEパターン（RETURNING付き）

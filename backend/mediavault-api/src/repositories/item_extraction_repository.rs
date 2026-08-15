@@ -1,11 +1,16 @@
 //! `item_file_extractions` の公開API向けDB操作。
 
+use chrono::NaiveDateTime;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::models::item_extraction::ItemFileExtraction;
+use crate::models::item_extraction::{
+    CompleteRequest, ExtractionError, ExtractionState, ItemFileExtraction,
+};
+use crate::models::item_file::FileType;
 use crate::models::response::{ApiError, ApiErrorCode};
 use crate::repositories::db_error_utils::is_unique_violation;
+use crate::repositories::item_file_text_repository;
 
 #[derive(Debug)]
 pub enum CreateOutcome {
@@ -13,9 +18,30 @@ pub enum CreateOutcome {
     Existing(ItemFileExtraction),
 }
 
+#[derive(Debug, sqlx::FromRow)]
+pub struct ClaimedItemFile {
+    pub item_id: Uuid,
+    pub path: String,
+    pub file_type: FileType,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct HeartbeatUpdate {
+    pub state: ExtractionState,
+    pub lease_expires_at: NaiveDateTime,
+}
+
 fn db_error(err: sqlx::Error) -> ApiError {
     tracing::error!(error = %err, "item_file_extractions repository db error");
     ApiError::new(ApiErrorCode::InternalError, "抽出処理に失敗しました")
+}
+
+fn terminal_db_error(error: sqlx::Error) -> ApiError {
+    tracing::error!(%error, "item extraction terminal transition db error");
+    ApiError::new(
+        ApiErrorCode::InternalError,
+        "抽出処理の状態更新に失敗しました",
+    )
 }
 
 fn extraction_not_found() -> ApiError {
@@ -135,6 +161,246 @@ pub async fn request_cancel(
     }
 }
 
+/// 🟡 Intent: claimポーリング時に試行上限へ達した失効leaseを終端化する。
+pub async fn sweep_exhausted_leases(pool: &PgPool) -> Result<u64, ApiError> {
+    sqlx::query(
+        "UPDATE item_file_extractions
+         SET state = 'failed', claimed_by = NULL, lease_token = NULL, lease_expires_at = NULL,
+             error = jsonb_build_object(
+                 'kind', 'lease_expired',
+                 'message', 'workerが応答しないまま試行上限に達しました',
+                 'retryable', false)
+         WHERE state IN ('running', 'cancelling')
+           AND lease_expires_at < CURRENT_TIMESTAMP
+           AND attempts >= max_attempts",
+    )
+    .execute(pool)
+    .await
+    .map(|result| result.rows_affected())
+    .map_err(db_error)
+}
+
+/// 🔵 Intent: SKIP LOCKEDで並列worker間の競合を避け、lease発行を単一SQLで確定する。
+pub async fn claim_next(
+    pool: &PgPool,
+    worker_id: &str,
+    lease_seconds: i64,
+) -> Result<Option<ItemFileExtraction>, ApiError> {
+    sqlx::query_as::<_, ItemFileExtraction>(
+        "WITH claimable AS (
+             SELECT id FROM item_file_extractions
+             WHERE (state = 'queued'
+                    OR (state IN ('running', 'cancelling')
+                        AND lease_expires_at < CURRENT_TIMESTAMP))
+               AND attempts < max_attempts
+             ORDER BY created_at, id
+             FOR UPDATE SKIP LOCKED
+             LIMIT 1
+         )
+         UPDATE item_file_extractions e
+         SET state = 'running', attempts = e.attempts + 1, claimed_by = $1,
+             lease_token = gen_random_uuid(),
+             lease_expires_at = CURRENT_TIMESTAMP
+                 + make_interval(secs => $2::double precision)
+         FROM claimable c
+         WHERE e.id = c.id
+         RETURNING e.*",
+    )
+    .bind(worker_id)
+    .bind(lease_seconds)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_error)
+}
+
+/// 🔵 Intent: claim済み抽出からworkerへ渡すファイル所有情報を取得する。
+pub async fn find_claimed_file(
+    pool: &PgPool,
+    item_file_id: Uuid,
+) -> Result<Option<ClaimedItemFile>, ApiError> {
+    sqlx::query_as::<_, ClaimedItemFile>(
+        "SELECT item_id, path, file_type FROM item_files WHERE id = $1",
+    )
+    .bind(item_file_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_error)
+}
+
+/// 🟡 Intent: claim後に実体を解決できない行を終端化し、後続候補の処理を妨げない。
+pub async fn fail_unavailable_claim(pool: &PgPool, extraction_id: Uuid) -> Result<(), ApiError> {
+    sqlx::query(
+        "UPDATE item_file_extractions
+         SET state = 'failed', claimed_by = NULL, lease_token = NULL, lease_expires_at = NULL,
+             error = jsonb_build_object(
+                 'kind', 'file_not_found',
+                 'message', '抽出対象ファイルの実体が見つかりません',
+                 'retryable', false)
+         WHERE id = $1 AND state = 'running'",
+    )
+    .bind(extraction_id)
+    .execute(pool)
+    .await
+    .map_err(db_error)?;
+    Ok(())
+}
+
+/// 有効なleaseを延長し、進捗更新とキャンセル状態取得を1 SQLで行う。
+pub async fn heartbeat(
+    pool: &PgPool,
+    extraction_id: Uuid,
+    lease_token: Uuid,
+    lease_seconds: i64,
+    progress_current: Option<i32>,
+    progress_total: Option<i32>,
+) -> Result<HeartbeatUpdate, ApiError> {
+    sqlx::query_as::<_, HeartbeatUpdate>(
+        "UPDATE item_file_extractions
+         SET lease_expires_at = CURRENT_TIMESTAMP
+                 + make_interval(secs => $3::double precision),
+             progress_current = COALESCE($4, progress_current),
+             progress_total = COALESCE($5, progress_total)
+         WHERE id = $1
+           AND lease_token = $2
+           AND state IN ('running', 'cancelling')
+         RETURNING state, lease_expires_at",
+    )
+    .bind(extraction_id)
+    .bind(lease_token)
+    .bind(lease_seconds)
+    .bind(progress_current)
+    .bind(progress_total)
+    .fetch_optional(pool)
+    .await
+    .map_err(|error| {
+        tracing::error!(%error, "item extraction heartbeat db error");
+        ApiError::new(ApiErrorCode::InternalError, "heartbeatの更新に失敗しました")
+    })?
+    .ok_or_else(|| {
+        ApiError::new(
+            ApiErrorCode::InvalidLeaseToken,
+            "lease tokenが無効、または抽出処理が終了しています",
+        )
+    })
+}
+
+/// 結果UPSERTとsucceeded遷移を同じ行ロック・トランザクション内で確定する。
+pub async fn complete_extraction(
+    pool: &PgPool,
+    extraction_id: Uuid,
+    lease_token: Uuid,
+    request: &CompleteRequest,
+) -> Result<ItemFileExtraction, ApiError> {
+    let complete_db_error = |error| {
+        tracing::error!(%error, "item extraction complete db error");
+        ApiError::new(ApiErrorCode::InternalError, "抽出結果の確定に失敗しました")
+    };
+    let mut transaction = pool.begin().await.map_err(complete_db_error)?;
+    let item_file_id = sqlx::query_scalar::<_, Uuid>(
+        "SELECT item_file_id FROM item_file_extractions
+         WHERE id = $1 AND lease_token = $2 AND state = 'running'
+         FOR UPDATE",
+    )
+    .bind(extraction_id)
+    .bind(lease_token)
+    .fetch_optional(&mut *transaction)
+    .await
+    .map_err(complete_db_error)?
+    .ok_or_else(|| {
+        ApiError::new(
+            ApiErrorCode::InvalidLeaseToken,
+            "lease tokenが無効、または抽出処理を成功確定できない状態です",
+        )
+    })?;
+
+    item_file_text_repository::upsert_text(&mut transaction, item_file_id, request).await?;
+
+    let updated = sqlx::query_as::<_, ItemFileExtraction>(
+        "UPDATE item_file_extractions
+         SET state = 'succeeded', claimed_by = NULL, lease_token = NULL,
+             lease_expires_at = NULL,
+             progress_current = COALESCE(progress_total, progress_current)
+         WHERE id = $1
+         RETURNING *",
+    )
+    .bind(extraction_id)
+    .fetch_one(&mut *transaction)
+    .await
+    .map_err(complete_db_error)?;
+
+    transaction.commit().await.map_err(complete_db_error)?;
+    Ok(updated)
+}
+
+/// retryableとclaim済み試行回数から、fail後の状態を決定する。
+pub fn next_state_on_fail(retryable: bool, attempts: i32, max_attempts: i32) -> ExtractionState {
+    if retryable && attempts < max_attempts {
+        ExtractionState::Queued
+    } else {
+        ExtractionState::Failed
+    }
+}
+
+/// 有効なleaseの失敗報告を受理し、再試行判定とlease解放を原子的に行う。
+pub async fn fail_extraction(
+    pool: &PgPool,
+    extraction_id: Uuid,
+    lease_token: Uuid,
+    error: &ExtractionError,
+) -> Result<ItemFileExtraction, ApiError> {
+    let error_json = serde_json::to_value(error).map_err(|serialization_error| {
+        tracing::error!(%serialization_error, "extraction error serialization failed");
+        ApiError::new(
+            ApiErrorCode::InternalError,
+            "抽出エラーの保存に失敗しました",
+        )
+    })?;
+    sqlx::query_as::<_, ItemFileExtraction>(
+        "UPDATE item_file_extractions
+         SET state = CASE WHEN $3 = false THEN 'failed'::extraction_state
+                          WHEN attempts < max_attempts THEN 'queued'::extraction_state
+                          ELSE 'failed'::extraction_state END,
+             error = $4, claimed_by = NULL, lease_token = NULL, lease_expires_at = NULL
+         WHERE id = $1 AND lease_token = $2 AND state IN ('running', 'cancelling')
+         RETURNING *",
+    )
+    .bind(extraction_id)
+    .bind(lease_token)
+    .bind(error.retryable)
+    .bind(error_json)
+    .fetch_optional(pool)
+    .await
+    .map_err(terminal_db_error)?
+    .ok_or_else(invalid_lease)
+}
+
+/// cancellingかつ有効なleaseの確認をcancelledへ遷移する。
+pub async fn cancel_extraction(
+    pool: &PgPool,
+    extraction_id: Uuid,
+    lease_token: Uuid,
+) -> Result<ItemFileExtraction, ApiError> {
+    sqlx::query_as::<_, ItemFileExtraction>(
+        "UPDATE item_file_extractions
+         SET state = 'cancelled', claimed_by = NULL, lease_token = NULL, lease_expires_at = NULL
+         WHERE id = $1 AND lease_token = $2 AND state = 'cancelling'
+         RETURNING *",
+    )
+    .bind(extraction_id)
+    .bind(lease_token)
+    .fetch_optional(pool)
+    .await
+    .map_err(terminal_db_error)?
+    .ok_or_else(invalid_lease)
+}
+
+fn invalid_lease() -> ApiError {
+    ApiError::new(
+        ApiErrorCode::InvalidLeaseToken,
+        "lease tokenが無効か、抽出処理が更新可能な状態ではありません",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,6 +413,23 @@ mod tests {
         assert_eq!(error.error.code, "INTERNAL_ERROR");
         assert_eq!(error.error.message, "抽出処理に失敗しました");
         assert!(!error.error.message.contains("PoolClosed"));
+    }
+
+    #[test]
+    fn fail_transition_follows_retryability_and_attempt_limit() {
+        let cases = [
+            (false, 0, 3, ExtractionState::Failed),
+            (true, 1, 3, ExtractionState::Queued),
+            (true, 3, 3, ExtractionState::Failed),
+            (true, 2, 3, ExtractionState::Queued),
+        ];
+
+        for (retryable, attempts, max_attempts, expected) in cases {
+            assert_eq!(
+                next_state_on_fail(retryable, attempts, max_attempts),
+                expected
+            );
+        }
     }
 
     async fn test_pool() -> PgPool {

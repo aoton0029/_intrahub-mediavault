@@ -151,6 +151,23 @@ pub struct ClaimRequest {
     pub lease_seconds: i64,
 }
 
+/// 🔵 Intent: DB更新前にworker識別子とlease期間を検証し、不正なinterval生成を防ぐ。
+pub fn validate_claim_request(request: &ClaimRequest) -> Result<(), ApiError> {
+    if request.worker_id.trim().is_empty() {
+        return Err(ApiError::new(
+            ApiErrorCode::ValidationError,
+            "worker_idは必須です",
+        ));
+    }
+    if request.lease_seconds <= 0 {
+        return Err(ApiError::new(
+            ApiErrorCode::ValidationError,
+            "lease_secondsは正数である必要があります",
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ClaimResponse {
     pub extraction_id: Uuid,
@@ -185,6 +202,22 @@ pub struct HeartbeatResponse {
     pub lease_expires_at: NaiveDateTime,
 }
 
+/// 🔵 Intent: cancelling状態をworker向けのキャンセル通知へ一意に変換する。
+pub fn cancel_requested(state: ExtractionState) -> bool {
+    state == ExtractionState::Cancelling
+}
+
+/// 🔵 Intent: DB更新前に任意指定のlease期間を検証し、不正なinterval生成を防ぐ。
+pub fn validate_heartbeat_request(request: &HeartbeatRequest) -> Result<(), ApiError> {
+    if request.lease_seconds.is_some_and(|seconds| seconds <= 0) {
+        return Err(ApiError::new(
+            ApiErrorCode::ValidationError,
+            "lease_secondsは正数である必要があります",
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct CompleteRequest {
     pub lease_token: Uuid,
@@ -209,6 +242,17 @@ pub struct CancelledRequest {
 /// 抽出本文の保存上限（Unicode文字数）。
 pub const MAX_CONTENT_CHARS: usize = 5_000_000;
 pub const MAX_ERROR_MESSAGE_CHARS: usize = 4_000;
+
+/// 🟡 Intent: worker由来の巨大な診断文によるDB圧迫を、保存処理より前に拒否する。
+pub fn validate_fail_request(request: &FailRequest) -> Result<(), ApiError> {
+    if request.error.message.chars().count() > MAX_ERROR_MESSAGE_CHARS {
+        return Err(ApiError::new(
+            ApiErrorCode::UnprocessableEntity,
+            "エラーメッセージが保存サイズ上限を超えています",
+        ));
+    }
+    Ok(())
+}
 
 pub fn validate_complete_request(request: &CompleteRequest) -> Result<(), ApiError> {
     let content_chars = request.content.chars().count();
@@ -404,5 +448,41 @@ mod tests {
             assert_eq!(code.as_code_str(), wire_code);
             assert_eq!(code.status_code(), status);
         }
+    }
+
+    #[test]
+    fn claim_request_requires_worker_and_positive_lease() {
+        for request in [
+            ClaimRequest {
+                worker_id: String::new(),
+                lease_seconds: 300,
+            },
+            ClaimRequest {
+                worker_id: "worker-1".to_string(),
+                lease_seconds: 0,
+            },
+        ] {
+            let error = validate_claim_request(&request).unwrap_err();
+            assert_eq!(error.error.code, "VALIDATION_ERROR");
+        }
+    }
+
+    #[test]
+    fn cancelling_state_requests_worker_cancellation() {
+        assert!(cancel_requested(ExtractionState::Cancelling));
+        assert!(!cancel_requested(ExtractionState::Running));
+    }
+
+    #[test]
+    fn heartbeat_request_rejects_non_positive_lease() {
+        let request = HeartbeatRequest {
+            lease_token: Uuid::new_v4(),
+            progress_current: None,
+            progress_total: None,
+            lease_seconds: Some(0),
+        };
+
+        let error = validate_heartbeat_request(&request).unwrap_err();
+        assert_eq!(error.error.code, "VALIDATION_ERROR");
     }
 }

@@ -87,6 +87,29 @@ services:
     networks:
       - mediavault-api
 
+  mediavault-extractor:
+    build:
+      context: ./extractor
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MEDIAVAULT_API_BASE_URL: http://mediavault-api:8080
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      EXTRACTOR_LIBRARY_ROOT: /library
+      EXTRACTOR_STORAGE_ROOT: /srv/mediavault
+      EXTRACTOR_OCR_DEVICE: ${EXTRACTOR_OCR_DEVICE:-cpu}
+      EXTRACTOR_MAX_CONCURRENCY: ${EXTRACTOR_MAX_CONCURRENCY:-1}
+    volumes:
+      - ${MEDIAVAULT_STORAGE_SOURCE:-mediavault-storage}:/srv/mediavault:ro
+      - ${LIBRARY_SOURCE:-shares}:/library:ro
+    depends_on:
+      mediavault-api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - mediavault-api
+
   mediavault-web:
     build:
       context: ./frontend

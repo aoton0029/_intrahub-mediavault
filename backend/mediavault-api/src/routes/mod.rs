@@ -30,6 +30,9 @@ use crate::handlers::import_booklog::{
 };
 use crate::handlers::import_steam::import_steam_handler;
 use crate::handlers::item_episodes::{create_item_episode_handler, list_item_episodes_handler};
+use crate::handlers::item_extractions::{
+    cancel_extraction_handler, get_extraction_handler, request_extraction_handler,
+};
 use crate::handlers::item_files::{
     create_item_file_handler, delete_item_file_handler, list_item_files_handler,
     update_calibre_link_handler, upload_item_file_handler,
@@ -48,6 +51,7 @@ use crate::handlers::item_streaming_links::{
     create_item_streaming_link_handler, delete_item_streaming_link_handler,
     list_item_streaming_links_handler,
 };
+use crate::handlers::item_text::get_item_text_handler;
 use crate::handlers::item_trailers::{
     create_item_trailer_handler, delete_item_trailer_handler, list_item_trailers_handler,
 };
@@ -218,11 +222,22 @@ pub fn build_router(state: AppState) -> Router {
             "/items/{id}/files/{file_id}/calibre-link",
             axum::routing::patch(update_calibre_link_handler),
         )
+        // 【TASK-0007】: 明示要求時のみ文字抽出をキューする冪等API。
+        .route(
+            "/items/{id}/files/{file_id}/extraction",
+            axum::routing::post(request_extraction_handler).get(get_extraction_handler),
+        )
+        .route(
+            "/items/{id}/files/{file_id}/extraction/cancel",
+            axum::routing::post(cancel_extraction_handler),
+        )
         // DELETE /items/{id}/files/{file_id}（ファイルレコード・物理ファイル削除）を追加
         .route(
             "/items/{id}/files/{file_id}",
             axum::routing::delete(delete_item_file_handler),
         )
+        // 【TASK-0009】: 抽出済み本文を安定した文字単位チャンクとして返す。
+        .route("/items/{id}/text", get(get_item_text_handler))
         // 【TASK-0021】: item_links（参考リンク）CRUD 🔵🟡
         // GET /items/{id}/links（一覧）を同一パスに追加
         .route(

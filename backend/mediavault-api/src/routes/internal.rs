@@ -9,10 +9,14 @@
 //! 再利用し、内部API固有のロジック（groups/episodesのupsert）のみ薄いラッパーで追加する。
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, patch, post};
 
 use crate::AppState;
 use crate::handlers::internal_episodes::upsert_item_episode_handler;
+use crate::handlers::internal_extractions::{
+    cancelled_handler, claim_handler, complete_handler, fail_handler, heartbeat_handler,
+};
 use crate::handlers::internal_groups::upsert_item_group_handler;
 use crate::handlers::item_files::create_item_file_handler;
 use crate::handlers::items::{create_item_handler, list_items_handler, update_item_handler};
@@ -27,6 +31,21 @@ use crate::middleware::api_key_auth::api_key_auth;
 /// 🔵 信頼性レベル: TASK-0029.md「実装詳細1」api-endpoints.md「内部REST API」セクションに直接対応
 pub fn build_internal_router(state: AppState) -> Router {
     Router::new()
+        .route("/internal/extractions/claim", post(claim_handler))
+        .route(
+            "/internal/extractions/{id}/heartbeat",
+            post(heartbeat_handler),
+        )
+        .route(
+            "/internal/extractions/{id}/complete",
+            // 🔵 contentは500万Unicode文字まで許容し、文字数検証の422をハンドラで返す。
+            post(complete_handler).layer(DefaultBodyLimit::max(25 * 1024 * 1024)),
+        )
+        .route("/internal/extractions/{id}/fail", post(fail_handler))
+        .route(
+            "/internal/extractions/{id}/cancelled",
+            post(cancelled_handler),
+        )
         .route("/internal/items", post(create_item_handler))
         .route("/internal/items/search", get(list_items_handler))
         .route("/internal/items/{id}", patch(update_item_handler))
