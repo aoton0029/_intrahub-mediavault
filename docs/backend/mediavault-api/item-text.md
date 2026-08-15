@@ -4,9 +4,7 @@
 
 `item_files` から抽出済みの全文テキストを、チャンク単位で取得する。`MediaVault-mcp` の `get_item_text` ツールの対応API（[mediavault-mcp/design/mastra-integration.md](../mediavault-mcp/design/mastra-integration.md)）であり、AIエージェントが作品の内容を材料として扱うための唯一の経路である。
 
-**未実装。** 本ドキュメントは設計仕様であり、`item_file_texts` テーブル・ハンドラともにまだ存在しない。
-
-テキストの抽出そのものは本APIの責務ではなく、`extract_text` ジョブ（[jobs.md](./jobs.md)）が非同期に行う。本APIは抽出結果を読み出すだけである。MediaVault は要約・embedding を生成しない。
+テキストの抽出そのものは本APIの責務ではなく、[抽出リソース](./extraction.md)を worker が非同期に処理する。本APIは抽出結果を読み出すだけである。MediaVault は要約・embedding を生成しない。
 
 ---
 
@@ -14,7 +12,7 @@
 
 **最も重要な規約**: クライアントへ返すチャンクは、ファイル形式に依らず **0起点の連番 `index`** で識別する。PDFのページ、EPUBの章、動画のタイムスタンプといった形式固有の区切りは `index` に反映せず、表示用の `label` にのみ現れる。
 
-この規約は `intrahub-mastra` が出典参照を `(itemId, fileId, chunkIndex)` の形で統一して保持するためのものである（[intrahub-mastra requirements.md](../../../../intrahub-mastra/docs/spec/knowledge-vault-generation/requirements.md) REQ-006）。形式ごとの差異を MediaVault 側で吸収し、クライアントには単一の構造だけを見せる。
+この規約は `intrahub-mastra` が出典参照を `(itemId, fileId, chunkIndex)` の形で統一して保持する要件（REQ-006）に基づく。形式ごとの差異を MediaVault 側で吸収し、クライアントには単一の構造だけを見せる。
 
 - 抽出済みテキスト全体を `chunk_size` 文字ごとに分割し、先頭から 0, 1, 2, ... と採番する
 - `label` は分割位置が形式固有の区切りに対応づけられる場合のみ設定する（例: `"p.42"` / `"第3章"`）。対応づけられない場合は `null`
@@ -133,29 +131,29 @@
 
 ## 全文抽出との関係
 
-抽出は `extract_text` ジョブ（[jobs.md](./jobs.md)）が担う。payload は `{ "item_file_id": uuid, "path": string }` で既に定義済みであり、本APIのために新しい job_type を追加する必要はない。
+抽出は [Extraction API](./extraction.md) で作成した抽出リソースを worker が処理する。
 
 | 状態 | `GET /items/{id}/text` の応答 |
 |---|---|
-| ジョブ未登録 | 422 `TEXT_NOT_EXTRACTED` |
-| ジョブ `queued` / `running` | 422 `TEXT_NOT_EXTRACTED` |
-| ジョブ `succeeded` | 200 |
-| ジョブ `failed` | 422 `TEXT_NOT_EXTRACTED` |
+| 抽出未登録 | 422 `TEXT_NOT_EXTRACTED` |
+| 抽出 `queued` / `running` | 422 `TEXT_NOT_EXTRACTED` |
+| 抽出 `succeeded` | 200 |
+| 抽出 `failed` | 422 `TEXT_NOT_EXTRACTED` |
 
-本APIはジョブの状態を参照せず、抽出結果の有無だけで判定する。ジョブの進捗確認は `GET /api/v1/jobs` を使う。
+本APIは抽出の状態を参照せず、抽出結果の有無だけで判定する。進捗確認は `GET /api/v1/items/{id}/files/{file_id}/extraction` を使う。
 
 ---
 
 ## データモデルへの要求
 
-抽出結果を保持する新テーブルが必要になる（[data-model.md](./data-model.md) 未反映）。
+抽出結果は [data-model.md](./data-model.md) の `item_file_texts` に保持する。
 
 | テーブル | 主なカラム |
 |---|---|
-| `item_file_texts` | `id`, `item_file_id`（`item_files` への FK・UNIQUE）, `content`（抽出全文）, `extraction_version`, `extracted_at`, `created_at` / `updated_at` |
+| `item_file_texts` | `id`, `item_file_id`（`item_files` への FK・UNIQUE）, `content`, `boundaries`, `extraction_version`, `extractor`, `extracted_at`, `created_at` / `updated_at` |
 
 - `content` は分割せず全文で保持し、チャンク分割は**読み出し時に行う**。`chunk_size` をクエリで変えられるようにするため
-- ラベル（`p.42` / 第3章）を返すには、形式固有の区切り位置を別途保持する必要がある。初期実装では `label` を常に `null` とし、区切り位置の保持は後続の課題とする
+- `boundaries` に `[{"start": 0, "end": 1200, "label": "p.1"}]` の形で区切りを保存する。チャンクと交差する先頭・末尾境界から `p.1-3` のような範囲ラベルを返し、交差する境界がない場合だけ `null` とする
 - 再抽出時は同一 `item_file_id` の行を置き換え、`extraction_version` を更新する
 
 ---

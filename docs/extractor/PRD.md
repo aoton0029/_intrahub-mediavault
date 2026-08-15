@@ -28,7 +28,7 @@ mediavault-extractor（Python worker）
 
 関連文書:
 
-- [Jobs API](../mediavault-api/jobs.md)
+- [Extraction API](../backend/mediavault-api/extraction.md)
 - [Item Text API](../mediavault-api/item-text.md)
 - [MediaVault-mcpとMastraの連携設計](../mediavault-mcp/design/mastra-integration.md)
 
@@ -182,27 +182,24 @@ Extractorの停止、再起動、OCR失敗によってMediaVault-apiとmediavaul
 
 ## 8. MediaVault-api拡張要求
 
-Extractorの導入には、worker本体に加えてMediaVault-apiのジョブ管理・worker連携・抽出結果公開を拡張する必要がある。ジョブと抽出結果の正本はMediaVault-apiおよびPostgreSQLとし、Extractorは内部API以外から状態を変更しない。
+Extractorの導入には、worker本体に加えてMediaVault-apiの抽出管理・worker連携・抽出結果公開を拡張する必要がある。抽出と結果の正本はMediaVault-apiおよびPostgreSQLとし、Extractorは内部API以外から状態を変更しない。
 
-### 8.1 ジョブデータモデル
+### 8.1 抽出データモデル
 
-MediaVault-apiに汎用`jobs`テーブルを追加し、少なくとも次を保持しなければならない。
+MediaVault-apiの`item_file_extractions`テーブルに、ファイル単位の抽出状態を保持する。
 
 | フィールド | 内容 |
 |---|---|
-| `id` | ジョブID |
-| `job_type` | MVPでは`extract_text` |
+| `id` | 抽出ID |
 | `state` | `queued` / `running` / `succeeded` / `failed` / `cancelling` / `cancelled` |
-| `target_item_id` | 対象Item |
 | `item_file_id` | 抽出対象ファイル |
-| `dedup_key` | 未完了ジョブの重複防止キー |
 | `attempts` / `max_attempts` | 試行回数と上限 |
 | `progress_current` / `progress_total` | 進捗 |
 | `claimed_by` / `lease_expires_at` | workerの排他取得と回収に使用 |
-| `result` / `error` | 終了結果 |
+| `error` | 構造化された失敗情報 |
 | `created_at` / `updated_at` | 作成・更新日時 |
 
-同じ`item_file_id`の未完了`extract_text`ジョブを重複登録してはならない。workerが停止してleaseを更新できない場合、期限経過後にジョブを再取得可能にする。
+同じ`item_file_id`のactiveな抽出は、`state IN ('queued','running','cancelling')`を条件とする部分UNIQUE indexで1件に制限する。workerがleaseを更新できない場合、期限経過後に抽出を再取得可能にする。
 
 ### 8.2 抽出結果データモデル
 
@@ -212,34 +209,33 @@ MediaVault-apiに抽出本文を保持する`item_file_texts`相当のテーブ�
 |---|---|
 | `item_file_id` | `item_files`へのFK。同一ファイルの現行結果は1件 |
 | `content` | 正規化済み全文 |
-| `boundaries` | ページ・章等の文字範囲と表示ラベル |
+| `boundaries` | MVPから保存するページ・章等の文字範囲と表示ラベル。jsonb `[{start, end, label}]` |
 | `extraction_version` | 抽出ロジックと境界の版 |
 | `extractor` | 使用方式とエンジン情報 |
 | `extracted_at` | 抽出完了日時 |
 
-ジョブ成功と抽出結果の置換は、可能な限り同一トランザクションで確定する。失敗・キャンセル時に既存の成功結果を削除してはならない。
+抽出成功と抽出結果の置換は、同一トランザクションで確定する。失敗・キャンセル時に既存の成功結果を削除してはならない。
 
-### 8.3 ジョブ投入・参照API
+### 8.3 抽出要求・参照API
 
-既存の[Jobs API](../mediavault-api/jobs.md)を実装し、次を提供する。
+ファイルを親に持つ [Extraction API](../backend/mediavault-api/extraction.md) を提供する。
 
-- `POST /internal/jobs`: 内部クライアントからの冪等なジョブ投入
-- `GET /api/v1/jobs`: ジョブ一覧と絞り込み
-- `GET /api/v1/jobs/{id}`: 状態・進捗・結果の取得
-- `POST /api/v1/jobs/{id}/cancel`: キャンセル要求
+- `POST /api/v1/items/{id}/files/{file_id}/extraction`: 冪等な抽出要求
+- `GET /api/v1/items/{id}/files/{file_id}/extraction`: 最新状態・進捗の取得
+- `POST /api/v1/items/{id}/files/{file_id}/extraction/cancel`: キャンセル要求
 
-`extract_text`の公開入力は`item_file_id`を正本とする。APIは対象ファイルの存在、Itemとの対応、対応形式、読み取り可能性を検証してからジョブを作成する。
+公開入力はパスパラメータの`item_file_id`を正本とする。APIは対象ファイルの存在、Itemとの対応、対応形式、読み取り可能性を検証してから抽出を作成する。
 
 ### 8.4 worker内部API
 
-MediaVault-apiは、Extractor専用に認証された内部APIを提供しなければならない。具体的なパスは設計で確定するが、少なくとも次の操作が必要である。
+MediaVault-apiは、Extractor専用に認証された `/api/v1/internal/extractions/*` APIを提供する。
 
 | 操作 | 要求 |
 |---|---|
-| claim | 次の実行可能ジョブを排他的に取得し、leaseを設定する |
+| claim | 次の実行可能な抽出を排他的に取得し、leaseを設定する |
 | heartbeat | lease延長、進捗更新、キャンセル要求の取得を行う |
 | file access | `item_file_id`から検証済みファイル参照またはストリームを取得する |
-| complete | 抽出本文とメタデータを保存し、ジョブを`succeeded`へ遷移する |
+| complete | 抽出本文とメタデータを一括保存し、抽出を`succeeded`へ遷移する |
 | fail | 構造化エラーを保存し、再試行または`failed`を決定する |
 | cancel | workerが処理停止を確認し、`cancelled`へ遷移する |
 
@@ -260,7 +256,7 @@ running ──cancel要求──> cancelling ──worker確認──> cancelled
 
 - `succeeded` / `failed` / `cancelled`は終端状態とする。
 - complete/failにはclaim時のlease token等を要求し、別workerや古い試行による上書きを防ぐ。
-- APIはキャンセル済みジョブの抽出結果を成功として確定してはならない。
+- APIはキャンセル済み抽出の結果を成功として確定してはならない。
 
 ### 8.6 Item Text API
 
@@ -277,18 +273,18 @@ running ──cancel要求──> cancelling ──worker確認──> cancelled
 
 - ファイル実体の解決時に許可ルート内であることを検証する。
 - 内部APIの認証キーとファイル本文をログへ出力しない。
-- 抽出本文とジョブエラーには保存サイズ上限を設ける。
-- ジョブ数、待機時間、成功率、処理時間、lease切れ回数を観測可能にする。
-- Itemまたはファイル削除時のジョブ・抽出結果の扱いをFKと業務処理で一貫させる。
+- 抽出本文と抽出エラーには保存サイズ上限を設ける。
+- 抽出数、待機時間、成功率、処理時間、lease切れ回数を観測可能にする。
+- Itemまたはファイル削除時の抽出・抽出結果の扱いをFKと業務処理で一貫させる。
 
 ### 8.8 MediaVault-apiの受け入れ条件
 
-- [ ] 同じ対象への未完了ジョブが冪等化される。
-- [ ] 2台のworkerが同じジョブを同時にclaimできない。
-- [ ] lease切れジョブを安全に再取得できる。
+- [ ] 同じ対象への未完了抽出が冪等化される。
+- [ ] 2台のworkerが同じ抽出を同時にclaimできない。
+- [ ] lease切れ抽出を安全に再取得できる。
 - [ ] 古いworkerからのcompleteが拒否される。
 - [ ] キャンセル要求がworkerへ伝わり、終端状態へ遷移する。
-- [ ] 抽出結果保存とジョブ成功が不整合にならない。
+- [ ] 抽出結果保存と抽出成功が不整合にならない。
 - [ ] Item Text APIがチャンクと`extraction_version`を返す。
 - [ ] 未抽出、ファイル不在、複数候補を異なるエラーとして返す。
 - [ ] 内部APIを無認証で呼び出せない。
@@ -302,13 +298,13 @@ running ──cancel要求──> cancelling ──worker確認──> cancelled
 - [ ] vLLM稼働中にGPUモードを許可する場合、VRAM上限を調整した構成で両サービスの起動と同時推論を確認できる。
 
 
-## 11. 要調整事項
+## 11. 決定事項
 
-1. [Jobs API](../mediavault-api/jobs.md)の`extract_text` payloadは現在`{ item_file_id, path }`だが、公開入力は`item_file_id`だけとし、パスはAPI側で解決する方式へ変更する。
-2. MediaVault-apiの内部ルートは現在`/internal/*`だが、mediavault-mcpの内部APIキー判定は`/api/v1/internal/*`を前提としている。worker APIの追加前にパス規約を統一する。
-3. workerがファイルを共有ボリュームから読むか、内部APIからストリーミング取得するかを決定する。MVPはread-only共有ボリュームを第一候補とする。
-4. 抽出結果をAPIへ一括送信するか、ページ単位で段階送信するかを決定する。
-5. 初期実装で保存するページ・章境界情報のデータ構造を決定する。
+1. 公開入力はパスパラメータの`item_file_id`だけとし、ホストパスはAPI側で解決する。✅
+2. 内部ルートは`/api/v1/internal/*`へ統一し、旧`/internal/*`は提供しない。✅
+3. workerはread-only共有ボリュームからファイルを読む。✅
+4. 抽出結果はcomplete時に一括送信する。✅
+5. 境界情報はjsonb `[{start, end, label}]`として保存する。✅
 
 ## 12. 技術選定
 1. MVPのOCRライブラリには[yomitoku](https://github.com/kotaro-kinoshita/yomitoku)を使用する。

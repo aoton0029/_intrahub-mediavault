@@ -4,10 +4,10 @@
 - RESTful API（Rust / Axum / sqlx / PostgreSQL）
 - ベースURL:
   - 公開API: `/api/v1`
-  - 内部API: `/internal`（バージョンプレフィックスなし）
+  - 内部API: `/api/v1/internal`
 - 認証:
   - 公開API（`/api/v1/*`）: **認証なし**。単一ユーザー・セルフホスト用途のためログイン機構は持たない。
-  - 内部API（`/internal/*`）: `api_key_auth` ミドルウェアが全ルートに適用される。`Authorization` ヘッダに `INTERNAL_API_KEY` 環境変数の値（生の値、または `Bearer <key>` 形式）を渡す必要がある。キー未設定・不一致は `401 UNAUTHORIZED`。
+  - 内部API（`/api/v1/internal/*`）: `api_key_auth` ミドルウェアが全ルートに適用される。`Authorization` ヘッダに `INTERNAL_API_KEY` 環境変数の値（生の値、または `Bearer <key>` 形式）を渡す必要がある。キー未設定・不一致は `401 UNAUTHORIZED`。
 - レスポンス形式: JSON
 
 ---
@@ -69,11 +69,15 @@
 | FILE_NOT_FOUND | 404 | 指定した item file が存在しない |
 | STEAM_API_KEY_INVALID | 401 | Steam Web API キーが無効 |
 | CITATION_NOT_FOUND | 404 | 指定した citation が存在しない |
-| TEXT_NOT_EXTRACTED | 422 | ファイルは存在するが全文抽出が未実行（**未実装**。[item-text.md](./item-text.md)） |
-| AMBIGUOUS_FILE | 409 | `file_id` 省略時に抽出済みファイルが複数あり一意に決められない（**未実装**。[item-text.md](./item-text.md)） |
+| TEXT_NOT_EXTRACTED | 422 | ファイルは存在するが全文抽出が未実行（[item-text.md](./item-text.md)） |
+| AMBIGUOUS_FILE | 409 | `file_id` 省略時に抽出済みファイルが複数あり一意に決められない（[item-text.md](./item-text.md)） |
 | DUPLICATE_STREAMING_LINK | 409 | 同一アイテムに同一プラットフォームの配信URLが登録済み |
-| JOB_NOT_FOUND | 404 | 指定した job が存在しない（**未実装**。[jobs.md](./jobs.md)） |
-| JOB_ALREADY_FINISHED | 409 | 終端状態のジョブをキャンセルしようとした（**未実装**。[jobs.md](./jobs.md)） |
+| UNSUPPORTED_BACKUP_VERSION | 400 | 未対応のバックアップスキーマバージョン |
+| IMPORT_JOB_NOT_FOUND | 404 | 指定したBooklogインポートジョブが存在しない |
+| EXTRACTION_NOT_FOUND | 404 | 指定ファイルに抽出が存在しない |
+| EXTRACTION_ALREADY_FINISHED | 409 | 終端状態の抽出をキャンセルしようとした |
+| UNSUPPORTED_FILE_TYPE | 422 | 文字抽出に対応していないファイル種別 |
+| INVALID_LEASE_TOKEN | 409 | worker の lease token が不一致または失効済み |
 
 ### ページネーション正規化
 `limit` クエリパラメータは以下のルールで補正される（`normalize_limit`）:
@@ -150,7 +154,10 @@
 | POST | /items/{id}/files/upload | アイテムファイルアップロード（multipart） | [item-files.md](./item-files.md) |
 | PATCH | /items/{id}/files/{file_id}/calibre-link | Calibre連携ID更新 | [item-files.md](./item-files.md) |
 | DELETE | /items/{id}/files/{file_id} | アイテムファイル削除 | [item-files.md](./item-files.md) |
-| GET | /items/{id}/text | 抽出済み全文のチャンク取得（**未実装**） | [item-text.md](./item-text.md) |
+| GET | /items/{id}/text | 抽出済み全文のチャンク取得 | [item-text.md](./item-text.md) |
+| POST | /items/{id}/files/{file_id}/extraction | 文字抽出を冪等に要求 | [extraction.md](./extraction.md) |
+| GET | /items/{id}/files/{file_id}/extraction | 最新の抽出状態・進捗を取得 | [extraction.md](./extraction.md) |
+| POST | /items/{id}/files/{file_id}/extraction/cancel | 最新の抽出をキャンセル | [extraction.md](./extraction.md) |
 | GET | /items/{id}/links | 外部リンク一覧取得 | [item-links.md](./item-links.md) |
 | POST | /items/{id}/links | 外部リンク追加 | [item-links.md](./item-links.md) |
 | DELETE | /items/{id}/links/{link_id} | 外部リンク削除 | [item-links.md](./item-links.md) |
@@ -170,11 +177,8 @@
 | PUT | /settings/api-keys/{provider} | 外部APIキー登録・更新 | [settings.md](./settings.md) |
 | POST | /import/booklog | Booklog CSVインポート | [import.md](./import.md) |
 | POST | /import/steam | Steamライブラリインポート | [import.md](./import.md) |
-| GET | /jobs | ジョブ一覧取得（**未実装**） | [jobs.md](./jobs.md) |
-| GET | /jobs/{id} | ジョブ状態・進捗取得（**未実装**） | [jobs.md](./jobs.md) |
-| POST | /jobs/{id}/cancel | ジョブキャンセル（**未実装**） | [jobs.md](./jobs.md) |
 
-内部API（`/internal/*`）の一覧・詳細は [internal-api.md](./internal-api.md) を参照。
+内部API（`/api/v1/internal/*`）の一覧・詳細は [internal-api.md](./internal-api.md) を参照。
 
 ## カテゴリ別詳細
 
@@ -191,7 +195,8 @@
 - [staff.md](./staff.md) — Staff
 - [cast.md](./cast.md) — Cast
 - [item-files.md](./item-files.md) — Item Files
-- [item-text.md](./item-text.md) — Item Text（抽出済み全文のチャンク取得。**未実装**）
+- [item-text.md](./item-text.md) — Item Text（抽出済み全文のチャンク取得）
+- [extraction.md](./extraction.md) — Extraction（抽出リソース・worker連携）
 - [item-links.md](./item-links.md) — Item Links
 - [item-streaming-links.md](./item-streaming-links.md) — Item Streaming Links
 - [item-images.md](./item-images.md) — Item Images
@@ -199,7 +204,6 @@
 - [citations.md](./citations.md) — Citations（作品・論文からの引用）
 - [settings.md](./settings.md) — Settings
 - [import.md](./import.md) — Import
-- [jobs.md](./jobs.md) — Jobs（worker連携の非同期ジョブ。**未実装**）
-- [internal-api.md](./internal-api.md) — 内部API（`/internal/*`）
+- [internal-api.md](./internal-api.md) — 内部API（`/api/v1/internal/*`）
 
-DBスキーマとデータモデルの概要は[基本設計](../../basic-design/02_data-model.md)を参照。
+DBスキーマとレスポンスモデルの概要は [data-model.md](./data-model.md) を参照。

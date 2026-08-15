@@ -1,10 +1,10 @@
 # MediaVault API データモデル（レスポンスstruct一覧）
 
-各エンドポイントのレスポンスJSONに登場するstructのフィールド一覧。DBスキーマ・ER図・トリガー・インデックス・リクエストDTO（`CreateXxxRequest`等）・バリデーションの詳細は [mediavault-model/index.md](../mediavault-model/index.md) を参照。エンドポイントごとのリクエスト/レスポンス例は各カテゴリ別ドキュメント（[index.md](./index.md)参照）を参照。
+各エンドポイントのレスポンスJSONに登場するstructのフィールド一覧。DB定義の正本は migration、DTO・バリデーションの正本は実装を参照する。エンドポイントごとの例は各カテゴリ別ドキュメント（[index.md](./index.md)参照）を参照。
 
 ## Item / ItemDetail
 
-`GET /items`, `GET /items/:id` 等で返す。詳細: [mediavault-model/items.md](../mediavault-model/items.md)
+`GET /items`, `GET /items/:id` 等で返す。詳細: [items.md](./items.md)
 
 **Item**
 
@@ -39,7 +39,7 @@
 
 ## Tag / Category / Mylist
 
-詳細: [mediavault-model/tags.md](../mediavault-model/tags.md), [categories.md](../mediavault-model/categories.md), [mylists.md](../mediavault-model/mylists.md)
+詳細: [tags.md](./tags.md), [categories.md](./categories.md), [mylists.md](./mylists.md)
 
 | struct | フィールド |
 |---|---|
@@ -60,7 +60,7 @@
 
 ## ItemRelation
 
-`POST /item-relations`等のレスポンス。詳細: [mediavault-model/item-relations.md](../mediavault-model/item-relations.md)
+`POST /item-relations`等のレスポンス。詳細: [item-relations.md](./item-relations.md)
 
 | フィールド | 型 |
 |---|---|
@@ -72,7 +72,7 @@
 
 ## ItemLink / ItemTrailer / ItemFile
 
-詳細: [mediavault-model/item-links.md](../mediavault-model/item-links.md), [item-trailers.md](../mediavault-model/item-trailers.md), [item-files.md](../mediavault-model/item-files.md)
+詳細: [item-links.md](./item-links.md), [item-trailers.md](./item-trailers.md), [item-files.md](./item-files.md)
 
 | struct | フィールド |
 |---|---|
@@ -82,7 +82,7 @@
 
 ## ItemStreamingLink
 
-`GET/POST /items/{id}/streaming-links`のレスポンス。詳細: [mediavault-model/item-streaming-links.md](../mediavault-model/item-streaming-links.md)
+`GET/POST /items/{id}/streaming-links`のレスポンス。詳細: [item-streaming-links.md](./item-streaming-links.md)
 
 | フィールド | 型 |
 |---|---|
@@ -105,7 +105,7 @@
 
 ## ItemGroup / ItemEpisode
 
-`GET /items/:id/groups`, `GET /groups/:group_id/episodes`のレスポンス。詳細: [mediavault-model/item-groups.md](../mediavault-model/item-groups.md), [item-episodes.md](../mediavault-model/item-episodes.md)
+`GET /items/:id/groups`, `GET /groups/:group_id/episodes`のレスポンス。詳細: [item-groups.md](./item-groups.md), [item-episodes.md](./item-episodes.md)
 
 | struct | フィールド |
 |---|---|
@@ -114,7 +114,7 @@
 
 ## Staff / ItemStaff
 
-`POST /staff`, `POST /items/:id/staff`のレスポンス。詳細: [mediavault-model/staff.md](../mediavault-model/staff.md)
+`POST /staff`, `POST /items/:id/staff`のレスポンス。詳細: [staff.md](./staff.md)
 
 | struct | フィールド |
 |---|---|
@@ -123,7 +123,7 @@
 
 ## Cast / ItemCast
 
-`POST /cast`, `POST /items/:id/cast`のレスポンス。声優＋役名を`staff`/`item_staff`とは別テーブル（`cast_members`/`item_cast`）で管理する。詳細: [mediavault-model/cast.md](../mediavault-model/cast.md)
+`POST /cast`, `POST /items/:id/cast`のレスポンス。声優＋役名を`staff`/`item_staff`とは別テーブル（`cast_members`/`item_cast`）で管理する。詳細: [cast.md](./cast.md)
 
 | struct | フィールド |
 |---|---|
@@ -132,7 +132,7 @@
 
 ## Citation
 
-`GET/POST /items/{id}/citations`, `PATCH /citations/{id}`のレスポンス。詳細: [mediavault-model/citations.md](../mediavault-model/citations.md)
+`GET/POST /items/{id}/citations`, `PATCH /citations/{id}`のレスポンス。詳細: [citations.md](./citations.md)
 
 | フィールド | 型 |
 |---|---|
@@ -149,13 +149,24 @@
 
 ## ApiCredential
 
-`PUT /settings/api-keys/:provider`のレスポンス。詳細: [mediavault-model/api-credentials.md](../mediavault-model/api-credentials.md)
+`PUT /settings/api-keys/:provider`のレスポンス。詳細: [settings.md](./settings.md)
 
 | フィールド | 型 |
 |---|---|
 | provider | ApiProvider（tmdb/igdb/ndl/steam/open_library/ani_list） |
 | api_key | string |
 | updated_at | datetime |
+
+## ItemFileExtraction / ItemFileText
+
+文字抽出の状態と現行結果。`extraction_state` は `queued`, `running`, `cancelling`, `succeeded`, `failed`, `cancelled`。
+
+| テーブル | 主なフィールド |
+|---|---|
+| `item_file_extractions` | id: UUID, item_file_id: UUID (FK), state: ExtractionState, attempts / max_attempts: number, progress_current / progress_total: number, claimed_by: string \| null, lease_token: UUID \| null, lease_expires_at: datetime \| null, error: JSON \| null, created_at / updated_at: datetime |
+| `item_file_texts` | id: UUID, item_file_id: UUID (FK, UNIQUE), content: string, boundaries: JSON配列 `[{start,end,label}]`, extraction_version: string, extractor: JSON object, extracted_at: datetime, created_at / updated_at: datetime |
+
+`item_file_extractions` は active 状態に限る `item_file_id` の部分UNIQUE indexを持つ。両テーブルとも `item_files` 削除時にCASCADE削除される。
 
 ## 共通レスポンス型（`src/models/response.rs`）
 

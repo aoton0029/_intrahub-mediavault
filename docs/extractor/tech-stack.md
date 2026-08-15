@@ -35,11 +35,11 @@
 - **リトライ**: tenacity（指数バックオフ、`retry_if_exception_type` で対象を限定）
 - **並行制御**: heartbeat専用の daemon `threading.Thread` 1本のみ
 - **キャンセル伝播**: `threading.Event`
-- **ジョブ基盤**: 導入しない（Celery / RQ 等）
+- **抽出実行基盤**: 外部キューは導入しない（Celery / RQ 等）
 
 ### 選択理由
 - OCRはCPU/GPUバウンドで並列度1が初期値のため、asyncの利点が薄く複雑さだけが増える。
-- ジョブと状態遷移の正本は MediaVault-api + PostgreSQL（PRD 8章）。worker側にジョブ基盤を置くと二重管理になる。
+- 抽出と状態遷移の正本は MediaVault-api + PostgreSQL（PRD 8章）。worker側に別の基盤を置くと二重管理になる。
 - heartbeat（lease延長・進捗更新・キャンセル取得）だけは抽出処理と独立して動く必要があるため、スレッド1本に限定して分離する。抽出本体はメインスレッドで同期実行し、ページ等の安全な区切りで `Event` を確認する（FR-008）。
 
 ### 実行ループの骨子
@@ -122,12 +122,13 @@ loop:
 | `INTERNAL_API_KEY` | 内部API認証キー |
 | `EXTRACTOR_LIBRARY_ROOT` / `EXTRACTOR_STORAGE_ROOT` | 許可ルート |
 | `EXTRACTOR_OCR_DEVICE` | `cpu`（既定）/ `cuda` |
+| `EXTRACTOR_OCR_FALLBACK_MIN_CHARS_PER_PAGE` | OCRフォールバックの文字密度閾値（既定50） |
 | `EXTRACTOR_MAX_CONCURRENCY` | 既定 1（NFR-003） |
 | `EXTRACTOR_MAX_FILE_BYTES` / `EXTRACTOR_MAX_PAGES` / `EXTRACTOR_JOB_TIMEOUT_SEC` | 上限値 |
 | `EXTRACTOR_POLL_INTERVAL_SEC` / `EXTRACTOR_HEARTBEAT_INTERVAL_SEC` | ポーリング間隔 |
 
 ### ログ方針
-- 記録する: ジョブID、ファイルID、処理形式、ページ数、処理時間、終了状態、使用抽出方式。
+- 記録する: 抽出ID、ファイルID、処理形式、ページ数、処理時間、終了状態、使用抽出方式。
 - 出力しない: `INTERNAL_API_KEY`、抽出本文、個人情報。マスキングは structlog の processor 1箇所に集約し、各所で書き分けない。
 
 ## 🧪 開発ツール
@@ -248,13 +249,10 @@ docker compose up -d --build mediavault-extractor
 
 ## ⚠️ このファイルで決めていないこと
 
-以下は技術スタックではなく設計判断のため、後続の設計フェーズ（kairo-design）で確定する。
+解決済み: complete時の一括送信、jsonb `[{start,end,label}]`、内部ルート `/api/v1/internal/*`。
 
-- PRD 要調整事項 4: 抽出結果をAPIへ一括送信するか、ページ単位で段階送信するか
-- PRD 要調整事項 5: ページ・章境界情報の具体的なデータ構造
-- PRD 要調整事項 2: 内部ルートのパス規約（`/internal/*` と `/api/v1/internal/*` の統一）
-- OCRフォールバック判定の品質基準（FR-004 の「品質基準を満たさないページ」の閾値）
-- CPUでのOCR処理時間の実測に基づく NFR-003 上限値の初期設定
+- OCRフォールバック方式は文字密度で確定し、閾値50はfixtureで確認済み。実データ分布での品質評価は継続する
+- CPU OCRはTASK-0023で0.842〜1.051秒/OCRページを計測済み。実運用最大PDFでtimeout上限を最終調整する
 
 ## 🔄 更新履歴
 - 2026-08-14: 初回生成（init-tech-stack）

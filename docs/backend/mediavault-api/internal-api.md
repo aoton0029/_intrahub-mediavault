@@ -1,39 +1,23 @@
 ← [index](./index.md)
 
-# 内部API（`/internal/*`）
+# 内部API（`/api/v1/internal/*`）
 
-すべてのルートに `api_key_auth` ミドルウェアが適用される。`Authorization` ヘッダに `INTERNAL_API_KEY` の値（生値または `Bearer <key>`）が必要。バッチ処理・監視ツールなど、サーバー間連携を想定した用途。
+すべてのルートに `api_key_auth` ミドルウェアが適用される。`Authorization` ヘッダに `INTERNAL_API_KEY` の値（生値または `Bearer <key>`）が必要。未設定・不一致は `401 UNAUTHORIZED`。旧 `/internal/*` パスは提供しない。
 
 | Method | Path | 説明 |
-|--------|------|------|
-| POST | /internal/items | アイテム新規作成（公開APIと同一ハンドラを再利用） |
-| GET | /internal/items/search | アイテム検索（`title` 等でフィルタ、`list_items_handler` を再利用） |
-| PATCH | /internal/items/{id} | アイテム更新（公開APIと同一ハンドラを再利用） |
-| POST | /internal/items/{id}/groups | グループの upsert（`item_id, group_type, number` で一意） |
-| POST | /internal/groups/{group_id}/episodes | エピソードの upsert（`group_id, episode_number` で一意） |
-| POST | /internal/items/{id}/files | ファイル情報登録（公開APIと同一ハンドラを再利用） |
-| POST | /internal/jobs | workerジョブの登録（**未実装**。[jobs.md](./jobs.md)） |
+|---|---|---|
+| POST | /api/v1/internal/items | アイテム新規作成（公開APIと同一ハンドラ） |
+| GET | /api/v1/internal/items/search | アイテム検索 |
+| PATCH | /api/v1/internal/items/{id} | アイテム更新 |
+| POST | /api/v1/internal/items/{id}/groups | グループの upsert |
+| POST | /api/v1/internal/groups/{group_id}/episodes | エピソードの upsert |
+| POST | /api/v1/internal/items/{id}/files | ファイル情報登録 |
+| POST | /api/v1/internal/extractions/claim | 実行可能な抽出を排他的に取得 |
+| POST | /api/v1/internal/extractions/{id}/heartbeat | lease延長・進捗更新・キャンセル確認 |
+| POST | /api/v1/internal/extractions/{id}/complete | 本文を保存して成功を確定 |
+| POST | /api/v1/internal/extractions/{id}/fail | 構造化エラーを報告 |
+| POST | /api/v1/internal/extractions/{id}/cancelled | キャンセル完了を報告 |
 
-## POST /internal/items
-`POST /items` と同じリクエスト/レスポンス仕様。
+既存6ルートのリクエスト・レスポンスは対応する公開APIと同じ。groups と episodes は一意キーに一致する行を更新し、なければ作成する。新規作成は `201`、更新は `200`。
 
-## GET /internal/items/search
-`GET /items` と同じクエリパラメータ・レスポンス仕様（`PaginatedOk<Item[]>`）。
-
-## PATCH /internal/items/{id}
-`PATCH /items/{id}` と同じ。
-- **エラー**: 404 `ITEM_NOT_FOUND`
-
-## POST /internal/items/{id}/groups
-`(item_id, group_type, number)` の組で既存レコードがあれば更新、なければ作成する。
-- **成功レスポンス**: 201（新規作成時）/ 200（更新時）
-- **エラー**: 404 `ITEM_NOT_FOUND`
-
-## POST /internal/groups/{group_id}/episodes
-`(group_id, episode_number)` の組で既存レコードがあれば更新、なければ作成する。
-- **成功レスポンス**: 201（新規作成時）/ 200（更新時）
-- **エラー**: 404 `GROUP_NOT_FOUND`, 400 `INVALID_GROUP_TYPE_FOR_EPISODES`
-
-## POST /internal/items/{id}/files
-`POST /items/{id}/files` と同じ。
-- **エラー**: 404 `ITEM_NOT_FOUND`
+worker用5ルートのリクエスト・レスポンス、lease、状態遷移の詳細は [extraction.md](./extraction.md#worker-内部api) を参照。
