@@ -1,0 +1,11 @@
+services:
+  mediavault-api:
+    ports:
+      - "${MEDIAVAULT_E2E_API_PORT:-18080}:8080"
+
+  mediavault-extractor:
+    environment:
+      EXTRACTOR_POLL_INTERVAL_SEC: 0.2
+      EXTRACTOR_HEARTBEAT_INTERVAL_SEC: 1
+      EXTRACTOR_LEASE_SECONDS: 5
+      EXTRACTOR_JOB_TIMEOUT_SEC: 120

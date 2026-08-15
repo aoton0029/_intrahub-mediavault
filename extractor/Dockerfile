@@ -2,6 +2,11 @@ FROM ghcr.io/astral-sh/uv:0.8.4 AS uv
 
 FROM python:3.12-slim
 
+# OpenCV is imported by yomitoku even in headless mode.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 libxcb1 \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
@@ -21,4 +26,3 @@ RUN uv sync --frozen --no-dev
 # HF_HOME. Baking the large, device-dependent model into this foundation image is
 # deferred until production measurements settle the model/version in prep.md.
 CMD ["uv", "run", "--no-sync", "python", "-m", "mediavault_extractor"]
-

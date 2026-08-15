@@ -35,6 +35,7 @@ pub struct ItemTextResponse {
     pub file_id: Uuid,
     pub extracted_at: NaiveDateTime,
     pub extraction_version: String,
+    pub extractor: JsonValue,
     pub chunk: TextChunk,
 }
 

@@ -16,6 +16,7 @@ booklog*.csv
 __pycache__/
 *.py[cod]
 .pytest_cache/
+extractor/e2e-results.xml
 
 docs/frontend/ui/*/*.jpg
 docs/frontend/ui/*/*.png

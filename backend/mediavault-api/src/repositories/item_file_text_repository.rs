@@ -15,6 +15,7 @@ pub struct ChunkRow {
     pub extraction_version: String,
     pub extracted_at: NaiveDateTime,
     pub boundaries: JsonValue,
+    pub extractor: JsonValue,
     pub total_chunks: i64,
     pub chunk_text: String,
 }
@@ -55,8 +56,11 @@ pub async fn fetch_chunk(
              t.extraction_version,
              t.extracted_at,
              t.boundaries,
+             t.extractor,
              CEIL(CHAR_LENGTH(t.content)::numeric / $2)::bigint AS total_chunks,
-             SUBSTRING(t.content FROM ($1 * $2 + 1) FOR $2) AS chunk_text
+             SUBSTRING(
+                 t.content FROM (($1 * $2 + 1)::integer) FOR ($2::integer)
+             ) AS chunk_text
          FROM item_file_texts t
          WHERE t.item_file_id = $3",
     )

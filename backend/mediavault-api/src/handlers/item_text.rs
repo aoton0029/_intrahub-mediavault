@@ -87,6 +87,7 @@ pub async fn get_item_text_handler(
         file_id,
         extracted_at: row.extracted_at,
         extraction_version: row.extraction_version,
+        extractor: row.extractor,
         chunk: TextChunk {
             index: query.chunk_index,
             size: query.chunk_size,

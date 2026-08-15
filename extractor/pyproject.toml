@@ -42,4 +42,7 @@ strict = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
+markers = [
+    "e2e: requires the docker compose API and extractor stack",
+    "slow: performs real CPU OCR",
+]
