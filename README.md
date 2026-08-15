@@ -4,10 +4,7 @@
 
 外部メタデータAPI（TMDb / Jikan / Annict / IGDB / Steam / 楽天ブックス / 国立国会図書館 / OpenLibrary / openBD）から作品情報を取り込み、タグ・カテゴリ・マイリストで整理し、手元のファイルや配信リンクと紐づけて管理できます。MCPサーバーを同梱しているので、Claude などの AI クライアントから自然言語でコレクションを操作することもできます。
 
-<!--
-スクリーンショットを docs/images/ に置いたら、以下のコメントを外してください。
-![ホーム画面](docs/images/home.png)
--->
+![media画面](docs/images/media.png)
 
 ## 特徴
 
