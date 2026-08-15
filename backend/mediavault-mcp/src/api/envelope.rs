@@ -31,6 +31,8 @@ pub struct ApiPagination {
 pub struct ApiErrorBody {
     pub code: String,
     pub message: String,
+    #[serde(default)]
+    pub candidates: Option<serde_json::Value>,
 }
 
 /// MediaVault-api が返す成功/失敗レスポンスの封筒。

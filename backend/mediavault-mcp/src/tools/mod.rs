@@ -5,6 +5,7 @@ pub mod citations;
 pub mod collection_overview;
 pub mod create_item;
 pub mod get_item_context;
+pub mod get_item_text;
 pub mod health;
 pub mod import_external_item;
 pub mod organize_item;

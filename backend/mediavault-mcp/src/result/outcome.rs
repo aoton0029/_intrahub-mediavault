@@ -97,6 +97,14 @@ pub fn classify_api_error(err: &ApiClientError) -> (Outcome, ToolError) {
                 },
             )
         }
+        ApiClientError::AmbiguousFile { message, .. } => (
+            Outcome::Ambiguous,
+            ToolError {
+                code: "AMBIGUOUS_FILE".to_string(),
+                message: message.clone(),
+                retriable: false,
+            },
+        ),
         ApiClientError::Decode(_) => (
             Outcome::Error,
             ToolError {

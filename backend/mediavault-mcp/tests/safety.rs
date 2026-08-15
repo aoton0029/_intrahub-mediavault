@@ -46,11 +46,11 @@ const CONTEXT_SECTIONS: [&str; 9] = [
 /// 数の変化がレビューで必ず目に入るようにしておく（REQ-141・NFR-301）。
 ///
 /// 内訳（第2段階の `list_citations` / `add_citation` を含む）:
-/// - 読み取り専用6: health / search_library / search_external_catalog /
-///   get_item_context / collection_overview / list_citations
+/// - 読み取り専用7: health / search_library / search_external_catalog /
+///   get_item_context / get_item_text / collection_overview / list_citations
 /// - 書き込み7: import_external_item / create_item / update_consumption /
 ///   organize_item / relate_items / add_access_link / add_citation
-const READ_ONLY_TOOL_COUNT: usize = 6;
+const READ_ONLY_TOOL_COUNT: usize = 7;
 const WRITE_TOOL_COUNT: usize = 7;
 const TOTAL_TOOL_COUNT: usize = READ_ONLY_TOOL_COUNT + WRITE_TOOL_COUNT;
 
@@ -184,6 +184,7 @@ fn success_arguments_for(name: &str) -> Value {
         "search_library" => json!({}),
         "search_external_catalog" => json!({"media_type": "anime", "q": "作品A"}),
         "get_item_context" => json!({"item_id": ITEM_ID}),
+        "get_item_text" => json!({"item_id": ITEM_ID}),
         "collection_overview" => json!({}),
         "import_external_item" => {
             json!({"media_type": "anime", "external_id": "12345", "provider": "annict"})
@@ -305,6 +306,22 @@ async fn mount_success_backend(mock_server: &MockServer) {
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "success": true,
             "data": item_detail_json(RELATED_ITEM_ID, "not_started")
+        })))
+        .mount(mock_server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path(format!("/api/v1/items/{ITEM_ID}/text")))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "success": true,
+            "data": {
+                "item_id": ITEM_ID,
+                "file_id": "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0006",
+                "extracted_at": "2026-08-15T12:00:00",
+                "extraction_version": "pdf-v1",
+                "extractor": {"method": "embedded_text"},
+                "chunk": {"index": 0, "size": 4000, "total_chunks": 1, "label": "p.1", "text": "安全性テスト本文"}
+            }
         })))
         .mount(mock_server)
         .await;

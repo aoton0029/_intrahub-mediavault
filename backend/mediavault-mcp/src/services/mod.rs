@@ -9,6 +9,7 @@ pub mod create_item;
 pub mod cursor;
 pub mod health;
 pub mod import_external_item;
+pub mod item_text;
 pub mod organize;
 pub mod relate_items;
 pub mod resolve;

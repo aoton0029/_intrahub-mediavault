@@ -22,6 +22,7 @@ use crate::services::context;
 use crate::services::create_item;
 use crate::services::health::check_api_health;
 use crate::services::import_external_item;
+use crate::services::item_text;
 use crate::services::organize;
 use crate::services::relate_items;
 use crate::services::search_external_catalog;
@@ -34,6 +35,7 @@ use crate::tools::citations::{
 use crate::tools::collection_overview::{CollectionOverviewParams, CollectionOverviewResult};
 use crate::tools::create_item::{CreateItemParams, CreateItemResult};
 use crate::tools::get_item_context::{GetItemContextParams, ItemContextResult};
+use crate::tools::get_item_text::{GetItemTextParams, GetItemTextResult};
 use crate::tools::health::HealthResult;
 use crate::tools::import_external_item::{ImportExternalItemParams, ImportExternalItemResult};
 use crate::tools::organize_item::{OrganizeItemParams, OrganizeItemResult};
@@ -121,6 +123,18 @@ impl MediaVaultServer {
         Parameters(params): Parameters<GetItemContextParams>,
     ) -> rmcp::Json<ItemContextResult> {
         rmcp::Json(context::get_context(&self.api, params.item_id).await)
+    }
+
+    /// 抽出済み本文を、検証可能な出典情報付きの固定チャンクとして読む。
+    #[tool(
+        description = "作品ファイルから抽出済み本文を1チャンク取得する。chunk_index はページ番号ではなく0起点の連番。全文を読むには index 0 から chunk.total_chunks - 1 まで順に呼ぶこと。chunk.label は人間向けの表示用であり識別子として使わないこと。file_id・chunk.index・extraction_version を出典として保存し、extraction_version の変化で保存済み出典の失効を検知すること。",
+        annotations(read_only_hint = true)
+    )]
+    async fn get_item_text(
+        &self,
+        Parameters(params): Parameters<GetItemTextParams>,
+    ) -> rmcp::Json<GetItemTextResult> {
+        rmcp::Json(item_text::get_item_text(&self.api, params).await)
     }
 
     /// 🔵 Intent: TASK-0016・mcp-tools.md 10. collection_overview より。

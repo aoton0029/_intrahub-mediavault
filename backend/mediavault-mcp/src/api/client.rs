@@ -196,11 +196,7 @@ impl ApiClient {
             .map_err(|err| ApiClientError::Decode(err.to_string()))?;
 
         match envelope {
-            ApiEnvelope::Err { error } => Err(ApiClientError::Api {
-                code: error.code,
-                message: error.message,
-                status: status.as_u16(),
-            }),
+            ApiEnvelope::Err { error } => Err(to_api_error(error, status)),
             ApiEnvelope::Ok { .. } => Err(ApiClientError::Decode(
                 "空ボディを期待したが success envelope が返った".to_string(),
             )),
@@ -259,12 +255,24 @@ impl ApiClient {
 
         match envelope {
             ApiEnvelope::Ok { data, pagination } => Ok(ApiResponse { data, pagination }),
-            ApiEnvelope::Err { error } => Err(ApiClientError::Api {
-                code: error.code,
-                message: error.message,
-                status: status.as_u16(),
-            }),
+            ApiEnvelope::Err { error } => Err(to_api_error(error, status)),
         }
+    }
+}
+
+fn to_api_error(error: crate::api::envelope::ApiErrorBody, status: StatusCode) -> ApiClientError {
+    if error.code == "AMBIGUOUS_FILE" {
+        return ApiClientError::AmbiguousFile {
+            message: error.message,
+            candidates: error
+                .candidates
+                .unwrap_or_else(|| serde_json::Value::Array(Vec::new())),
+        };
+    }
+    ApiClientError::Api {
+        code: error.code,
+        message: error.message,
+        status: status.as_u16(),
     }
 }
 

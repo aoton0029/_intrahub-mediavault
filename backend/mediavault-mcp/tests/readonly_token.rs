@@ -26,11 +26,12 @@ const FULL_TOKEN: &str = "full-access-token-with-sufficient-length-0000";
 const READONLY_TOKEN: &str = "read-only-token-with-sufficient-length-00000";
 
 /// `readOnlyHint: true` のツール。read-only セッションでも見えて呼べる。
-const READ_ONLY_TOOLS: [&str; 6] = [
+const READ_ONLY_TOOLS: [&str; 7] = [
     "health",
     "search_library",
     "search_external_catalog",
     "get_item_context",
+    "get_item_text",
     "collection_overview",
     "list_citations",
 ];

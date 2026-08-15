@@ -28,6 +28,13 @@ pub enum ApiClientError {
         status: u16,
     },
 
+    /// `AMBIGUOUS_FILE`。再試行時に必要な候補一覧を失わず上位へ渡す。
+    #[error("MediaVault-api が複数の対象ファイル候補を返しました: {message}")]
+    AmbiguousFile {
+        message: String,
+        candidates: serde_json::Value,
+    },
+
     /// デシリアライズ失敗
     #[error("レスポンスの解析に失敗しました: {0}")]
     Decode(String),
