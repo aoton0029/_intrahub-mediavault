@@ -20,6 +20,7 @@ use crate::services::citations;
 use crate::services::collection_overview;
 use crate::services::context;
 use crate::services::create_item;
+use crate::services::extraction;
 use crate::services::health::check_api_health;
 use crate::services::import_external_item;
 use crate::services::item_text;
@@ -34,6 +35,7 @@ use crate::tools::citations::{
 };
 use crate::tools::collection_overview::{CollectionOverviewParams, CollectionOverviewResult};
 use crate::tools::create_item::{CreateItemParams, CreateItemResult};
+use crate::tools::extraction::{ExtractionParams, ExtractionResult};
 use crate::tools::get_item_context::{GetItemContextParams, ItemContextResult};
 use crate::tools::get_item_text::{GetItemTextParams, GetItemTextResult};
 use crate::tools::health::HealthResult;
@@ -135,6 +137,39 @@ impl MediaVaultServer {
         Parameters(params): Parameters<GetItemTextParams>,
     ) -> rmcp::Json<GetItemTextResult> {
         rmcp::Json(item_text::get_item_text(&self.api, params).await)
+    }
+
+    #[tool(
+        description = "未抽出の作品ファイルについて抽出を依頼する。get_item_text が not_extracted を返したときに使う。抽出は非同期なので、直後に本文を読まず get_extraction_status で succeeded を確認してから get_item_text を再試行すること。同じ item_id と file_id で繰り返しても二重処理されないため、応答を確認できない場合は安全に再送できる。",
+        annotations(read_only_hint = false, destructive_hint = false)
+    )]
+    async fn request_extraction(
+        &self,
+        Parameters(params): Parameters<ExtractionParams>,
+    ) -> rmcp::Json<ExtractionResult> {
+        rmcp::Json(extraction::request(&self.api, params).await)
+    }
+
+    #[tool(
+        description = "非同期の抽出状態と進捗を確認する。queued/running または再試行可能な failed なら待ち、succeeded なら get_item_text を呼ぶ。give_up が返った場合は同じ抽出依頼を繰り返さないこと。",
+        annotations(read_only_hint = true)
+    )]
+    async fn get_extraction_status(
+        &self,
+        Parameters(params): Parameters<ExtractionParams>,
+    ) -> rmcp::Json<ExtractionResult> {
+        rmcp::Json(extraction::status(&self.api, params).await)
+    }
+
+    #[tool(
+        description = "進行中の抽出をキャンセルする。完了済みの場合は失敗ではなく、すでに終了しているという状態報告を返す。",
+        annotations(read_only_hint = false, destructive_hint = false)
+    )]
+    async fn cancel_extraction(
+        &self,
+        Parameters(params): Parameters<ExtractionParams>,
+    ) -> rmcp::Json<ExtractionResult> {
+        rmcp::Json(extraction::cancel(&self.api, params).await)
     }
 
     /// 🔵 Intent: TASK-0016・mcp-tools.md 10. collection_overview より。

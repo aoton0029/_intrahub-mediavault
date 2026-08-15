@@ -7,6 +7,7 @@ pub mod collection_overview;
 pub mod context;
 pub mod create_item;
 pub mod cursor;
+pub mod extraction;
 pub mod health;
 pub mod import_external_item;
 pub mod item_text;

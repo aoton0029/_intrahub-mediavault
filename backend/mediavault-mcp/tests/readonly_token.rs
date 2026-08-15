@@ -26,18 +26,19 @@ const FULL_TOKEN: &str = "full-access-token-with-sufficient-length-0000";
 const READONLY_TOKEN: &str = "read-only-token-with-sufficient-length-00000";
 
 /// `readOnlyHint: true` のツール。read-only セッションでも見えて呼べる。
-const READ_ONLY_TOOLS: [&str; 7] = [
+const READ_ONLY_TOOLS: [&str; 8] = [
     "health",
     "search_library",
     "search_external_catalog",
     "get_item_context",
     "get_item_text",
+    "get_extraction_status",
     "collection_overview",
     "list_citations",
 ];
 
 /// 書き込み系ツール。read-only セッションからは見えず、呼べない。
-const WRITE_TOOLS: [&str; 7] = [
+const WRITE_TOOLS: [&str; 9] = [
     "import_external_item",
     "create_item",
     "update_consumption",
@@ -45,6 +46,8 @@ const WRITE_TOOLS: [&str; 7] = [
     "relate_items",
     "add_access_link",
     "add_citation",
+    "request_extraction",
+    "cancel_extraction",
 ];
 
 fn config_with(readonly: Option<&str>) -> Arc<Config> {

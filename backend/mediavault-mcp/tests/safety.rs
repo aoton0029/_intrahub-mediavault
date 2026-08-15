@@ -46,12 +46,10 @@ const CONTEXT_SECTIONS: [&str; 9] = [
 /// 数の変化がレビューで必ず目に入るようにしておく（REQ-141・NFR-301）。
 ///
 /// 内訳（第2段階の `list_citations` / `add_citation` を含む）:
-/// - 読み取り専用7: health / search_library / search_external_catalog /
-///   get_item_context / get_item_text / collection_overview / list_citations
-/// - 書き込み7: import_external_item / create_item / update_consumption /
-///   organize_item / relate_items / add_access_link / add_citation
-const READ_ONLY_TOOL_COUNT: usize = 7;
-const WRITE_TOOL_COUNT: usize = 7;
+/// - 読み取り専用8: 既存7ツール + get_extraction_status
+/// - 書き込み9: 既存7ツール + request_extraction / cancel_extraction
+const READ_ONLY_TOOL_COUNT: usize = 8;
+const WRITE_TOOL_COUNT: usize = 9;
 const TOTAL_TOOL_COUNT: usize = READ_ONLY_TOOL_COUNT + WRITE_TOOL_COUNT;
 
 // ---------------------------------------------------------------------------
@@ -185,6 +183,10 @@ fn success_arguments_for(name: &str) -> Value {
         "search_external_catalog" => json!({"media_type": "anime", "q": "作品A"}),
         "get_item_context" => json!({"item_id": ITEM_ID}),
         "get_item_text" => json!({"item_id": ITEM_ID}),
+        "get_extraction_status" | "request_extraction" | "cancel_extraction" => json!({
+            "item_id": ITEM_ID,
+            "file_id": "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0006"
+        }),
         "collection_overview" => json!({}),
         "import_external_item" => {
             json!({"media_type": "anime", "external_id": "12345", "provider": "annict"})
@@ -257,6 +259,23 @@ fn item_detail_json(id: &str, status: &str) -> Value {
 }
 
 async fn mount_success_backend(mock_server: &MockServer) {
+    let extraction = json!({
+        "success": true,
+        "data": {
+            "id": "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0007",
+            "item_file_id": "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0006",
+            "state": "running", "attempts": 1, "max_attempts": 3,
+            "progress_current": 1, "progress_total": 10, "error": null,
+            "created_at": "2026-08-15T12:00:00", "updated_at": "2026-08-15T12:01:00"
+        }
+    });
+    for (verb, suffix) in [("GET", ""), ("POST", ""), ("POST", "/cancel")] {
+        Mock::given(method(verb))
+            .and(path(format!("/api/v1/items/{ITEM_ID}/files/b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0006/extraction{suffix}")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(extraction.clone()))
+            .mount(mock_server)
+            .await;
+    }
     Mock::given(method("GET"))
         .and(path("/api/v1/health"))
         .respond_with(
@@ -590,6 +609,27 @@ async fn tools_list_has_the_expected_inventory_and_no_destructive_ones() {
         write_count, WRITE_TOOL_COUNT,
         "書き込みツールは{WRITE_TOOL_COUNT}個のはず"
     );
+
+    let names: Vec<&str> = tools
+        .iter()
+        .filter_map(|tool| tool["name"].as_str())
+        .collect();
+    for expected in [
+        "request_extraction",
+        "get_extraction_status",
+        "cancel_extraction",
+    ] {
+        assert!(
+            names.contains(&expected),
+            "{expected} がツール一覧に必要です"
+        );
+    }
+    for obsolete in ["enqueue_job", "get_job", "list_jobs", "cancel_job"] {
+        assert!(
+            !names.contains(&obsolete),
+            "旧ツール {obsolete} は公開してはなりません"
+        );
+    }
 
     for tool in &tools {
         let name = tool["name"].as_str().unwrap();
