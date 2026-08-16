@@ -36,6 +36,7 @@
 | calibre_links | CalibreWebLinkInfo[]（`{ file_id, calibre_book_id }`。calibre_book_id設定済みPDFのみ） |
 | streaming_links | ItemStreamingLink[]（配信サービスURL。詳細は下記「ItemStreamingLink」参照） |
 | images | ItemImage[]（画像URL。詳細は下記「ItemImage」参照） |
+| theme_songs | ItemThemeSong[]（OP/ED等。映像作品以外は空配列。詳細は下記「ThemeSong / ItemThemeSong」参照） |
 
 ## Tag / Category / Mylist
 
@@ -120,6 +121,19 @@
 |---|---|
 | Staff | id: UUID, external_id: string \| null, name: string, image_url: string \| null, created_at: datetime |
 | ItemStaff | id: UUID, item_id: UUID, staff_id: UUID, role: string, character_name: string \| null |
+
+## ThemeSong / ItemThemeSong
+
+`GET/POST /theme-songs`, `GET/POST /items/{id}/theme-songs`のレスポンス。曲はアイテムから独立したマスタで、`item_theme_songs`を介してアイテムと多対多に紐づく。アーティスト・作曲・作詞は正規化せず`theme_songs`の列として持つ。詳細: [theme-songs.md](./theme-songs.md)
+
+| struct | フィールド |
+|---|---|
+| ThemeSong | id: UUID, title: string, artist: string \| null, composer: string \| null, lyricist: string \| null, arranger: string \| null, note: string \| null, created_at / updated_at: datetime |
+| ThemeSongLink | id: UUID, theme_song_id: UUID, link_type: ThemeSongLinkType（youtube/spotify/apple_music/amazon_music/niconico/official/other）, url: string, label: string \| null, sort_order: number, created_at: datetime |
+| ThemeSongWithLinks | ThemeSongの全フィールド + links: ThemeSongLink[] |
+| ThemeSongDetail | ThemeSongWithLinksの全フィールド + items: ThemeSongItemRef[]（`GET /theme-songs/{id}`用。曲が使われている作品一覧） |
+| ThemeSongItemRef | item_id: UUID, title: string, media_type: MediaType, theme_type: ThemeSongType |
+| ItemThemeSong | id: UUID, item_id: UUID, theme_type: ThemeSongType（op/ed/insert/image/character/theme/other、意味は [theme-songs.md](./theme-songs.md) 参照）, display_order: number, created_at: datetime, theme_song: ThemeSongWithLinks |
 
 ## Cast / ItemCast
 
