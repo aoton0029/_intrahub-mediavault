@@ -78,6 +78,9 @@
 | EXTRACTION_ALREADY_FINISHED | 409 | 終端状態の抽出をキャンセルしようとした |
 | UNSUPPORTED_FILE_TYPE | 422 | 文字抽出に対応していないファイル種別 |
 | INVALID_LEASE_TOKEN | 409 | worker の lease token が不一致または失効済み |
+| THEME_SONG_NOT_FOUND | 404 | 指定した theme song が存在しない |
+| DUPLICATE_ITEM_THEME_SONG | 409 | 同一の item / theme song / theme_type の紐付けがすでに存在 |
+| DUPLICATE_THEME_SONG_LINK | 409 | 同一曲に同一URLのリンクが登録済み |
 
 ### ページネーション正規化
 `limit` クエリパラメータは以下のルールで補正される（`normalize_limit`）:
@@ -101,6 +104,8 @@
 | `file_type` | pdf, image, other |
 | `api_provider` | tmdb, igdb, ndl, steam, open_library, ani_list（jikanは認証不要のため対象外）<br>⚠️ `PUT /settings/api-keys/{provider}` が受理するのは tmdb, igdb, ndl, steam, **annict**, **rakuten** であり、本Enumと一致しない（[settings.md](./settings.md)）。要整理 |
 | `locator_type` | page, timestamp, location, chapter, none（citation の付加情報の種類） |
+| `theme_song_type` | op, ed, insert, image, character, theme, other（作品におけるテーマソングの扱い、[theme-songs.md](./theme-songs.md)） |
+| `theme_song_link_type` | youtube, spotify, apple_music, amazon_music, niconico, official, other |
 
 ---
 
@@ -112,6 +117,8 @@
 | GET | /collection/overview | コレクション全体統計（media_type別/status別件数・お気に入り・最近追加/更新） | [collection.md](./collection.md) |
 | GET | /items | アイテム一覧取得（フィルタ・ページネーション） | [items.md](./items.md) |
 | GET | /items/counts-by-media-type | メディア種別ごとの件数集計 | [items.md](./items.md) |
+| GET | /items/years | 年ごとの件数集計（メディア種別内訳付き） | [items.md](./items.md) |
+| GET | /items/timeline | 年表用の年範囲×複数種別まとめ取得（**提案中・未実装**） | [items.md](./items.md) |
 | POST | /items | アイテム新規作成 | [items.md](./items.md) |
 | GET | /items/search | 外部API横断検索 | [items.md](./items.md) |
 | POST | /items/import | 外部検索結果からアイテムをインポート | [items.md](./items.md) |
@@ -170,6 +177,17 @@
 | GET | /items/{id}/trailers | 予告編リンク一覧取得 | [item-trailers.md](./item-trailers.md) |
 | POST | /items/{id}/trailers | 予告編リンク追加 | [item-trailers.md](./item-trailers.md) |
 | DELETE | /items/{id}/trailers/{trailer_id} | 予告編リンク削除 | [item-trailers.md](./item-trailers.md) |
+| GET | /theme-songs | テーマソング一覧・検索 | [theme-songs.md](./theme-songs.md) |
+| POST | /theme-songs | テーマソング作成（リンク同時登録可） | [theme-songs.md](./theme-songs.md) |
+| GET | /theme-songs/{id} | テーマソング詳細取得（リンク・登場作品含む） | [theme-songs.md](./theme-songs.md) |
+| PATCH | /theme-songs/{id} | テーマソング更新 | [theme-songs.md](./theme-songs.md) |
+| DELETE | /theme-songs/{id} | テーマソング削除 | [theme-songs.md](./theme-songs.md) |
+| GET | /theme-songs/{id}/links | テーマソングのリンク一覧取得 | [theme-songs.md](./theme-songs.md) |
+| POST | /theme-songs/{id}/links | テーマソングにリンク追加 | [theme-songs.md](./theme-songs.md) |
+| DELETE | /theme-songs/{id}/links/{link_id} | テーマソングのリンク削除 | [theme-songs.md](./theme-songs.md) |
+| GET | /items/{id}/theme-songs | アイテムのテーマソング一覧取得 | [theme-songs.md](./theme-songs.md) |
+| POST | /items/{id}/theme-songs | アイテムにテーマソング紐付け（OP/ED等） | [theme-songs.md](./theme-songs.md) |
+| DELETE | /items/{id}/theme-songs/{item_theme_song_id} | アイテムのテーマソング紐付け解除 | [theme-songs.md](./theme-songs.md) |
 | GET | /items/{id}/citations | 引用一覧取得 | [citations.md](./citations.md) |
 | POST | /items/{id}/citations | 引用作成 | [citations.md](./citations.md) |
 | PATCH | /citations/{id} | 引用更新 | [citations.md](./citations.md) |
@@ -201,6 +219,7 @@
 - [item-streaming-links.md](./item-streaming-links.md) — Item Streaming Links
 - [item-images.md](./item-images.md) — Item Images
 - [item-trailers.md](./item-trailers.md) — Item Trailers
+- [theme-songs.md](./theme-songs.md) — Theme Songs（映像作品のOP/ED等）
 - [citations.md](./citations.md) — Citations（作品・論文からの引用）
 - [settings.md](./settings.md) — Settings
 - [import.md](./import.md) — Import

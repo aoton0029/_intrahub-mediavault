@@ -83,6 +83,76 @@
 }
 ```
 
+## GET /items/years
+年別コレクション・年表画面用に、指定日付カラムの年ごとのアイテム件数をメディア種別内訳付きで集計して返す。`/items/{id}` より前にルーティング登録。
+
+- **認証**: 不要
+- **クエリパラメータ** (`ListItemYearsQuery`):
+  - `date_field` (string, optional, `release` / `consumed` / `any`, デフォルト`any`) — 集計対象の日付カラム。`any`は`release_date`/`consumed_date`の両カラムの年をUNIONで展開してから集計するため、両方が同一年のアイテムはその年で1回だけカウントされる
+  - `media_type` (string, optional) — 指定時はその種別のみを集計対象にする。**未指定なら全種別が`media_types`の内訳として返るため、年×種別のマトリクスを1リクエストで取得できる**
+- **集計対象外**: 対象カラムが`NULL`の行（`WHERE <col> IS NOT NULL`）。日付未設定のアイテムはどの年にも現れない
+- **並び順**: `year`降順。各年の`media_types`は`count`降順
+- **成功レスポンス** (200): `ApiOk<YearCount[]>`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "year": 2026,
+      "count": 12,
+      "media_types": [
+        { "media_type": "anime", "count": 7 },
+        { "media_type": "movie", "count": 5 }
+      ]
+    },
+    {
+      "year": 2025,
+      "count": 3,
+      "media_types": [{ "media_type": "manga", "count": 3 }]
+    }
+  ]
+}
+```
+
+`media_types`には件数0の種別は含まれない。`count`は同一年の`media_types[].count`の総和。
+
+## GET /items/timeline
+**【提案中・未実装】** 年表画面（`docs/frontend/design/25_timeline.md`）用に、年範囲・複数メディア種別をまたいだアイテムを1リクエストでまとめて返す。
+
+既存の`GET /items`は`year`が完全一致のみ・`media_type`が単一値のみ・`limit`上限100のため、年表のレーン（種別）×年のセルを埋めるには「種別数 × 年数」回のリクエストが必要になる。これを1回に畳むための専用エンドポイントとして提案する。
+
+- **認証**: 不要
+- **クエリパラメータ**（提案）:
+  - `date_field` (string, optional, `release` / `consumed` / `any`, デフォルト`release`) — 既存の`DateField`を流用
+  - `from_year` / `to_year` (i32, optional) — 対象年の範囲（両端含む）。未指定時は全期間
+  - `media_type` (string, optional) — **カンマ区切りで複数指定可**（`GET /items`との差分）。未指定時は全種別
+  - `is_favorite` (bool, optional) / `status` (string, optional) / `tag_id` (uuid, optional) / `category_id` (uuid, optional) — `GET /items`と同一のセマンティクス
+  - `include_undated` (bool, optional, デフォルト`false`) — `true`のとき対象日付が`NULL`のアイテムも返す（年表の「不明」列用）
+  - `limit_per_cell` (u32, optional, デフォルト20, max 50) — **年 × media_type の組ごと**の返却上限。`ROW_NUMBER() OVER (PARTITION BY year, media_type ORDER BY <col>)`で切る想定
+- **成功レスポンス** (200): `ApiOk<TimelineEntry[]>` — 対象日付の昇順。カード表示に必要な最小フィールドのみで、`tags`/`categories`/`details`は含めない
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "b6b6f9a0-1e3e-4c9a-9c3e-2f6b1a2a0001",
+      "media_type": "anime",
+      "title": "作品A",
+      "release_date": "2023-04-01",
+      "consumed_date": null,
+      "cover_image_url": "https://img.annict.com/xxx.jpg",
+      "status": "in_progress",
+      "is_favorite": true,
+      "rating": 8.5
+    }
+  ]
+}
+```
+
+正確な件数は`GET /items/years`が持つため、`limit_per_cell`で打ち切られてもUI側は「+N件」を正しく表示できる（レスポンスサイズを`年数 × 種別数 × limit_per_cell`で上限づけるための設計）。
+
 ## POST /items
 アイテム新規作成。
 
