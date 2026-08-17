@@ -74,6 +74,12 @@ use crate::handlers::tags::{
     attach_tag_handler, create_tag_handler, delete_tag_handler, detach_tag_handler,
     list_tags_handler,
 };
+use crate::handlers::theme_songs::{
+    create_item_theme_song_handler, create_theme_song_handler, create_theme_song_link_handler,
+    delete_item_theme_song_handler, delete_theme_song_handler, delete_theme_song_link_handler,
+    get_theme_song_handler, list_item_theme_songs_handler, list_theme_song_links_handler,
+    list_theme_songs_handler, update_theme_song_handler,
+};
 
 /// アプリケーション全体のRouterを構築する。
 /// Phase 2以降のルートはこのRouterに `.merge()` や `.nest()` で追加していく。
@@ -276,6 +282,34 @@ pub fn build_router(state: AppState) -> Router {
         .route(
             "/items/{id}/trailers/{trailer_id}",
             axum::routing::delete(delete_item_trailer_handler),
+        )
+        // theme_songs（OP/ED等のテーマソング）: 曲マスタのCRUD + リンク管理
+        .route(
+            "/theme-songs",
+            get(list_theme_songs_handler).post(create_theme_song_handler),
+        )
+        .route(
+            "/theme-songs/{id}",
+            get(get_theme_song_handler)
+                .patch(update_theme_song_handler)
+                .delete(delete_theme_song_handler),
+        )
+        .route(
+            "/theme-songs/{id}/links",
+            get(list_theme_song_links_handler).post(create_theme_song_link_handler),
+        )
+        .route(
+            "/theme-songs/{id}/links/{link_id}",
+            axum::routing::delete(delete_theme_song_link_handler),
+        )
+        // item_theme_songs（アイテムと曲の紐付け）。曲の新規作成はPOST /theme-songsで行う
+        .route(
+            "/items/{id}/theme-songs",
+            get(list_item_theme_songs_handler).post(create_item_theme_song_handler),
+        )
+        .route(
+            "/items/{id}/theme-songs/{item_theme_song_id}",
+            axum::routing::delete(delete_item_theme_song_handler),
         )
         // citations（作品・論文からの引用）CRUD
         .route(

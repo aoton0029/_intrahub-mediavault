@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { CastAddModal, CitationFormModal, ConfirmDialog, ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal, TrailerAddModal, LinkAddModal } from "@/components/shared";
+import { CastAddModal, CitationFormModal, ConfirmDialog, ConsumedDateEditor, EmptyState, FavoriteToggle, InlineAddForm, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal, ThemeSongAddModal, TrailerAddModal, LinkAddModal } from "@/components/shared";
 import { useAnimeDetailData } from "@/hooks/useAnimeDetailData";
 
 function CoverImage({ src, alt }: { src: string | null | undefined; alt: string }) {
@@ -23,6 +23,7 @@ export function AnimeDetailPage() {
   const [isRelatedModalOpen, setRelatedModalOpen] = useState(false);
   const [isStaffModalOpen, setStaffModalOpen] = useState(false);
   const [isCastModalOpen, setCastModalOpen] = useState(false);
+  const [isThemeSongModalOpen, setThemeSongModalOpen] = useState(false);
   const [isStreamingModalOpen, setStreamingModalOpen] = useState(false);
   const [isFileModalOpen, setFileModalOpen] = useState(false);
   const [isTrailerModalOpen, setTrailerModalOpen] = useState(false);
@@ -101,6 +102,17 @@ export function AnimeDetailPage() {
     onAction: (castId: string) => {
       void runAction(() => detail.removeCast(castId), "キャストを解除しました。");
     },
+  }));
+
+  const themeSongs = detail.themeSongs.map((group) => ({
+    ...group,
+    songs: group.songs.map((song) => ({
+      ...song,
+      actionLabel: "解除",
+      onAction: (itemThemeSongId: string) => {
+        void runAction(() => detail.removeThemeSong(itemThemeSongId), "テーマソングを解除しました。");
+      },
+    })),
   }));
 
   const streaming = detail.streaming.map((link) => ({
@@ -282,12 +294,19 @@ export function AnimeDetailPage() {
             </button>
           )}
           castList={detailSectionMatrix.anime.castList ? castList : undefined}
+          themeSongs={detailSectionMatrix.anime.themeSongs ? themeSongs : undefined}
           castFooter={(
             <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setCastModalOpen(true)}>
               キャストを追加
             </button>
           )}
           relatedWorks={relatedWorks}
+          themeSongsFooter={(
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setThemeSongModalOpen(true)}>
+              <FiPlus className="icon" />
+              テーマソングを追加
+            </button>
+          )}
           relatedWorksFooter={(
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRelatedModalOpen(true)}>
               <FiPlus className="icon" />
@@ -340,6 +359,16 @@ export function AnimeDetailPage() {
         onLink={async (staffId, role, characterName) => {
           await detail.addStaff(staffId, role, characterName);
           toast.success("スタッフを追加しました。");
+        }}
+      />
+    ) : null}
+    {isThemeSongModalOpen ? (
+      <ThemeSongAddModal
+        open={isThemeSongModalOpen}
+        onClose={() => setThemeSongModalOpen(false)}
+        onLink={async (themeSongId, themeType, displayOrder) => {
+          await detail.addThemeSong(themeSongId, themeType, displayOrder);
+          toast.success("テーマソングを追加しました。");
         }}
       />
     ) : null}

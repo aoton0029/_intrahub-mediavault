@@ -118,6 +118,12 @@ pub enum ApiErrorCode {
     ImportJobNotFound,
     /// 指定されたcitationが見つからない（PATCH/DELETE /citations/:id時404）
     CitationNotFound,
+    /// 指定されたテーマソングが見つからない（GET/PATCH/DELETE /theme-songs/:id、紐付け時404）
+    ThemeSongNotFound,
+    /// 同一曲内でのリンクURL重複（uq_theme_song_links制約違反、409）
+    DuplicateThemeSongLink,
+    /// 同一(item_id, theme_song_id, theme_type)の紐付け重複（uq_item_theme_songs制約違反、409）
+    DuplicateItemThemeSong,
     /// 指定ファイルに抽出ジョブが存在しない。
     ExtractionNotFound,
     /// 終端状態の抽出ジョブに対する操作。
@@ -181,6 +187,13 @@ impl ApiErrorCode {
             }
             ApiErrorCode::ImportJobNotFound => ("IMPORT_JOB_NOT_FOUND", StatusCode::NOT_FOUND),
             ApiErrorCode::CitationNotFound => ("CITATION_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::ThemeSongNotFound => ("THEME_SONG_NOT_FOUND", StatusCode::NOT_FOUND),
+            ApiErrorCode::DuplicateThemeSongLink => {
+                ("DUPLICATE_THEME_SONG_LINK", StatusCode::CONFLICT)
+            }
+            ApiErrorCode::DuplicateItemThemeSong => {
+                ("DUPLICATE_ITEM_THEME_SONG", StatusCode::CONFLICT)
+            }
             ApiErrorCode::ExtractionNotFound => ("EXTRACTION_NOT_FOUND", StatusCode::NOT_FOUND),
             ApiErrorCode::ExtractionAlreadyFinished => {
                 ("EXTRACTION_ALREADY_FINISHED", StatusCode::CONFLICT)

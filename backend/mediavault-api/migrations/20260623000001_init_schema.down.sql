@@ -2,6 +2,7 @@
 -- mediavault-backend initial schema migration (down)
 -- ========================================
 
+DROP TRIGGER IF EXISTS trg_theme_songs_updated_at ON theme_songs;
 DROP TRIGGER IF EXISTS trg_citations_updated_at ON citations;
 DROP TRIGGER IF EXISTS trg_api_credentials_updated_at ON api_credentials;
 DROP TRIGGER IF EXISTS update_item_file_texts_updated_at ON item_file_texts;
@@ -12,6 +13,9 @@ DROP TRIGGER IF EXISTS trg_item_groups_updated_at ON item_groups;
 DROP TRIGGER IF EXISTS trg_items_updated_at ON items;
 DROP TRIGGER IF EXISTS trg_check_episode_group_type ON item_episodes;
 
+DROP TABLE IF EXISTS item_theme_songs;
+DROP TABLE IF EXISTS theme_song_links;
+DROP TABLE IF EXISTS theme_songs;
 DROP TABLE IF EXISTS citations;
 DROP TABLE IF EXISTS item_images;
 DROP TABLE IF EXISTS item_streaming_links;
@@ -39,6 +43,8 @@ DROP TABLE IF EXISTS items;
 DROP FUNCTION IF EXISTS update_updated_at_column();
 DROP FUNCTION IF EXISTS check_episode_group_type();
 
+DROP TYPE IF EXISTS theme_song_link_type;
+DROP TYPE IF EXISTS theme_song_type;
 DROP TYPE IF EXISTS locator_type;
 DROP TYPE IF EXISTS image_source;
 DROP TYPE IF EXISTS image_kind;

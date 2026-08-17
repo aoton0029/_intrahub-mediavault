@@ -439,6 +439,9 @@ pub struct ItemDetail {
     /// 画像URL一覧（手動追加分 + 外部APIレスポンスから自動収集した分）
     #[serde(default)]
     pub images: Vec<crate::models::item_image::ItemImage>,
+    /// テーマソング一覧（OP/ED等。テーマソングを持たないアイテムでは空配列）
+    #[serde(default)]
+    pub theme_songs: Vec<crate::models::theme_song::ItemThemeSong>,
 }
 
 impl ItemDetail {
@@ -469,11 +472,13 @@ impl ItemDetail {
             calibre_links,
             Vec::new(),
             Vec::new(),
+            Vec::new(),
         )
     }
 
-    /// itemの基本情報 + 詳細/タグ/カテゴリ + Calibre-Web遷移情報 + 配信URL一覧 + 画像URL一覧を
-    /// 合成してItemDetailを構築する
+    /// itemの基本情報 + 詳細/タグ/カテゴリ + Calibre-Web遷移情報 + 配信URL一覧 + 画像URL一覧 +
+    /// テーマソング一覧を合成してItemDetailを構築する
+    #[allow(clippy::too_many_arguments)]
     pub fn from_parts_full(
         item: Item,
         detail: Option<serde_json::Value>,
@@ -482,6 +487,7 @@ impl ItemDetail {
         calibre_links: Vec<crate::models::item_file::CalibreWebLinkInfo>,
         streaming_links: Vec<crate::models::item_streaming_link::ItemStreamingLink>,
         images: Vec<crate::models::item_image::ItemImage>,
+        theme_songs: Vec<crate::models::theme_song::ItemThemeSong>,
     ) -> Self {
         Self {
             id: item.id,
@@ -510,6 +516,7 @@ impl ItemDetail {
             calibre_links,
             streaming_links,
             images,
+            theme_songs,
         }
     }
 }

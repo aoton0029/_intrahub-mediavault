@@ -28,6 +28,7 @@ use crate::repositories::item_image_repository;
 use crate::repositories::item_repository;
 use crate::repositories::item_streaming_link_repository;
 use crate::repositories::staff_repository;
+use crate::repositories::theme_song_repository;
 use crate::services::external_search::{AnimeRelatedData, ExternalSearchService};
 
 /// 【機能概要】: `POST /items` ハンドラ。フォーム入力によるアイテム手動作成を行う
@@ -215,6 +216,9 @@ pub async fn get_item_handler(
     // 【画像URL取得】: 手動追加分 + 外部APIレスポンスから自動収集した画像URLを付加する
     let images = item_image_repository::list_item_images(&state.db, id).await?;
 
+    // 【テーマソング取得】: OP/ED等をtheme_type順・display_order順で付加する（映像作品以外は空配列）
+    let theme_songs = theme_song_repository::list_item_theme_songs_unchecked(&state.db, id).await?;
+
     Ok(ApiOk::new(ItemDetail::from_parts_full(
         item,
         detail,
@@ -223,6 +227,7 @@ pub async fn get_item_handler(
         calibre_links,
         streaming_links,
         images,
+        theme_songs,
     )))
 }
 

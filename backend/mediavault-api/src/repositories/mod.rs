@@ -18,3 +18,4 @@ pub mod item_trailer_repository;
 pub mod mylist_repository;
 pub mod staff_repository;
 pub mod tag_repository;
+pub mod theme_song_repository;

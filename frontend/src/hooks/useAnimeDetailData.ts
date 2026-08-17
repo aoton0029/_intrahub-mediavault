@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RelatedWork, ResourceTabKey, TagListItem } from "@/components/shared";
 import type { Group, ImageItem, StaffMember, StreamingLinkItem } from "@/components/detail";
+import { mapThemeSongGroups, type ItemThemeSong, type ThemeSongTypeName } from "./themeSongs";
 import { apiFetch } from "@/lib/apiClient";
 
 type ApiOk<T> = { success: boolean; data: T };
@@ -123,6 +124,7 @@ type ItemDetail = {
   categories: CategoryRef[];
   calibre_links: CalibreLink[];
   streaming_links: ItemStreamingLink[];
+  theme_songs: ItemThemeSong[];
 };
 type AnimeDetailBundle = {
   item: ItemDetail;
@@ -350,6 +352,24 @@ export function useAnimeDetailData(id: string | undefined) {
     onSuccess: invalidate,
   });
 
+  const themeSongAddMutation = useMutation({
+    mutationFn: async ({ themeSongId, themeType, displayOrder }: { themeSongId: string; themeType: ThemeSongTypeName; displayOrder?: number }) => {
+      await fetchApi(`/items/${id}/theme-songs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme_song_id: themeSongId, theme_type: themeType, display_order: displayOrder }),
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  const themeSongRemoveMutation = useMutation({
+    mutationFn: async (itemThemeSongId: string) => {
+      await parseJson(await apiFetch(`/items/${id}/theme-songs/${itemThemeSongId}`, { method: "DELETE" }));
+    },
+    onSuccess: invalidate,
+  });
+
   const castAddMutation = useMutation({
     mutationFn: async ({ castId, characterName }: { castId: string; characterName?: string }) => {
     await fetchApi(`/items/${id}/cast`, {
@@ -556,6 +576,7 @@ export function useAnimeDetailData(id: string | undefined) {
     label: entry.cast_name,
     sub: entry.character_name ? `${entry.character_name}役` : "役名未登録",
   })) ?? [];
+  const themeSongs = mapThemeSongGroups(item?.theme_songs);
   const relatedWorks: RelatedWork[] = bundle?.relations.map((relation) => ({
     id: relation.id,
     relatedItemId: relation.related_item_id,
@@ -592,6 +613,7 @@ export function useAnimeDetailData(id: string | undefined) {
     groups,
     staffList,
     castList,
+    themeSongs,
     relatedWorks,
     streaming,
     images,
@@ -622,6 +644,9 @@ export function useAnimeDetailData(id: string | undefined) {
     removeStaff: (itemStaffId: string) => staffRemoveMutation.mutateAsync(itemStaffId),
     addCast: (castId: string, characterName?: string) => castAddMutation.mutateAsync({ castId, characterName }),
     removeCast: (itemCastId: string) => castRemoveMutation.mutateAsync(itemCastId),
+    addThemeSong: (themeSongId: string, themeType: ThemeSongTypeName, displayOrder?: number) =>
+      themeSongAddMutation.mutateAsync({ themeSongId, themeType, displayOrder }),
+    removeThemeSong: (itemThemeSongId: string) => themeSongRemoveMutation.mutateAsync(itemThemeSongId),
     addRelation: (relatedItemId: string, relationType: "reference" | "dlc") => relationAddMutation.mutateAsync({ relatedItemId, relationType }),
     removeRelation: (relationId: string) => relationRemoveMutation.mutateAsync(relationId),
     addStreamingLink: (platform: StreamingPlatform, url: string) => streamingAddMutation.mutateAsync({ platform, url }),

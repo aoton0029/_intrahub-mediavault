@@ -371,6 +371,67 @@ CREATE INDEX idx_citations_item_id ON citations(item_id);
 CREATE TRIGGER trg_citations_updated_at BEFORE UPDATE ON citations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- ========================================
+-- theme_songs migration (up)
+-- ========================================
+
+-- 【enum定義順の意味】: item_theme_songsの一覧はtheme_type昇順で返す仕様のため、
+-- op → ed → insert → image → character → theme → other の並びをenum定義順で表現する
+CREATE TYPE theme_song_type AS ENUM (
+    'op', 'ed', 'insert', 'image', 'character', 'theme', 'other'
+);
+
+CREATE TYPE theme_song_link_type AS ENUM (
+    'youtube', 'spotify', 'apple_music', 'amazon_music', 'niconico', 'official', 'other'
+);
+
+CREATE TABLE theme_songs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(500) NOT NULL,
+    artist VARCHAR(500),
+    composer VARCHAR(500),
+    lyricist VARCHAR(500),
+    arranger VARCHAR(500),
+    note TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_theme_songs_title_not_empty CHECK (title <> '')
+);
+
+-- 曲名は別作品で重複しうるため一意制約は持たない（部分一致検索用のインデックスのみ）
+CREATE INDEX idx_theme_songs_title ON theme_songs(title);
+
+CREATE TABLE theme_song_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    theme_song_id UUID NOT NULL REFERENCES theme_songs(id) ON DELETE CASCADE,
+    link_type theme_song_link_type NOT NULL,
+    url VARCHAR(1000) NOT NULL,
+    label VARCHAR(255),
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- 同一link_typeの複数登録は許し、同一曲内でのURL重複のみ拒否する
+    CONSTRAINT uq_theme_song_links UNIQUE (theme_song_id, url)
+);
+
+CREATE INDEX idx_theme_song_links_theme_song_id ON theme_song_links(theme_song_id);
+
+CREATE TABLE item_theme_songs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    theme_song_id UUID NOT NULL REFERENCES theme_songs(id) ON DELETE CASCADE,
+    theme_type theme_song_type NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- 同じ曲を同じアイテムに異なるtheme_typeで紐づけることは許す
+    CONSTRAINT uq_item_theme_songs UNIQUE (item_id, theme_song_id, theme_type)
+);
+
+CREATE INDEX idx_item_theme_songs_item_id ON item_theme_songs(item_id);
+CREATE INDEX idx_item_theme_songs_theme_song_id ON item_theme_songs(theme_song_id);
+
+CREATE TRIGGER trg_theme_songs_updated_at BEFORE UPDATE ON theme_songs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER trg_items_updated_at BEFORE UPDATE ON items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_item_groups_updated_at BEFORE UPDATE ON item_groups

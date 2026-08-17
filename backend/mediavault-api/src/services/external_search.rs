@@ -980,7 +980,9 @@ impl ExternalSearchService {
                 result_count = response.model.len(),
                 "annict list_works succeeded"
             ),
-            Err(err) => tracing::error!(provider = "annict", query, error = %err, "annict list_works failed"),
+            Err(err) => {
+                tracing::error!(provider = "annict", query, error = %err, "annict list_works failed")
+            }
         }
         let response = result.map_err(ExternalSearchError::ExternalApiError)?;
 
@@ -1104,7 +1106,11 @@ impl ExternalSearchService {
 
         match jikan_result {
             Ok(response) => {
-                tracing::debug!(provider = "jikan", mal_id, "jikan get anime details succeeded");
+                tracing::debug!(
+                    provider = "jikan",
+                    mal_id,
+                    "jikan get anime details succeeded"
+                );
                 let raw_data = raw_data_to_value(&response.raw);
                 let jikan_data = raw_data.get("data").cloned().unwrap_or(raw_data);
                 Ok(build_anime_create_request(&work, Some(&jikan_data)))
@@ -1148,8 +1154,15 @@ impl ExternalSearchService {
             })
             .await;
         match &work_result {
-            Ok(r) => tracing::debug!(provider = "annict", annict_work_id, result_count = r.model.len(), "annict list_works (related data) succeeded"),
-            Err(err) => tracing::error!(provider = "annict", annict_work_id, error = %err, "annict list_works (related data) failed"),
+            Ok(r) => tracing::debug!(
+                provider = "annict",
+                annict_work_id,
+                result_count = r.model.len(),
+                "annict list_works (related data) succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "annict", annict_work_id, error = %err, "annict list_works (related data) failed")
+            }
         }
         let work_response = work_result.map_err(ExternalSearchError::ExternalApiError)?;
         let season_group_name = work_response
@@ -1166,8 +1179,15 @@ impl ExternalSearchService {
             })
             .await;
         match &episodes_result {
-            Ok(r) => tracing::debug!(provider = "annict", work_id, result_count = r.model.len(), "annict list_episodes succeeded"),
-            Err(err) => tracing::error!(provider = "annict", work_id, error = %err, "annict list_episodes failed"),
+            Ok(r) => tracing::debug!(
+                provider = "annict",
+                work_id,
+                result_count = r.model.len(),
+                "annict list_episodes succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "annict", work_id, error = %err, "annict list_episodes failed")
+            }
         }
         let episodes_response = episodes_result.map_err(ExternalSearchError::ExternalApiError)?;
         let episodes: Vec<AnimeEpisodeData> = episodes_response
@@ -1187,8 +1207,15 @@ impl ExternalSearchService {
             })
             .await;
         match &staffs_result {
-            Ok(r) => tracing::debug!(provider = "annict", work_id, result_count = r.model.len(), "annict list_staffs succeeded"),
-            Err(err) => tracing::error!(provider = "annict", work_id, error = %err, "annict list_staffs failed"),
+            Ok(r) => tracing::debug!(
+                provider = "annict",
+                work_id,
+                result_count = r.model.len(),
+                "annict list_staffs succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "annict", work_id, error = %err, "annict list_staffs failed")
+            }
         }
         let staffs_response = staffs_result.map_err(ExternalSearchError::ExternalApiError)?;
         let staff: Vec<AnimeStaffMemberData> = staffs_response
@@ -1226,8 +1253,15 @@ impl ExternalSearchService {
             })
             .await;
         match &casts_result {
-            Ok(r) => tracing::debug!(provider = "annict", work_id, result_count = r.model.len(), "annict list_casts succeeded"),
-            Err(err) => tracing::error!(provider = "annict", work_id, error = %err, "annict list_casts failed"),
+            Ok(r) => tracing::debug!(
+                provider = "annict",
+                work_id,
+                result_count = r.model.len(),
+                "annict list_casts succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "annict", work_id, error = %err, "annict list_casts failed")
+            }
         }
         let casts_response = casts_result.map_err(ExternalSearchError::ExternalApiError)?;
         let cast: Vec<AnimeCastMemberData> = casts_response
@@ -1271,8 +1305,15 @@ impl ExternalSearchService {
             })
             .await;
         match &result {
-            Ok(r) => tracing::debug!(provider = "rakuten", query, result_count = r.model.len(), "rakuten search_books succeeded"),
-            Err(err) => tracing::error!(provider = "rakuten", query, error = %err, "rakuten search_books failed"),
+            Ok(r) => tracing::debug!(
+                provider = "rakuten",
+                query,
+                result_count = r.model.len(),
+                "rakuten search_books succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "rakuten", query, error = %err, "rakuten search_books failed")
+            }
         }
         let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         Ok(response
@@ -1298,8 +1339,15 @@ impl ExternalSearchService {
             })
             .await;
         match &result {
-            Ok(r) => tracing::debug!(provider = "rakuten", external_id, result_count = r.model.len(), "rakuten search_books (import details) succeeded"),
-            Err(err) => tracing::error!(provider = "rakuten", external_id, error = %err, "rakuten search_books (import details) failed"),
+            Ok(r) => tracing::debug!(
+                provider = "rakuten",
+                external_id,
+                result_count = r.model.len(),
+                "rakuten search_books (import details) succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "rakuten", external_id, error = %err, "rakuten search_books (import details) failed")
+            }
         }
         let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let book = response.model.into_iter().next().ok_or_else(|| {
@@ -1359,8 +1407,14 @@ impl ExternalSearchService {
             }))
             .await;
         match &result {
-            Ok(_) => tracing::debug!(provider = "tmdb", movie_id, "tmdb get_movie_details succeeded"),
-            Err(err) => tracing::error!(provider = "tmdb", movie_id, error = %err, "tmdb get_movie_details failed"),
+            Ok(_) => tracing::debug!(
+                provider = "tmdb",
+                movie_id,
+                "tmdb get_movie_details succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "tmdb", movie_id, error = %err, "tmdb get_movie_details failed")
+            }
         }
         let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let raw_data = raw_data_to_value(&response.raw);
@@ -1416,7 +1470,9 @@ impl ExternalSearchService {
             .await;
         match &result {
             Ok(_) => tracing::debug!(provider = "tmdb", series_id, "tmdb get_tv_series succeeded"),
-            Err(err) => tracing::error!(provider = "tmdb", series_id, error = %err, "tmdb get_tv_series failed"),
+            Err(err) => {
+                tracing::error!(provider = "tmdb", series_id, error = %err, "tmdb get_tv_series failed")
+            }
         }
         let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let raw_data = raw_data_to_value(&response.raw);
@@ -1471,8 +1527,14 @@ impl ExternalSearchService {
             }))
             .await;
         match &result {
-            Ok(_) => tracing::debug!(provider = "steam", app_id, "steam get_app_details succeeded"),
-            Err(err) => tracing::error!(provider = "steam", app_id, error = %err, "steam get_app_details failed"),
+            Ok(_) => tracing::debug!(
+                provider = "steam",
+                app_id,
+                "steam get_app_details succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "steam", app_id, error = %err, "steam get_app_details failed")
+            }
         }
         let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         // レスポンスは `{"<appid>": {"success": bool, "data": {...}}}` 形式のためraw JSONから直接抽出する
@@ -1532,8 +1594,14 @@ impl ExternalSearchService {
             }))
             .await;
         match &result {
-            Ok(_) => tracing::debug!(provider = "ndl", external_id, "ndl search (import details) succeeded"),
-            Err(err) => tracing::error!(provider = "ndl", external_id, error = %err, "ndl search (import details) failed"),
+            Ok(_) => tracing::debug!(
+                provider = "ndl",
+                external_id,
+                "ndl search (import details) succeeded"
+            ),
+            Err(err) => {
+                tracing::error!(provider = "ndl", external_id, error = %err, "ndl search (import details) failed")
+            }
         }
         let response = result.map_err(ExternalSearchError::ExternalApiError)?;
         let NdlModel::Items(models) = response.model;

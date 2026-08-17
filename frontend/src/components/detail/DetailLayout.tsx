@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { FiBookmark, FiCheck, FiEdit2, FiFileText, FiFilm, FiFolder, FiGitBranch, FiImage, FiLayers, FiMessageSquare, FiTag, FiTrash2, FiTv, FiUsers, FiX } from "react-icons/fi";
+import { FiBookmark, FiCheck, FiEdit2, FiFileText, FiFilm, FiFolder, FiGitBranch, FiImage, FiLayers, FiMessageSquare, FiMusic, FiTag, FiTrash2, FiTv, FiUsers, FiX } from "react-icons/fi";
 import { FaAmazon } from "react-icons/fa";
 import { SiAppletv, SiDmm, SiNetflix } from "react-icons/si";
+import { themeSongLinkLabels } from "@/config/themeSongLabels";
 import { PropertyList, type PropertyItem, RelatedWorksList, ExternalLinkText, ResourceEntryList, resourceTabIcons, resourceTabLabels, Tabs, type TabItem, TagList, type TagListItem, type RelatedWork, type ResourceTabKey } from "@/components/shared";
 
 export type RailSectionListItem = { id: string; label: string; actionLabel?: string };
@@ -11,6 +12,19 @@ export type StaffMember = { id: string; label: string; sub: string; actionLabel?
 export type StreamingPlatform = "netflix" | "amazon_prime" | "disney_plus" | "dmm_tv" | "apple_tv";
 export type StreamingLinkItem = { id: string; label: string; sub: string; platform?: StreamingPlatform; actionLabel?: string; onAction?: (id: string) => void };
 export type ImageItem = { id: string; url: string; isCover?: boolean; onSetCover?: (url: string) => void; onRemove?: (id: string) => void };
+export type ThemeSongLinkItem = { id: string; type: string; url: string; label: string | null };
+export type ThemeSongEntry = {
+  /** item_theme_songs の id（解除時に使う） */
+  id: string;
+  title: string;
+  /** 「高橋洋子 ・ 作曲: 佐藤英敏」のように整形済みのサブ情報 */
+  sub: string;
+  note: string | null;
+  links: ThemeSongLinkItem[];
+  actionLabel?: string;
+  onAction?: (id: string) => void;
+};
+export type ThemeSongGroup = { type: string; label: string; songs: ThemeSongEntry[] };
 export type LocatorType = "page" | "timestamp" | "location" | "chapter" | "none";
 export type CitationItem = {
   id: string;
@@ -223,6 +237,46 @@ export function StreamingLinks({
   );
 }
 
+export function ThemeSongList({
+  groups,
+  footerAction,
+}: {
+  groups: ThemeSongGroup[];
+  footerAction?: ReactNode;
+}) {
+  return (
+    <div>
+      {groups.map((group) => (
+        <div key={group.type} className="theme-song-group">
+          <h4 className="theme-song-group-label">{group.label}</h4>
+          {group.songs.map((song) => (
+            <div key={song.id} className="prop-list-item">
+              <div>
+                <span className="label">{song.title}</span>
+                {song.sub ? <div className="sub">{song.sub}</div> : null}
+                {song.note ? <div className="sub">{song.note}</div> : null}
+              </div>
+              <div className="detail-section-actions">
+                {song.links.map((link) => (
+                  <a key={link.id} className="btn btn-ghost btn-sm" href={link.url} target="_blank" rel="noreferrer">
+                    {link.label || themeSongLinkLabels[link.type] || link.type}
+                  </a>
+                ))}
+                {song.actionLabel ? (
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => song.onAction?.(song.id)}>
+                    {song.actionLabel}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+      {footerAction}
+    </div>
+  );
+}
+
 export function ImageGrid({
   items,
   footerAction,
@@ -395,6 +449,7 @@ export function DetailMain({
   groups,
   staffList,
   castList,
+  themeSongs,
   relatedWorks,
   streaming,
   images,
@@ -405,6 +460,7 @@ export function DetailMain({
   groupFooter,
   staffFooter,
   castFooter,
+  themeSongsFooter,
   relatedWorksFooter,
   streamingFooter,
   imagesFooter,
@@ -419,6 +475,7 @@ export function DetailMain({
   groups?: Group[];
   staffList?: StaffMember[];
   castList?: StaffMember[];
+  themeSongs?: ThemeSongGroup[];
   relatedWorks?: RelatedWork[];
   streaming?: StreamingLinkItem[];
   images?: ImageItem[];
@@ -429,6 +486,7 @@ export function DetailMain({
   groupFooter?: ReactNode;
   staffFooter?: ReactNode;
   castFooter?: ReactNode;
+  themeSongsFooter?: ReactNode;
   relatedWorksFooter?: ReactNode;
   streamingFooter?: ReactNode;
   imagesFooter?: ReactNode;
@@ -468,6 +526,15 @@ export function DetailMain({
           {castList ? <DetailSection icon={<FiUsers className="icon" />} title="キャスト"><StaffList members={castList} footerAction={castFooter} /></DetailSection> : null}
         </>
       ),
+    });
+  }
+
+  if (themeSongs) {
+    tabs.push({
+      key: "theme-songs",
+      label: "テーマソング",
+      icon: <FiMusic className="icon" />,
+      content: <DetailSection icon={<FiMusic className="icon" />} title="テーマソング"><ThemeSongList groups={themeSongs} footerAction={themeSongsFooter} /></DetailSection>,
     });
   }
 

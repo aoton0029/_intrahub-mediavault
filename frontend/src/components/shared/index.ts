@@ -25,6 +25,7 @@ export * from "./RelatedItemSearchModal";
 export * from "./AddWorkModal";
 export * from "./StaffAddModal";
 export * from "./CastAddModal";
+export * from "./ThemeSongAddModal";
 export * from "./StreamingLinkAddModal";
 export * from "./FileAddModal";
 export * from "./TrailerAddModal";

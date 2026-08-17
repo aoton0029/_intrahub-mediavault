@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { MovieDetailPage } from "./MovieDetailPage";
@@ -42,6 +42,7 @@ function createHookResult() {
       categories: [{ id: "category-1", name: "2024年鑑賞" }],
       calibre_links: [],
       streaming_links: [],
+      theme_songs: [],
     },
     propertyItems: [
       { key: "runtime_minutes", label: "上映時間", value: "132分", muted: false },
@@ -53,6 +54,21 @@ function createHookResult() {
     ],
     staffList: [{ id: "staff-1", label: "レイラ・ハーモン", sub: "監督" }],
     castList: [{ id: "cast-1", label: "アリア・ノヴァク", sub: "主演役" }],
+    themeSongs: [
+      {
+        type: "op",
+        label: "OP",
+        songs: [
+          {
+            id: "its-1",
+            title: "深海のワルツ",
+            sub: "高橋洋子 ・ 作曲: 佐藤英敏",
+            note: null,
+            links: [{ id: "tsl-1", type: "youtube", url: "https://example.com/mv", label: "MV" }],
+          },
+        ],
+      },
+    ],
     relatedWorks: [{ id: "relation-1", relatedItemId: "item-2", title: "深海のオデッセイ2", relation: "reference" }],
     streaming: [{ id: "streaming-1", label: "Disney+", sub: "https://www.disneyplus.com/movies/xxxxx" }],
     images: [{ id: "image-1", url: "https://img.example.com/1.jpg", isCover: false }],
@@ -85,6 +101,8 @@ function createHookResult() {
     removeStaff: vi.fn().mockResolvedValue(undefined),
     addCast: vi.fn().mockResolvedValue(undefined),
     removeCast: vi.fn().mockResolvedValue(undefined),
+    addThemeSong: vi.fn().mockResolvedValue(undefined),
+    removeThemeSong: vi.fn().mockResolvedValue(undefined),
     addRelation: vi.fn().mockResolvedValue(undefined),
     removeRelation: vi.fn().mockResolvedValue(undefined),
     addStreamingLink: vi.fn().mockResolvedValue(undefined),
@@ -143,6 +161,34 @@ describe("MovieDetailPage", () => {
     expect(screen.getByText("Disney+")).toBeInTheDocument();
     expect(screen.queryByText("シーズン構成")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "編集する" })).toHaveAttribute("href", "/media/movie-1/edit");
+  });
+
+  it("renders the theme song tab with its links", () => {
+    renderWithRouter();
+
+    fireEvent.click(screen.getByRole("button", { name: "テーマソング" }));
+
+    expect(screen.getByText("深海のワルツ")).toBeInTheDocument();
+    expect(screen.getByText("高橋洋子 ・ 作曲: 佐藤英敏")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "MV" })).toHaveAttribute("href", "https://example.com/mv");
+  });
+
+  it("removes a theme song after confirmation", () => {
+    const removeThemeSong = vi.fn().mockResolvedValue(undefined);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockUseMovieDetailData.mockReturnValue({
+      ...createHookResult(),
+      removeThemeSong,
+    } as ReturnType<typeof useMovieDetailData>);
+
+    renderWithRouter();
+
+    fireEvent.click(screen.getByRole("button", { name: "テーマソング" }));
+    const songRow = screen.getByText("深海のワルツ").closest(".prop-list-item") as HTMLElement;
+    fireEvent.click(within(songRow).getByRole("button", { name: "解除" }));
+
+    expect(removeThemeSong).toHaveBeenCalledWith("its-1");
+    confirmSpy.mockRestore();
   });
 
   it("uses movie-specific status labels and sends completed rather than done", () => {

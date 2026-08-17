@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DetailLayout, DetailMain, DetailRail } from "@/components/detail";
 import { usePageChrome } from "@/components/layout/usePageChrome";
 import { detailSectionMatrix } from "@/config/detailSections";
-import { CastAddModal, CitationFormModal, ConfirmDialog, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal, TrailerAddModal, LinkAddModal } from "@/components/shared";
+import { CastAddModal, CitationFormModal, ConfirmDialog, ConsumedDateEditor, EmptyState, FavoriteToggle, RatingStars, RelatedItemSearchModal, StaffAddModal, StatusSwitcher, StreamingLinkAddModal, FileAddModal, ThemeSongAddModal, TrailerAddModal, LinkAddModal } from "@/components/shared";
 import { useMovieDetailData } from "@/hooks/useMovieDetailData";
 
 const MOVIE_STATUS_LABELS = {
@@ -29,6 +29,7 @@ export function MovieDetailPage() {
   const [isRelatedModalOpen, setRelatedModalOpen] = useState(false);
   const [isStaffModalOpen, setStaffModalOpen] = useState(false);
   const [isCastModalOpen, setCastModalOpen] = useState(false);
+  const [isThemeSongModalOpen, setThemeSongModalOpen] = useState(false);
   const [isStreamingModalOpen, setStreamingModalOpen] = useState(false);
   const [isFileModalOpen, setFileModalOpen] = useState(false);
   const [isTrailerModalOpen, setTrailerModalOpen] = useState(false);
@@ -121,6 +122,20 @@ export function MovieDetailPage() {
       }
       void runAction(() => detail.removeCast(castId), "キャストを解除しました。");
     },
+  }));
+
+  const themeSongs = detail.themeSongs.map((group) => ({
+    ...group,
+    songs: group.songs.map((song) => ({
+      ...song,
+      actionLabel: "解除",
+      onAction: (itemThemeSongId: string) => {
+        if (!window.confirm("このテーマソングを解除しますか？")) {
+          return;
+        }
+        void runAction(() => detail.removeThemeSong(itemThemeSongId), "テーマソングを解除しました。");
+      },
+    })),
   }));
 
   const streaming = detail.streaming.map((link) => ({
@@ -267,6 +282,7 @@ export function MovieDetailPage() {
           propertyList={detailSectionMatrix.movie.propertyList ? detail.propertyItems : undefined}
           staffList={detailSectionMatrix.movie.staffList ? staffList : undefined}
           castList={detailSectionMatrix.movie.castList ? castList : undefined}
+          themeSongs={detailSectionMatrix.movie.themeSongs ? themeSongs : undefined}
           relatedWorks={relatedWorks}
           streaming={detailSectionMatrix.movie.streaming ? streaming : undefined}
           images={detailSectionMatrix.movie.images ? images : undefined}
@@ -283,6 +299,12 @@ export function MovieDetailPage() {
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCastModalOpen(true)}>
               <FiPlus className="icon" />
               キャストを追加
+            </button>
+          )}
+          themeSongsFooter={(
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setThemeSongModalOpen(true)}>
+              <FiPlus className="icon" />
+              テーマソングを追加
             </button>
           )}
           relatedWorksFooter={(
@@ -338,6 +360,16 @@ export function MovieDetailPage() {
         onLink={async (staffId, role, characterName) => {
           await detail.addStaff(staffId, role, characterName);
           toast.success("スタッフを追加しました。");
+        }}
+      />
+    ) : null}
+    {isThemeSongModalOpen ? (
+      <ThemeSongAddModal
+        open={isThemeSongModalOpen}
+        onClose={() => setThemeSongModalOpen(false)}
+        onLink={async (themeSongId, themeType, displayOrder) => {
+          await detail.addThemeSong(themeSongId, themeType, displayOrder);
+          toast.success("テーマソングを追加しました。");
         }}
       />
     ) : null}

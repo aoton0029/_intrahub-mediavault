@@ -23,3 +23,4 @@ pub mod mylist;
 pub mod response;
 pub mod staff;
 pub mod tag;
+pub mod theme_song;

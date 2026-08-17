@@ -24,3 +24,4 @@ pub mod mylists;
 pub mod settings;
 pub mod staff;
 pub mod tags;
+pub mod theme_songs;
