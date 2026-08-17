@@ -1,0 +1,48 @@
+{
+  "albums": {
+    "href": "https://api.spotify.com/v1/search?q=Discovery&type=album%2Ctrack&market=JP&offset=0&limit=10",
+    "limit": 10,
+    "next": null,
+    "offset": 0,
+    "previous": null,
+    "total": 1,
+    "items": [{
+      "album_type": "album",
+      "total_tracks": 14,
+      "external_urls": { "spotify": "https://open.spotify.com/album/2noRn2Aes5aoNVsU6iWThc" },
+      "href": "https://api.spotify.com/v1/albums/2noRn2Aes5aoNVsU6iWThc",
+      "id": "2noRn2Aes5aoNVsU6iWThc",
+      "images": [{ "url": "https://i.scdn.co/image/example-discovery-640", "height": 640, "width": 640 }],
+      "name": "Discovery",
+      "release_date": "2001-03-12",
+      "release_date_precision": "day",
+      "type": "album",
+      "uri": "spotify:album:2noRn2Aes5aoNVsU6iWThc",
+      "artists": [{ "id": "4tZwfgrHOc3mvqYlEYSvVi", "name": "Daft Punk", "type": "artist", "uri": "spotify:artist:4tZwfgrHOc3mvqYlEYSvVi" }]
+    }]
+  },
+  "tracks": {
+    "href": "https://api.spotify.com/v1/search?q=Discovery&type=album%2Ctrack&market=JP&offset=0&limit=10",
+    "limit": 10,
+    "next": null,
+    "offset": 0,
+    "previous": null,
+    "total": 1,
+    "items": [{
+      "album": { "album_type": "album", "total_tracks": 14, "id": "2noRn2Aes5aoNVsU6iWThc", "images": [], "name": "Discovery", "release_date": "2001-03-12", "release_date_precision": "day", "type": "album", "uri": "spotify:album:2noRn2Aes5aoNVsU6iWThc", "artists": [] },
+      "artists": [{ "id": "4tZwfgrHOc3mvqYlEYSvVi", "name": "Daft Punk", "type": "artist", "uri": "spotify:artist:4tZwfgrHOc3mvqYlEYSvVi" }],
+      "disc_number": 1,
+      "duration_ms": 224693,
+      "explicit": false,
+      "external_ids": { "isrc": "GBDUW0000059" },
+      "external_urls": { "spotify": "https://open.spotify.com/track/0DiWol3AO6WpXZgp0goxAV" },
+      "href": "https://api.spotify.com/v1/tracks/0DiWol3AO6WpXZgp0goxAV",
+      "id": "0DiWol3AO6WpXZgp0goxAV",
+      "is_local": false,
+      "name": "One More Time",
+      "track_number": 1,
+      "type": "track",
+      "uri": "spotify:track:0DiWol3AO6WpXZgp0goxAV"
+    }]
+  }
+}

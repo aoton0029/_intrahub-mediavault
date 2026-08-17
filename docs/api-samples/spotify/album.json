@@ -1,0 +1,26 @@
+{
+  "album_type": "album",
+  "total_tracks": 14,
+  "external_urls": { "spotify": "https://open.spotify.com/album/2noRn2Aes5aoNVsU6iWThc" },
+  "href": "https://api.spotify.com/v1/albums/2noRn2Aes5aoNVsU6iWThc",
+  "id": "2noRn2Aes5aoNVsU6iWThc",
+  "images": [{ "url": "https://i.scdn.co/image/example-discovery-640", "height": 640, "width": 640 }],
+  "name": "Discovery",
+  "release_date": "2001-03-12",
+  "release_date_precision": "day",
+  "type": "album",
+  "uri": "spotify:album:2noRn2Aes5aoNVsU6iWThc",
+  "artists": [{ "id": "4tZwfgrHOc3mvqYlEYSvVi", "name": "Daft Punk", "type": "artist", "uri": "spotify:artist:4tZwfgrHOc3mvqYlEYSvVi" }],
+  "tracks": {
+    "href": "https://api.spotify.com/v1/albums/2noRn2Aes5aoNVsU6iWThc/tracks?offset=0&limit=20&market=JP",
+    "limit": 20,
+    "next": null,
+    "offset": 0,
+    "previous": null,
+    "total": 14,
+    "items": [{ "artists": [], "disc_number": 1, "duration_ms": 224693, "explicit": false, "id": "0DiWol3AO6WpXZgp0goxAV", "is_local": false, "name": "One More Time", "track_number": 1, "type": "track", "uri": "spotify:track:0DiWol3AO6WpXZgp0goxAV" }]
+  },
+  "copyrights": [{ "text": "2001 Daft Life Ltd.", "type": "C" }],
+  "external_ids": { "upc": "724384960650" },
+  "genres": []
+}
