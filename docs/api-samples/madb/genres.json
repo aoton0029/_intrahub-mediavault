@@ -1,0 +1,303 @@
+{
+  "head" : {
+    "vars" : [ "genre" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ単行本"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "付録"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "絵物語"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "イラスト"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "懸賞"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ雑誌掲載履歴"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "投稿ページ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ雑誌単号"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "他社広告"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "特集記事"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ単行本シリーズ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "小説・読物"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ作品"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ以外情報"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガその他"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "表紙"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "表4"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "広告"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "作品の情報"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "編集部お知らせ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "作者の情報"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ雑誌"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "写真・グラビア"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "その他"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ賞・応募"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメテレビ番組"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "口絵"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "図鑑"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "作家欄"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "分類ができない作品"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "目次(パス)"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "写真・グラビア　／　映画、テレビ（not作品はパス）"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "映画、テレビ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "表3"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "付録, 付録"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "新春ユーモアまんが"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "学習教材"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "表2"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "複数作品の入った別冊"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "分類ができない作品　／　 写真・グラビア"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "写真・グラビア　／　 絵物語"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメビデオパッケージ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメテレビレギュラー"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメ関連資料"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメテレビ単発（スペシャル）シリーズ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメ映画"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメ映画シリーズ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメテレビレギュラーシリーズ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "アニメビデオパッケージシリーズ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "ゲームバリエーション"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "ゲーム作品"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "ゲームパッケージ"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "ゲーム関連資料"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "メディアアート催事"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "責任主体"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "メディアアート作品"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "催事"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "メディアアート関連資料"
+      }
+    }, {
+      "genre" : {
+        "type" : "literal",
+        "value" : "メディアアート展示・実演"
+      }
+    } ]
+  }
+}

@@ -1,0 +1,2108 @@
+{
+  "head" : {
+    "vars" : [ "volume", "label", "volumeNumber", "isbn", "datePublished" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189783"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻1"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻1"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088725093"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1997-12"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189771"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻2"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻2"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088725441"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1998-04-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189763"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻3"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻3"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088725697"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1998-06-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189724"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻4"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻4"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088725948"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1998-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189743"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻5"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻5"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088726197"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1998-10"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189715"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻6"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻6"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088726421"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1998-12"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190329"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻7"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻7"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088726839"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1999-03"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M827073"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻7"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻7"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088824482(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2020-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190304"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻8"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻8"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088727126"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1999-05"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190293"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻9"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻9"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088727355"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1999-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190274"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻10"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻10"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088727738"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1999-10"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190260"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻11"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻11"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088727975"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "1999-12-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190250"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻12"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻12"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "408872822X"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2000-02-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190234"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻13"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻13"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088728637"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2000-05"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190216"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻14"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻14"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088728882"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2000-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190203"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻15"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻15"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088730097"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2000-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189705"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻16"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻16"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088730453"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2000-12-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189695"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻17"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻17"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088730739"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2001-02-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189692"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻18"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻18"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "408873100X"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2001-04-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189689"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻19"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻19"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088731336"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2001-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189679"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻20"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻20"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088731581"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2001-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189675"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻21"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻21"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088731948"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2001-12"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M189661"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻22"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻22"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088732227"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2002-02"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M827147"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻22"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻22"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088824499(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2020-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348150"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻23"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻23"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088732529"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2002-04"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348147"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻24"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻24"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088732820"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2002-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348144"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻25"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻25"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088733134"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2002-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348142"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻26"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻26"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088733363"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2002-12"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348139"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻27"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻27"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088733797"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2003-02"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348135"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻28"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻28"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088734181"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2003-05"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M190169"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻29"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻29"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088734807"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2003-07-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348134"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻30"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻30"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088735021"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2003-10"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M827098"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻30"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻30"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088824505(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2020-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348130"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻31"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻31"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "408873551X"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2003-12"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348129"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻32"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻32"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088735714"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2004-03"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348127"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻33"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻33"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088735935"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2004-06-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M847527"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻33"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻33"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088825380(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2020-12"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348126"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻34"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻34"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088736389"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2004-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348122"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻35"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻35"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088736672"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2004-11"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348121"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻36"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻36"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088737687"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2005-02-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348151"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻37"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻37"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088738020"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2005-05-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348119"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻38"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻38"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "408873839X"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2005-07-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348117"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻39"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻39"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088738721"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2005-11-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348115"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻40"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻40"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088740033"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2005-12-31"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348114"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻41"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻41"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088740475"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2006-04-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348111"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻42"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻42"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088741277"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2006-07-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348107"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻43"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻43"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088741498"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2006-09-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348104"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻44"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻44"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "4088742877"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2006-12-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348089"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻45"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻45"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088743141"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2007-03-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348094"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻46"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻46"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088743820"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2007-07-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348086"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻47"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻47"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088744117"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2007-09-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348085"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻48"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻48"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088744421"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2007-12-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348083"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻49"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻49"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088744858"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2008-03-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348082"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻50"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻50"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088745213"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2008-06-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348081"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻51"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻51"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088745633"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2008-09-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348078"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻52"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻52"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088746029"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2008-12-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348074"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻53"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻53"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088746401"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2009-03-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M847546"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻53"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻53"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088825397(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2020-12"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348072"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻54"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻54"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088746623"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2009-06-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M847531"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻54"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻54"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088825403(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2020-12"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348070"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻55"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻55"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088747279"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2009-09-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348068"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻56"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻56"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088747613"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2009-12-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348100"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻57"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻57"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088700106"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2010-03-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348053"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻58"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻58"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088700458"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2010-06-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348048"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻59"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻59"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088700830"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2010-08-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M348030"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻60"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻60"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088701257"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2010-11-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M347866"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻61"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻61"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088701752"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2011-02-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M403767"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻62"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻62"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088702179"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2011-05-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395507"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻63"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻63"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088702704"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2011-08-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395508"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻64"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻64"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088703015"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2011-11-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395509"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻65"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻65"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088703671"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2012-02-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395510"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻66"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻66"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088704166"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2012-05-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395511"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻67"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻67"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088704760"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2012-08-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395512"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻68"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻68"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088705316"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2012-11-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M847540"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻68"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻68"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088826301(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2021-04"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395513"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻69"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻69"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088706146"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2013-03-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395514"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻70"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻70"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088706603"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2013-06-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M395515"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻71"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻71"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088707815"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2013-08-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M406466"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻72"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻72"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088708331"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2013-11-06"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M847742"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻72"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻72"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088826318(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2021-04"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M419500"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻73"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻73"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088800226"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2014-03-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M421316"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻74"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻74"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088800691"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2014-06-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M437453"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻75"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻75"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088801711"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2014-09-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M450567"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻76"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻76"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088802190"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2014-12-31"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M444422"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻77"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻77"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088803265"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2015-04-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M448467"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻78"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻78"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088804224"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2015-07-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M453265"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻79"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻79"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088804965"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2015-10-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M460340"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻80"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻80"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088805788"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2015-12-31"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M847741"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "One piece 巻81"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻81"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088826325(set)"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2021-04"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M463133"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻81"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻81"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088806488"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2016-04-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M469913"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻82"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻82"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088807263"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2016-07-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M474536"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻83"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻83"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088808017"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2016-11-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M478795"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻84"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻84"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088810027"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2017-02-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M482149"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻85"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻85"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088810706"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2017-05-07"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M484898"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻86"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻86"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088811987"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2017-08"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M497881"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻87"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻87"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088812250"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2017-11"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M516946"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻88"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻88"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088813622"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2018-03"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M530984"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻89"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻89"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088814964"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2018-06"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M529097"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻90"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻90"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088815626"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2018-09"
+      }
+    }, {
+      "volume" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M522145"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻91"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻91"
+      },
+      "isbn" : {
+        "type" : "literal",
+        "value" : "9784088816449"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2018-12"
+      }
+    } ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "head" : {
+    "vars" : [ "resource", "genre", "label" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "resource" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/C419016"
+      },
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ単行本シリーズ"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "呪術廻戦"
+      }
+    }, {
+      "resource" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/C419017"
+      },
+      "genre" : {
+        "type" : "literal",
+        "value" : "マンガ単行本シリーズ"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "呪術廻戦 東京都立呪術高等専門学校"
+      }
+    } ]
+  }
+}

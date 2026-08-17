@@ -1,0 +1,207 @@
+{
+  "head" : {
+    "vars" : [ "p", "o" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "p" : {
+        "type" : "uri",
+        "value" : "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+      },
+      "o" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationTVRegularSeries"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/identifier"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "C8230"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/isPartOf"
+      },
+      "o" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/C6788"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/name"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "あした天気になあれ"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/name"
+      },
+      "o" : {
+        "xml:lang" : "ja-hrkt",
+        "type" : "literal",
+        "value" : "アシタテンキニナアレ"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/publisher"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "CX"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/datePublished"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "1984-10-06"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/genre"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "アニメテレビレギュラーシリーズ"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property-data/dateModified"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "2024-11-25 11:17:03"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/additionalType"
+      },
+      "o" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AN"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "http://www.w3.org/2000/01/rdf-schema#label"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "あした天気になあれ"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#originalWorkCreator"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "［原作］ちばてつや"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/contributor"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "[企画]土屋登喜蔵（フジテレビ） ／ [プロデューサー]片岡義朗（NAS） ／ [プロデューサー]原田一男 ／ [プロデューサー]茂垣弘道 ／ [プロデューサー]清水賢治（フジテレビ） ／ [制作担当]寺門稔 ／ [脚本]城山昇 ／ [脚本]八木良一 ／ [脚本]照井啓司 ／ [脚本]海老沼三郎 ／ [シリーズディレクター]光延博愛 ／ [演出、絵コンテ]高林久弥 ／ [演出、絵コンテ]佐々木皓一 ／ [演出、絵コンテ]三沢伸 ／ [演出、絵コンテ]やすみ哲夫 ／ [演出、絵コンテ]吉田健次郎 ／ [演出、絵コンテ]竹内大三 ／ [演出、絵コンテ]高垣幸蔵 ／ [演出、絵コンテ]鈴木幸雄 ／ [演出、絵コンテ]森脇真琴 ／ [演出、絵コンテ]中村憲由 ／ [演出、絵コンテ]石踊宏 ／ [演出、絵コンテ]正延宏三 ／ [演出、絵コンテ]光延博愛 ／ [演出、絵コンテ]藤川茂 ／ [演出、絵コンテ]鈴木敏明 ／ [演出、絵コンテ]井上修 ／ [演出、絵コンテ]棚沢隆 ／ [演出、絵コンテ]依田聡 ／ [演出、絵コンテ]生頼昭憲 ／ [演出、絵コンテ]福富博 ／ [総作画監督]金沢比呂司 ／ [オープニングエンディングアニメーション]FLAFRA ／ [作画監督]金沢比呂司 ／ [作画監督]奈須川充 ／ [作画監督]富沢和雄 ／ [作画監督]一川孝久 ／ [作画監督]押大三 ／ [作画監督]妻洋二 ／ [作画監督]宇田八郎 ／ [作画監督]笠原彰 ／ [作画監督]鈴木信一 ／ [作画監督]加藤興治 ／ [美術設定]内田好之 ／ [美術設定]阿部行夫 ／ [撮影監督]高橋明彦 ／ [編集]岡安肇 ／ [編集]小島俊彦 ／ [編集]中葉由美子 ／ [編集]村井秀明 ／ [オーディオディレクター]藤野貞義 ／ [制作]NAS ／ [制作]フジテレビ"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#source"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "TVアニメ25年史（TAJA25TV）"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/numberOfItems"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "47"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/actor"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "【太陽】塩屋翼 ／ 【エッコ】富沢美智江 ／ 【かあちゃん】丸山裕子 ／ 【武二】伊倉一恵 ／ 【攻三】坂本千夏 ／ 【糸子】小粥よう子 ／ 【竜谷】小林清志 ／ 【大田黒】井上和彦 ／ [演技事務]草野誠一"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#programDuration"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "30"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/productionCompany"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "[制作]NAS ／ [制作]フジテレビ"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/startDate"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "1984-10-06"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#numberOfPrograms"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "47"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#periodDisplayed"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "1984年10月6日～1985年3月30日（1話～26話） 毎週土曜日18時00分～18時30分 1985年4月12日～1985年9月20日（27話～47話） 毎週金曜日19時00分～19時30分 30分連続全47本 フジテレビ系放映"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/endDate"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "1985-09-20"
+      }
+    } ]
+  }
+}

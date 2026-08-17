@@ -1,0 +1,37 @@
+{
+  "head" : {
+    "vars" : [ "book", "label", "volumeNumber", "datePublished", "publisher", "creator", "series" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "book" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/M522145"
+      },
+      "label" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻91"
+      },
+      "volumeNumber" : {
+        "type" : "literal",
+        "value" : "巻91"
+      },
+      "datePublished" : {
+        "type" : "literal",
+        "value" : "2018-12"
+      },
+      "publisher" : {
+        "type" : "literal",
+        "value" : "集英社　∥　シュウエイシャ"
+      },
+      "creator" : {
+        "type" : "literal",
+        "value" : "[著]尾田栄一郎"
+      },
+      "series" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/C268196"
+      }
+    } ]
+  }
+}

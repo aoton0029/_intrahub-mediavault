@@ -1,0 +1,290 @@
+{
+  "head" : {
+    "vars" : [ "p", "o" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "p" : {
+        "type" : "uri",
+        "value" : "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+      },
+      "o" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MangaBook"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/identifier"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "M522145"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/inLanguage"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "日本語"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/isPartOf"
+      },
+      "o" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/C268196"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/isbn"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "9784088816449"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/location"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "東京"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/name"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "ONE PIECE"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/name"
+      },
+      "o" : {
+        "xml:lang" : "ja-hrkt",
+        "type" : "literal",
+        "value" : "ONE PIECE"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/name"
+      },
+      "o" : {
+        "xml:lang" : "ja-hrkt",
+        "type" : "literal",
+        "value" : "ワンピース"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/numberOfPages"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "223p"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/position"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "91.0"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/publisher"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "集英社　∥　シュウエイシャ"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/size"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "18cm"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/volumeNumber"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "巻91"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "http://purl.org/dc/terms/creator"
+      },
+      "o" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/id/C59771"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/brand"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "ジャンプコミックス"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/brand"
+      },
+      "o" : {
+        "xml:lang" : "ja-hrkt",
+        "type" : "literal",
+        "value" : "ジャンプ コミックス"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/creator"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "[著]尾田栄一郎"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/datePublished"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "2018-12"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/genre"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "マンガ単行本"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#note"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "本文は日本語　／　NDC（9版）はNDC（10版）を自動変換した値である。"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property-data/dateModified"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "2024-11-25 11:59:07"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/additionalType"
+      },
+      "o" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#CM"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/description"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "侍の国の冒険"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "http://www.w3.org/2000/01/rdf-schema#label"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "ONE PIECE 巻91"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#dataPublisher"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "メディア芸術データベースベータ版データセット"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#jpno"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "23147545"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#ndc"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "726.1"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/alternateName"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "侍の国の冒険"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://schema.org/provider"
+      },
+      "o" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/ref/S1375984"
+      }
+    }, {
+      "p" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/property#providerName"
+      },
+      "o" : {
+        "type" : "literal",
+        "value" : "国立国会図書館"
+      }
+    } ]
+  }
+}

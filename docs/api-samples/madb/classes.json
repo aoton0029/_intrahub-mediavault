@@ -1,0 +1,133 @@
+{
+  "head" : {
+    "vars" : [ "class" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MangaBook"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MangaMagazineIssue"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MangaMagazinePublication"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#Supplement"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MangaOther"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MangaBookSeries"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MangaMagazine"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationTVProgram"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationVideoPackageSeries"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationRelatedItem"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationVideoPackage"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationTVSpecialSeries"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationMovie"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationMovieSeries"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#GamePackage"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#AnimationTVRegularSeries"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#GameWork"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#GameVariation"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MediaArtEvent"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MediaArtWork"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#Agent"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#Event"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#GameRelatedItem"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MediaArtRelatedItem"
+      }
+    }, {
+      "class" : {
+        "type" : "uri",
+        "value" : "https://mediaarts-db.artmuseums.go.jp/data/class#MediaArtExhibitionOrPerformance"
+      }
+    } ]
+  }
+}
