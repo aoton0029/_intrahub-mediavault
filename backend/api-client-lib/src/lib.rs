@@ -12,6 +12,7 @@
 //! - [`clients::openbd`]  — OpenBD (REST)
 //! - [`clients::openlibrary`] — Open Library (REST)
 //! - [`clients::rakuten`] — 楽天ブックス書籍検索API (REST)
+//! - [`clients::spotify`] — Spotify Web API (REST / OAuth2)
 //! - [`clients::steam`]   — Steam Web API (REST)
 //! - [`clients::tmdb`]    — TMDb (REST)
 

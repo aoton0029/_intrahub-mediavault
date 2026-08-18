@@ -5,5 +5,6 @@ pub mod ndl;
 pub mod openbd;
 pub mod openlibrary;
 pub mod rakuten;
+pub mod spotify;
 pub mod steam;
 pub mod tmdb;
