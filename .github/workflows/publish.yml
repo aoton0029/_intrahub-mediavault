@@ -26,6 +26,9 @@ jobs:
           - name: intrahub-mediavault-mcp
             context: ./backend
             dockerfile: ./backend/mediavault-mcp/Dockerfile
+          - name: intrahub-mediavault-extractor
+            context: ./extractor
+            dockerfile: ./extractor/Dockerfile
           - name: intrahub-mediavault-web
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
